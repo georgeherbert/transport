@@ -15,6 +15,7 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import strikt.api.expectThat
+import strikt.assertions.get
 import strikt.assertions.isA
 import strikt.assertions.isEqualTo
 
@@ -31,6 +32,7 @@ class RealTubeMapFeedServiceTest {
                         callCount.incrementAndGet()
                         Success(sampleTubeMapSnapshot(clock.instant(), forceRefresh))
                     },
+                    RealTubeMapMotionEngine(),
                     clock,
                     Duration.ofSeconds(20),
                     backgroundScope
@@ -57,6 +59,7 @@ class RealTubeMapFeedServiceTest {
                             else -> Failure(TransportError.UpstreamHttpFailure("/Mode/tube/Arrivals", 503, "down"))
                         }
                     },
+                    RealTubeMapMotionEngine(),
                     clock,
                     Duration.ofSeconds(20),
                     backgroundScope
@@ -90,6 +93,7 @@ class RealTubeMapFeedServiceTest {
                         callCount.incrementAndGet()
                         Success(sampleTubeMapSnapshot(clock.instant(), forceRefresh))
                     },
+                    RealTubeMapMotionEngine(),
                     clock,
                     Duration.ofSeconds(20),
                     backgroundScope
@@ -105,7 +109,6 @@ class RealTubeMapFeedServiceTest {
 
             expectThat(callCount.get()).isEqualTo(2)
         }
-
     private fun sampleTubeMapSnapshot(
         generatedAt: Instant,
         cached: Boolean
@@ -144,6 +147,11 @@ class RealTubeMapFeedServiceTest {
                     DestinationName("Walthamstow Central Underground Station"),
                     TowardsDescription("Walthamstow Central"),
                     LocationDescription("Approaching Green Park"),
+                    StationReference(
+                        StationId("940GZZLUGPK"),
+                        StationName("Green Park Underground Station"),
+                        GeoCoordinate(51.506947, -0.142787)
+                    ),
                     GeoCoordinate(51.506947, -0.142787),
                     HeadingDegrees(42.0),
                     Duration.ofSeconds(90),
@@ -152,21 +160,24 @@ class RealTubeMapFeedServiceTest {
                 )
             )
         )
+
 }
 
 private class MutableTestClock(
-    private var currentInstant: Instant
+    initialInstant: Instant
 ) : Clock() {
-    override fun instant() =
-        currentInstant
+    private var instantValue = initialInstant
+
+    override fun instant(): Instant =
+        instantValue
 
     override fun getZone(): ZoneId =
         ZoneId.of("UTC")
 
-    override fun withZone(zone: ZoneId) =
+    override fun withZone(zone: ZoneId): Clock =
         this
 
     fun advanceBy(duration: Duration) {
-        currentInstant = currentInstant.plus(duration)
+        instantValue = instantValue.plus(duration)
     }
 }

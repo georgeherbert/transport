@@ -54,32 +54,33 @@ class RealTubeSnapshotAssembler(
         tubeNetwork: TubeNetwork,
         predictions: List<TubePredictionRecord>
     ): LiveTubeTrain {
-        val representative = predictions.minWith(predictionComparator)
-        val boardStation = representative.stationId?.let { stationId -> tubeNetwork.stationsById[stationId] }
+        val nextStopRepresentative = predictions.minWith(nextStopPredictionComparator)
+        val displayRepresentative = predictions.minWith(displayPredictionComparator)
+        val boardStation = nextStopRepresentative.stationId?.let { stationId -> tubeNetwork.stationsById[stationId] }
         val lineIds = predictions.mapNotNull { prediction -> prediction.lineId }.distinct().sortedBy(LineId::value)
         val lineNames = predictions.mapNotNull { prediction -> prediction.lineName }.distinct().sortedBy(LineName::value)
         val location = tubeLocationEstimator.estimateLocation(
             tubeNetwork,
             lineIds.toSet(),
-            representative.currentLocation,
+            displayRepresentative.currentLocation,
             boardStation
         )
-        val currentLocation = representative.currentLocation ?: location.description
+        val currentLocation = displayRepresentative.currentLocation ?: location.description
 
         return LiveTubeTrain(
-            trainIdFor(representative),
-            representative.vehicleId,
+            trainIdFor(nextStopRepresentative),
+            nextStopRepresentative.vehicleId,
             lineIds,
             lineNames,
-            representative.direction,
-            representative.destinationName,
-            representative.towards,
+            nextStopRepresentative.direction ?: displayRepresentative.direction,
+            nextStopRepresentative.destinationName ?: displayRepresentative.destinationName,
+            nextStopRepresentative.towards ?: displayRepresentative.towards,
             currentLocation,
             location,
             boardStation?.toReference(),
-            representative.secondsToNextStop,
-            representative.expectedArrival,
-            representative.observedAt,
+            nextStopRepresentative.secondsToNextStop,
+            nextStopRepresentative.expectedArrival,
+            nextStopRepresentative.observedAt ?: displayRepresentative.observedAt,
             PredictionCount(predictions.size)
         )
     }
@@ -105,10 +106,18 @@ class RealTubeSnapshotAssembler(
         TrainId(trainIdentityKey(prediction))
 
     private companion object {
-        val predictionComparator = compareBy<TubePredictionRecord>(
-            { prediction -> if (prediction.currentLocation == null) 1 else 0 },
+        val nextStopPredictionComparator = compareBy<TubePredictionRecord>(
+            { prediction -> if (prediction.stationId == null) 1 else 0 },
+            { prediction -> prediction.expectedArrival?.toEpochMilli() ?: Long.MAX_VALUE },
             { prediction -> prediction.secondsToNextStop?.seconds ?: Long.MAX_VALUE },
-            { prediction -> prediction.expectedArrival?.toString().orEmpty() }
+            { prediction -> if (prediction.currentLocation == null) 1 else 0 }
+        )
+        val displayPredictionComparator = compareBy<TubePredictionRecord>(
+            { prediction -> if (prediction.currentLocation == null) 1 else 0 },
+            { prediction -> if (prediction.stationId == null) 1 else 0 },
+            { prediction -> prediction.expectedArrival?.toEpochMilli() ?: Long.MAX_VALUE },
+            { prediction -> prediction.secondsToNextStop?.seconds ?: Long.MAX_VALUE },
+            { prediction -> prediction.currentLocation?.value.orEmpty() }
         )
     }
 }

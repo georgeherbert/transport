@@ -17,9 +17,11 @@ fun main() {
     val httpClient = createTflHttpClient(transportServiceConfig.requestTimeout)
     val services = createTransportServices(transportServiceConfig, json, httpClient)
     val feedScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    val tubeMapMotionEngine: TubeMapMotionEngine = RealTubeMapMotionEngine()
     val tubeMapFeedService: TubeMapFeedService =
         RealTubeMapFeedService(
             services.tubeMapService,
+            tubeMapMotionEngine,
             Clock.systemUTC(),
             transportServiceConfig.cacheTtl,
             feedScope

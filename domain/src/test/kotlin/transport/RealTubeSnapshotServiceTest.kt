@@ -35,9 +35,6 @@ class RealTubeSnapshotServiceTest {
                 predictionHandler = { mode ->
                     predictionRequests.incrementAndGet()
                     samplePredictions(mode)
-                },
-                vehiclePredictionHandler = { vehicleIds ->
-                    Success(emptyList())
                 }
             )
             val snapshotService = RealTubeSnapshotService(
@@ -58,104 +55,6 @@ class RealTubeSnapshotServiceTest {
     }
 
     @Test
-    fun `getLiveSnapshot enriches the bulk feed with vehicle arrival timings`() {
-        runBlocking {
-            val tubeData = FakeTubeData(
-                modeStationHandler = { mode ->
-                    Failure(TransportError.MetadataUnavailable(mode.value))
-                },
-                lineRouteHandler = { lineId ->
-                    Failure(TransportError.MetadataUnavailable(lineId.value))
-                },
-                predictionHandler = { mode ->
-                    samplePredictionsWithoutTiming(mode)
-                },
-                vehiclePredictionHandler = { vehicleIds ->
-                    Success(
-                        listOf(
-                            TubePredictionRecord(
-                                VehicleId("257"),
-                                StationId("940GZZLUGPK"),
-                                StationName("Green Park Underground Station"),
-                                LineId("victoria"),
-                                LineName("Victoria"),
-                                TrainDirection("outbound"),
-                                DestinationName("Walthamstow Central Underground Station"),
-                                Instant.parse("2026-03-22T00:49:20Z"),
-                                Duration.ofSeconds(90),
-                                LocationDescription("Approaching Green Park"),
-                                TowardsDescription("Walthamstow Central"),
-                                Instant.parse("2026-03-22T00:50:50Z"),
-                                TransportModeName("tube")
-                            )
-                        )
-                    )
-                }
-            )
-            val snapshotService = RealTubeSnapshotService(
-                tubeData,
-                StubTubeMetadataRepository(Success(tubeNetwork)),
-                RealTubeSnapshotAssembler(RealTubeLocationEstimator()),
-                Clock.fixed(Instant.parse("2026-03-22T00:49:20Z"), ZoneOffset.UTC),
-                Duration.ofSeconds(20)
-            )
-
-            val snapshot = snapshotService.getLiveSnapshot(false)
-
-            expectThat(snapshot).isSuccess().get { trains.first().secondsToNextStop }.isEqualTo(Duration.ofSeconds(90))
-        }
-    }
-
-    @Test
-    fun `getLiveSnapshot enriches timings by vehicle id and station id only`() {
-        runBlocking {
-            val tubeData = FakeTubeData(
-                modeStationHandler = { mode ->
-                    Failure(TransportError.MetadataUnavailable(mode.value))
-                },
-                lineRouteHandler = { lineId ->
-                    Failure(TransportError.MetadataUnavailable(lineId.value))
-                },
-                predictionHandler = { mode ->
-                    samplePredictionsWithoutTiming(mode)
-                },
-                vehiclePredictionHandler = { vehicleIds ->
-                    Success(
-                        listOf(
-                            TubePredictionRecord(
-                                VehicleId("257"),
-                                StationId("940GZZLUGPK"),
-                                StationName("Green Park Underground Station"),
-                                LineId("victoria"),
-                                LineName("Victoria"),
-                                TrainDirection("inbound"),
-                                DestinationName("Brixton Underground Station"),
-                                Instant.parse("2026-03-22T00:49:20Z"),
-                                Duration.ofSeconds(75),
-                                LocationDescription("At Platform"),
-                                TowardsDescription("Brixton"),
-                                Instant.parse("2026-03-22T00:50:35Z"),
-                                TransportModeName("tube")
-                            )
-                        )
-                    )
-                }
-            )
-            val snapshotService = RealTubeSnapshotService(
-                tubeData,
-                StubTubeMetadataRepository(Success(tubeNetwork)),
-                RealTubeSnapshotAssembler(RealTubeLocationEstimator()),
-                Clock.fixed(Instant.parse("2026-03-22T00:49:20Z"), ZoneOffset.UTC),
-                Duration.ofSeconds(20)
-            )
-
-            val snapshot = snapshotService.getLiveSnapshot(false)
-
-            expectThat(snapshot).isSuccess().get { trains.first().secondsToNextStop }.isEqualTo(Duration.ofSeconds(75))
-        }
-    }
-
-    @Test
     fun `getLiveSnapshot falls back to cached snapshot on refresh failure`() {
         runBlocking {
             val shouldFail = AtomicBoolean(false)
@@ -172,9 +71,6 @@ class RealTubeSnapshotServiceTest {
                     } else {
                         samplePredictions(mode)
                     }
-                },
-                vehiclePredictionHandler = { vehicleIds ->
-                    Success(emptyList())
                 }
             )
             val snapshotService = RealTubeSnapshotService(
@@ -195,37 +91,6 @@ class RealTubeSnapshotServiceTest {
     }
 
     @Test
-    fun `getLiveSnapshot returns failure when vehicle timing enrichment fails`() {
-        runBlocking {
-            val tubeData = FakeTubeData(
-                modeStationHandler = { mode ->
-                    Failure(TransportError.MetadataUnavailable(mode.value))
-                },
-                lineRouteHandler = { lineId ->
-                    Failure(TransportError.MetadataUnavailable(lineId.value))
-                },
-                predictionHandler = { mode ->
-                    samplePredictionsWithoutTiming(mode)
-                },
-                vehiclePredictionHandler = { vehicleIds ->
-                    Failure(TransportError.UpstreamNetworkFailure("/Vehicle/${vehicleIds.joinToString(",") { vehicleId -> vehicleId.value }}/Arrivals", "boom"))
-                }
-            )
-            val snapshotService = RealTubeSnapshotService(
-                tubeData,
-                StubTubeMetadataRepository(Success(tubeNetwork)),
-                RealTubeSnapshotAssembler(RealTubeLocationEstimator()),
-                Clock.fixed(Instant.parse("2026-03-22T00:49:20Z"), ZoneOffset.UTC),
-                Duration.ofSeconds(20)
-            )
-
-            val result = snapshotService.getLiveSnapshot(false)
-
-            expectThat(result).isFailure().isA<TransportError.SnapshotUnavailable>()
-        }
-    }
-
-    @Test
     fun `getLiveSnapshot returns failure when the bulk tube feed fails`() {
         runBlocking {
             val tubeData = FakeTubeData(
@@ -237,9 +102,6 @@ class RealTubeSnapshotServiceTest {
                 },
                 predictionHandler = { mode ->
                     Failure(TransportError.UpstreamNetworkFailure("/Mode/${mode.value}/Arrivals", "boom"))
-                },
-                vehiclePredictionHandler = { vehicleIds ->
-                    Success(emptyList())
                 }
             )
             val snapshotService = RealTubeSnapshotService(
@@ -270,31 +132,6 @@ class RealTubeSnapshotServiceTest {
                         DestinationName("Walthamstow Central Underground Station"),
                         Instant.parse("2026-03-22T00:49:20Z"),
                         Duration.ofSeconds(90),
-                        LocationDescription("Approaching Green Park"),
-                        TowardsDescription("Walthamstow Central"),
-                        Instant.parse("2026-03-22T00:50:50Z"),
-                        TransportModeName("tube")
-                    )
-                )
-            )
-        } else {
-            Success(emptyList())
-        }
-
-    private fun samplePredictionsWithoutTiming(mode: TransportModeName): TransportResult<List<TubePredictionRecord>> =
-        if (mode == TransportModeName("tube")) {
-            Success(
-                listOf(
-                    TubePredictionRecord(
-                        VehicleId("257"),
-                        StationId("940GZZLUGPK"),
-                        StationName("Green Park Underground Station"),
-                        LineId("victoria"),
-                        LineName("Victoria"),
-                        TrainDirection("outbound"),
-                        DestinationName("Walthamstow Central Underground Station"),
-                        Instant.parse("2026-03-22T00:49:20Z"),
-                        null,
                         LocationDescription("Approaching Green Park"),
                         TowardsDescription("Walthamstow Central"),
                         Instant.parse("2026-03-22T00:50:50Z"),

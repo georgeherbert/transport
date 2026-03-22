@@ -50,6 +50,11 @@ class ServiceResponseMapperHttpTest {
                         DestinationName("Walthamstow Central Underground Station"),
                         TowardsDescription("Walthamstow Central"),
                         LocationDescription("Approaching Green Park"),
+                        StationReference(
+                            StationId("940GZZLUGPK"),
+                            StationName("Green Park Underground Station"),
+                            GeoCoordinate(51.506947, -0.142787)
+                        ),
                         GeoCoordinate(51.506947, -0.142787),
                         HeadingDegrees(42.0),
                         Duration.ofSeconds(90),

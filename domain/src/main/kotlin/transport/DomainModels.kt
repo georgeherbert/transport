@@ -60,6 +60,7 @@ data class TubeMapTrain(
     val destinationName: DestinationName?,
     val towards: TowardsDescription?,
     val currentLocation: LocationDescription,
+    val nextStop: StationReference?,
     val coordinate: GeoCoordinate?,
     val heading: HeadingDegrees?,
     val secondsToNextStop: Duration?,

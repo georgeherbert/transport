@@ -52,6 +52,7 @@ class RealTubeMapProjector(
             train.destinationName,
             train.towards,
             train.currentLocation,
+            train.nextStop,
             coordinate,
             projection?.heading,
             train.secondsToNextStop,
@@ -202,6 +203,21 @@ data class ProjectedTubeLine(
         fromStation: StationReference,
         toStation: StationReference
     ): TrainMapProjection? =
+        findBetweenStationsProjection(fromStation, toStation)
+            ?.toTrainMapProjection(0.5)
+
+    fun projectBetweenStationsAtProgress(
+        fromStation: StationReference,
+        toStation: StationReference,
+        progress: Double
+    ): TrainMapProjection? =
+        findBetweenStationsProjection(fromStation, toStation)
+            ?.toTrainMapProjection(progress.coerceIn(0.0, 1.0))
+
+    private fun findBetweenStationsProjection(
+        fromStation: StationReference,
+        toStation: StationReference
+    ): BetweenStationsProjection? =
         projectedPaths
             .mapNotNull { path ->
                 val fromProjection = path.projectCoordinate(fromStation.coordinate)
@@ -218,7 +234,6 @@ data class ProjectedTubeLine(
                 }
             }
             .minByOrNull(BetweenStationsProjection::distanceSquared)
-            ?.toTrainMapProjection()
 
     fun projectStationMovement(train: LiveTubeTrain): TrainMapProjection? {
         val anchorStation = train.location.station ?: train.nextStop ?: return null
@@ -380,6 +395,34 @@ data class ProjectedTubeLinePath(
         return bearingBetween(startCoordinate, endCoordinate)
     }
 
+    fun headingAtProgress(
+        travelStartDistance: Double,
+        travelEndDistance: Double,
+        progress: Double
+    ): HeadingDegrees? {
+        val clampedProgress = progress.coerceIn(0.0, 1.0)
+        val travelLength = abs(travelEndDistance - travelStartDistance)
+        if (travelLength < 0.0000001) {
+            return null
+        }
+
+        val midpointDistance = travelDistanceAtOffset(
+            travelStartDistance,
+            travelEndDistance,
+            travelLength * clampedProgress
+        )
+        val step = (travelLength / 20.0).coerceAtLeast(0.00001).coerceAtMost(travelLength / 2.0)
+        val startDistance = boundedTravelDistance(midpointDistance, travelStartDistance, travelEndDistance, -step)
+        val endDistance = boundedTravelDistance(midpointDistance, travelStartDistance, travelEndDistance, step)
+        val startCoordinate = coordinateAt(startDistance)
+        val endCoordinate = coordinateAt(endDistance)
+        if (startCoordinate == null || endCoordinate == null) {
+            return null
+        }
+
+        return bearingBetween(startCoordinate, endCoordinate)
+    }
+
     private fun projectOntoSegment(target: GeoCoordinate, segmentIndex: Int): LinePathProjection {
         val startCoordinate = path.coordinates[segmentIndex]
         val endCoordinate = path.coordinates[segmentIndex + 1]
@@ -433,6 +476,17 @@ data class ProjectedTubeLinePath(
         } else {
             travelStartDistance - offset
         }
+
+    private fun boundedTravelDistance(
+        currentDistance: Double,
+        travelStartDistance: Double,
+        travelEndDistance: Double,
+        offset: Double
+    ): Double {
+        val lowerBound = minOf(travelStartDistance, travelEndDistance)
+        val upperBound = maxOf(travelStartDistance, travelEndDistance)
+        return (currentDistance + offset).coerceIn(lowerBound, upperBound)
+    }
 }
 
 data class LinePathProjection(
@@ -476,10 +530,15 @@ enum class AnchorPosition {
     END
 }
 
-private fun BetweenStationsProjection.toTrainMapProjection(): TrainMapProjection? {
-    val midpointDistance = (fromProjection.distanceAlongPath + toProjection.distanceAlongPath) / 2.0
-    val coordinate = path.coordinateAt(midpointDistance) ?: return null
-    val heading = path.headingAlongTravel(fromProjection.distanceAlongPath, toProjection.distanceAlongPath, AnchorPosition.MIDDLE)
+private fun BetweenStationsProjection.toTrainMapProjection(progress: Double): TrainMapProjection? {
+    val progressDistance = fromProjection.distanceAlongPath +
+        ((toProjection.distanceAlongPath - fromProjection.distanceAlongPath) * progress.coerceIn(0.0, 1.0))
+    val coordinate = path.coordinateAt(progressDistance) ?: return null
+    val heading = path.headingAtProgress(
+        fromProjection.distanceAlongPath,
+        toProjection.distanceAlongPath,
+        progress
+    )
     return TrainMapProjection(coordinate, heading)
 }
 

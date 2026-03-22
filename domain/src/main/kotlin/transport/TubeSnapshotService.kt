@@ -74,78 +74,18 @@ class RealTubeSnapshotService(
 
         return when (bulkPredictionResult) {
             is Success ->
-                enrichPredictions(bulkPredictionResult.value)
-                    .map { predictions ->
-                        PredictionBatch(
-                            predictions,
-                            StationQueryCount(tubeNetwork.stationsById.size),
-                            StationFailureCount(0)
-                        )
-                    }
-                    .flatMapFailure()
+                Success(
+                    PredictionBatch(
+                        bulkPredictionResult.value,
+                        StationQueryCount(tubeNetwork.stationsById.size),
+                        StationFailureCount(0)
+                    )
+                )
             is Failure ->
                 Failure(TransportError.SnapshotUnavailable(describeTransportError(bulkPredictionResult.reason)))
         }
     }
-
-    private suspend fun enrichPredictions(
-        predictions: List<TubePredictionRecord>
-    ): TransportResult<List<TubePredictionRecord>> {
-        val vehicleIds = predictions
-            .mapNotNull { prediction -> prediction.vehicleId }
-            .distinct()
-
-        if (vehicleIds.isEmpty()) {
-            return Success(predictions)
-        }
-
-        return vehicleIds
-            .chunked(vehiclePredictionBatchSize)
-            .map { batch -> tubeData.fetchVehiclePredictions(batch) }
-            .failFast()
-            .map(List<List<TubePredictionRecord>>::flatten)
-            .map { vehiclePredictions -> predictions.mergeVehiclePredictions(vehiclePredictions) }
-    }
-
-    private fun List<TubePredictionRecord>.mergeVehiclePredictions(
-        vehiclePredictions: List<TubePredictionRecord>
-    ): List<TubePredictionRecord> {
-        val vehiclePredictionsByKey = vehiclePredictions.associateBy(::predictionIdentityKey)
-
-        return map { prediction ->
-            val predictionKey = predictionIdentityKey(prediction)
-            val vehiclePrediction = predictionKey?.let { key -> vehiclePredictionsByKey[key] }
-            if (vehiclePrediction?.secondsToNextStop == null) {
-                prediction
-            } else {
-                prediction.copy(secondsToNextStop = vehiclePrediction.secondsToNextStop)
-            }
-        }
-    }
-
-    private fun predictionIdentityKey(prediction: TubePredictionRecord): PredictionIdentityKey? {
-        val vehicleId = prediction.vehicleId ?: return null
-        val stationId = prediction.stationId ?: return null
-
-        return PredictionIdentityKey(
-            vehicleId,
-            stationId
-        )
-    }
-
-private fun TransportResult<PredictionBatch>.flatMapFailure() =
-    when (this) {
-        is Success -> this
-        is Failure -> Failure(TransportError.SnapshotUnavailable(describeTransportError(reason)))
-    }
 }
-
-private data class PredictionIdentityKey(
-    val vehicleId: VehicleId,
-    val stationId: StationId
-)
-
-private val vehiclePredictionBatchSize = 15
 
 data class PredictionBatch(
     val predictions: List<TubePredictionRecord>,
