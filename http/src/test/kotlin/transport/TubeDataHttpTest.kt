@@ -46,22 +46,46 @@ class TubeDataHttpTest {
     }
 
     @Test
-    fun `fetchLineStations filters non metro stop points`() {
+    fun `fetchModeStations filters non station stop points and expands line memberships`() {
         runBlocking {
             respond(
-                "/Line/victoria/StopPoints",
+                "/StopPoint/Mode/tube",
                 200,
                 """
-                [
-                  {"id":"940GZZLUGPK","naptanId":"940GZZLUGPK","commonName":"Green Park Underground Station","lat":51.506947,"lon":-0.142787,"stopType":"NaptanMetroStation"},
-                  {"id":"4900ZZLUGPK1","naptanId":"4900ZZLUGPK1","commonName":"Green Park Station","lat":51.506947,"lon":-0.142787,"stopType":"NaptanMetroEntrance"}
-                ]
+                {
+                  "stopPoints":[
+                    {
+                      "id":"940GZZLUGPK",
+                      "naptanId":"940GZZLUGPK",
+                      "commonName":"Green Park Underground Station",
+                      "lat":51.506947,
+                      "lon":-0.142787,
+                      "stopType":"NaptanMetroStation",
+                      "lines":[
+                        {"id":"victoria","name":"Victoria","uri":"/Line/victoria","type":"Line"},
+                        {"id":"jubilee","name":"Jubilee","uri":"/Line/jubilee","type":"Line"}
+                      ]
+                    },
+                    {
+                      "id":"4900ZZLUGPK1",
+                      "naptanId":"4900ZZLUGPK1",
+                      "commonName":"Green Park Station",
+                      "lat":51.506947,
+                      "lon":-0.142787,
+                      "stopType":"NaptanMetroEntrance",
+                      "lines":[]
+                    }
+                  ],
+                  "pageSize":1000,
+                  "total":2,
+                  "page":1
+                }
                 """.trimIndent()
             )
 
-            val result = tubeData.fetchLineStations(LineId("victoria"))
+            val result = tubeData.fetchModeStations(TransportModeName("tube"))
 
-            expectThat(result).isSuccess().hasSize(1)
+            expectThat(result).isSuccess().hasSize(2)
             expectThat(result).isSuccess().get { first().stationId }.isEqualTo(StationId("940GZZLUGPK"))
             expectThat(result).isSuccess().get { first().lineId }.isEqualTo(LineId("victoria"))
         }
@@ -214,11 +238,75 @@ class TubeDataHttpTest {
     }
 
     @Test
-    fun `fetchLineStations returns upstream http failure`() {
+    fun `fetchModeStations requests additional pages when TfL indicates more stop points are available`() {
         runBlocking {
-            respond("/Line/victoria/StopPoints", 503, """{"message":"down"}""")
+            val requests = AtomicInteger(0)
+            server.createContext("/StopPoint/Mode/tube") { exchange ->
+                val requestNumber = requests.incrementAndGet()
+                val body = if (requestNumber == 1) {
+                    """
+                    {
+                      "stopPoints":[
+                        {
+                          "id":"940GZZLUACT",
+                          "naptanId":"940GZZLUACT",
+                          "commonName":"Acton Town Underground Station",
+                          "lat":51.50301,
+                          "lon":-0.28042,
+                          "stopType":"NaptanMetroStation",
+                          "lines":[
+                            {"id":"district","name":"District","uri":"/Line/district","type":"Line"}
+                          ]
+                        }
+                      ],
+                      "pageSize":1,
+                      "total":2,
+                      "page":1
+                    }
+                    """.trimIndent()
+                } else {
+                    """
+                    {
+                      "stopPoints":[
+                        {
+                          "id":"940GZZLUGPK",
+                          "naptanId":"940GZZLUGPK",
+                          "commonName":"Green Park Underground Station",
+                          "lat":51.506947,
+                          "lon":-0.142787,
+                          "stopType":"NaptanMetroStation",
+                          "lines":[
+                            {"id":"victoria","name":"Victoria","uri":"/Line/victoria","type":"Line"}
+                          ]
+                        }
+                      ],
+                      "pageSize":1,
+                      "total":2,
+                      "page":2
+                    }
+                    """.trimIndent()
+                }
+                val bytes = body.toByteArray()
+                exchange.responseHeaders.add("Content-Type", "application/json")
+                exchange.sendResponseHeaders(200, bytes.size.toLong())
+                exchange.responseBody.use { output ->
+                    output.write(bytes)
+                }
+            }
 
-            val result = tubeData.fetchLineStations(LineId("victoria"))
+            val result = tubeData.fetchModeStations(TransportModeName("tube"))
+
+            expectThat(result).isSuccess().hasSize(2)
+            expectThat(requests.get()).isEqualTo(2)
+        }
+    }
+
+    @Test
+    fun `fetchModeStations returns upstream http failure`() {
+        runBlocking {
+            respond("/StopPoint/Mode/tube", 503, """{"message":"down"}""")
+
+            val result = tubeData.fetchModeStations(TransportModeName("tube"))
 
             expectThat(result)
                 .isFailure()
@@ -229,7 +317,7 @@ class TubeDataHttpTest {
     }
 
     @Test
-    fun `fetchLineStations returns upstream network failure when the socket cannot be reached`() {
+    fun `fetchModeStations returns upstream network failure when the socket cannot be reached`() {
         runBlocking {
             tubeData = TubeDataHttp(
                 TflHttpClientConfig(
@@ -242,7 +330,7 @@ class TubeDataHttpTest {
                 TflPayloadParserHttp(transportJson())
             )
 
-            val result = tubeData.fetchLineStations(LineId("victoria"))
+            val result = tubeData.fetchModeStations(TransportModeName("tube"))
 
             expectThat(result)
                 .isFailure()

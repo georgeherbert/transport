@@ -22,9 +22,9 @@ class TubeDataHttpExternalTest {
         )
 
     @Test
-    fun `fetchLineStations returns live elizabeth stop points`() {
+    fun `fetchModeStations returns live elizabeth stop points`() {
         runBlocking {
-            val result = tubeData.fetchLineStations(LineId("elizabeth"))
+            val result = tubeData.fetchModeStations(TransportModeName("elizabeth-line"))
 
             expectThat(result).isSuccess().get { size }.isGreaterThan(0)
         }

@@ -16,8 +16,8 @@ class RealTubeLineMapRepositoryTest {
     fun `getTubeLineMap loads route geometry for the tube lines`() {
         runBlocking {
             val tubeData = FakeTubeData(
-                lineStationHandler = { lineId ->
-                    Failure(TransportError.MetadataUnavailable(lineId.value))
+                modeStationHandler = { mode ->
+                    Failure(TransportError.MetadataUnavailable(mode.value))
                 },
                 lineRouteHandler = { lineId ->
                     Success(
@@ -54,8 +54,8 @@ class RealTubeLineMapRepositoryTest {
         runBlocking {
             val requests = AtomicInteger(0)
             val tubeData = FakeTubeData(
-                lineStationHandler = { lineId ->
-                    Failure(TransportError.MetadataUnavailable(lineId.value))
+                modeStationHandler = { mode ->
+                    Failure(TransportError.MetadataUnavailable(mode.value))
                 },
                 lineRouteHandler = { lineId ->
                     requests.incrementAndGet()
@@ -85,8 +85,8 @@ class RealTubeLineMapRepositoryTest {
     fun `getTubeLineMap returns failure when a route call fails`() {
         runBlocking {
             val tubeData = FakeTubeData(
-                lineStationHandler = { lineId ->
-                    Failure(TransportError.MetadataUnavailable(lineId.value))
+                modeStationHandler = { mode ->
+                    Failure(TransportError.MetadataUnavailable(mode.value))
                 },
                 lineRouteHandler = { lineId ->
                     if (lineId == supportedRailLineIds.first()) {

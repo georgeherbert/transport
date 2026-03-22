@@ -13,22 +13,57 @@ class TflPayloadParserHttpTest {
         TflPayloadParserHttp(transportJson())
 
     @Test
-    fun `parseLineStations filters non metro stop points`() {
-        val result = tflPayloadParser.parseLineStations(
+    fun `parseModeStationsPage filters non station stop points and expands line memberships`() {
+        val result = tflPayloadParser.parseModeStationsPage(
             """
-            [
-              {"id":"940GZZLUGPK","naptanId":"940GZZLUGPK","commonName":"Green Park Underground Station","lat":51.506947,"lon":-0.142787,"stopType":"NaptanMetroStation"},
-              {"id":"910GABWDXR","naptanId":"910GABWDXR","commonName":"Abbey Wood","lat":51.490719,"lon":0.121823,"stopType":"NaptanRailStation"},
-              {"id":"4900ZZLUGPK1","naptanId":"4900ZZLUGPK1","commonName":"Green Park Station","lat":51.506947,"lon":-0.142787,"stopType":"NaptanMetroEntrance"}
-            ]
+            {
+              "stopPoints":[
+                {
+                  "id":"940GZZLUGPK",
+                  "naptanId":"940GZZLUGPK",
+                  "commonName":"Green Park Underground Station",
+                  "lat":51.506947,
+                  "lon":-0.142787,
+                  "stopType":"NaptanMetroStation",
+                  "lines":[
+                    {"id":"victoria","name":"Victoria","uri":"/Line/victoria","type":"Line"},
+                    {"id":"jubilee","name":"Jubilee","uri":"/Line/jubilee","type":"Line"}
+                  ]
+                },
+                {
+                  "id":"910GABWDXR",
+                  "naptanId":"910GABWDXR",
+                  "commonName":"Abbey Wood",
+                  "lat":51.490719,
+                  "lon":0.121823,
+                  "stopType":"NaptanRailStation",
+                  "lines":[
+                    {"id":"elizabeth","name":"Elizabeth line","uri":"/Line/elizabeth","type":"Line"}
+                  ]
+                },
+                {
+                  "id":"4900ZZLUGPK1",
+                  "naptanId":"4900ZZLUGPK1",
+                  "commonName":"Green Park Station",
+                  "lat":51.506947,
+                  "lon":-0.142787,
+                  "stopType":"NaptanMetroEntrance",
+                  "lines":[]
+                }
+              ],
+              "pageSize":1000,
+              "total":3,
+              "page":1
+            }
             """.trimIndent(),
-            LineId("victoria"),
-            "/Line/victoria/StopPoints"
+            "/StopPoint/Mode/tube?page=1"
         )
 
-        expectThat(result).isSuccess().hasSize(2)
-        expectThat(result).isSuccess().get { first().stationId }.isEqualTo(StationId("940GZZLUGPK"))
-        expectThat(result).isSuccess().get { first().name }.isEqualTo(StationName("Green Park Underground Station"))
+        expectThat(result).isSuccess().get { stations }.hasSize(3)
+        expectThat(result).isSuccess().get { stations.first().stationId }.isEqualTo(StationId("940GZZLUGPK"))
+        expectThat(result).isSuccess().get { stations.first().name }.isEqualTo(StationName("Green Park Underground Station"))
+        expectThat(result).isSuccess().get { page }.isEqualTo(1)
+        expectThat(result).isSuccess().get { total }.isEqualTo(3)
     }
 
     @Test

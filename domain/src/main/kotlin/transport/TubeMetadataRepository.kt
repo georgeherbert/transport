@@ -33,8 +33,8 @@ class RealTubeMetadataRepository(
         }
 
     private suspend fun loadTubeNetwork(): TransportResult<TubeNetwork> =
-        supportedRailLineIds
-            .map { lineId -> tubeData.fetchLineStations(lineId) }
+        supportedRailModes
+            .map { mode -> tubeData.fetchModeStations(mode) }
             .failFast()
             .map(List<List<TubeStationRecord>>::flatten)
             .flatMap(::buildTubeNetwork)

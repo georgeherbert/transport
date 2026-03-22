@@ -12,21 +12,35 @@ import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 
 interface TflPayloadParser {
-    fun parseLineStations(body: String, lineId: LineId, endpoint: String): TransportResult<List<TubeStationRecord>>
+    fun parseModeStationsPage(body: String, endpoint: String): TransportResult<TflModeStationsPage>
     fun parseLineRoute(body: String, endpoint: String): TransportResult<TubeLineRouteRecord>
     fun parsePredictions(body: String, endpoint: String): TransportResult<List<TubePredictionRecord>>
 }
 
+data class TflModeStationsPage(
+    val stations: List<TubeStationRecord>,
+    val page: Int,
+    val pageSize: Int,
+    val total: Int
+)
+
 class TflPayloadParserHttp(
     private val json: Json
 ) : TflPayloadParser {
-    override fun parseLineStations(body: String, lineId: LineId, endpoint: String) =
-        decodeList<TflStopPointJson>(body, endpoint)
-            .flatMap { stopPoints ->
-                stopPoints
-                    .map { stopPoint -> parseStopPoint(stopPoint, lineId, endpoint) }
+    override fun parseModeStationsPage(body: String, endpoint: String) =
+        decodeObject<TflStopPointsResponseJson>(body, endpoint)
+            .flatMap { stopPointsResponse ->
+                stopPointsResponse.stopPoints
+                    .map { stopPoint -> parseStopPoint(stopPoint, endpoint) }
                     .failFast()
-                    .map { stationRecords -> stationRecords.flatten() }
+                    .map { stationRecords ->
+                        TflModeStationsPage(
+                            stationRecords.flatten(),
+                            stopPointsResponse.page,
+                            stopPointsResponse.pageSize,
+                            stopPointsResponse.total
+                        )
+                    }
             }
 
     override fun parseLineRoute(body: String, endpoint: String) =
@@ -79,22 +93,26 @@ class TflPayloadParserHttp(
 
     private fun parseStopPoint(
         stopPoint: TflStopPointJson,
-        lineId: LineId,
         endpoint: String
     ): TransportResult<List<TubeStationRecord>> {
         if (!isSupportedStationStopType(stopPoint.stopType)) {
             return Success(emptyList())
         }
 
+        val supportedLineIds = stopPoint.lines
+            .map(TflIdentifierJson::id)
+            .map(::LineId)
+            .filter(::isSupportedLineId)
+
         return Success(
-            listOf(
+            supportedLineIds.map { lineId ->
                 TubeStationRecord(
                     StationId(stopPoint.naptanId),
                     StationName(stopPoint.commonName),
                     GeoCoordinate(stopPoint.lat, stopPoint.lon),
                     lineId
                 )
-            )
+            }
         )
     }
 
@@ -219,4 +237,7 @@ class TflPayloadParserHttp(
 
     private fun isSupportedStationStopType(stopType: String) =
         stopType == "NaptanMetroStation" || stopType == "NaptanRailStation"
+
+    private fun isSupportedLineId(lineId: LineId) =
+        supportedRailLineIds.contains(lineId)
 }

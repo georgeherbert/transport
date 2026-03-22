@@ -11,10 +11,9 @@ import 'leaflet/dist/leaflet.css'
 
 const londonCenter = [51.5072, -0.1276]
 const refreshIntervalMs = 20000
-const basemapUrl = 'https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png'
+const basemapUrl = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
 const basemapAttribution =
-  '&copy; <a href="https://stadiamaps.com/" target="_blank" rel="noreferrer">Stadia Maps</a> ' +
-  '&copy; <a href="https://openmaptiles.org/" target="_blank" rel="noreferrer">OpenMapTiles</a> ' +
+  '&copy; <a href="https://carto.com/attributions" target="_blank" rel="noreferrer">CARTO</a> ' +
   '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>'
 
 const linePalette = {
@@ -79,10 +78,10 @@ function App() {
   })
 
   useEffect(() => {
-    requestMap(true)
+    requestMap(false)
 
     const intervalId = window.setInterval(() => {
-      requestMap(true)
+      requestMap(false)
     }, refreshIntervalMs)
 
     return () => {
@@ -94,26 +93,24 @@ function App() {
   const lineOptions = buildLineOptions(mapSnapshot)
   const visibleLinePaths = buildVisibleLinePaths(mapSnapshot, deferredSelectedLineId)
   const visibleTrains = buildVisibleTrains(mapSnapshot, deferredSelectedLineId)
-  const listedTrains = visibleTrains.slice(0, 12)
+  const listedTrains = visibleTrains.slice(0, 8)
 
   return (
     <div className="page">
       <header className="topbar">
-        <div>
+        <div className="topbar-copy">
           <h1>London Rail and Tram Map</h1>
           <p>Live TfL map projection from Tube, DLR, Elizabeth line, Overground, and Tram data.</p>
         </div>
-        <button className="refresh-button" type="button" onClick={() => requestMap(true)}>
-          Refresh
-        </button>
+        <div className="topbar-actions">
+          <span className="topbar-generated">
+            {mapSnapshot == null ? 'Waiting for first snapshot' : `Updated ${formatDateTime(mapSnapshot.generatedAt)}`}
+          </span>
+          <button className="refresh-button" type="button" onClick={() => requestMap(true)}>
+            Refresh
+          </button>
+        </div>
       </header>
-
-      <section className="status-row">
-        <StatusItem label="Status" value={statusLabelFor(status)} />
-        <StatusItem label="Generated" value={mapSnapshot == null ? 'Waiting for data' : formatDateTime(mapSnapshot.generatedAt)} />
-        <StatusItem label="Trains" value={mapSnapshot?.trainCount ?? '...'} />
-        <StatusItem label="Plotted" value={visibleTrains.filter(train => train.coordinate != null).length} />
-      </section>
 
       {errorMessage !== '' ? <div className="banner banner--error">{errorMessage}</div> : null}
       {mapSnapshot?.partial ? (
@@ -122,27 +119,31 @@ function App() {
         </div>
       ) : null}
 
-      <section className="toolbar">
-        <label className="toolbar-field">
-          <span>Line</span>
-          <select value={selectedLineId} onChange={event => setSelectedLineId(event.target.value)}>
-            <option value="all">All lines</option>
-            {lineOptions.map(line => (
-              <option key={line.id} value={line.id}>
-                {line.name}
-              </option>
-            ))}
-          </select>
-        </label>
+      <main className="main-layout">
+        <section className="map-stage">
+          <div className="map-controls">
+            <label className="toolbar-field">
+              <span>Line</span>
+              <select value={selectedLineId} onChange={event => setSelectedLineId(event.target.value)}>
+                <option value="all">All lines</option>
+                {lineOptions.map(line => (
+                  <option key={line.id} value={line.id}>
+                    {line.name}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-        <div className="toolbar-meta">
-          <span>Stations failed: {mapSnapshot?.stationsFailed ?? '...'}</span>
-          <span>Cached: {mapSnapshot?.cached ? 'Yes' : 'No'}</span>
-        </div>
-      </section>
+            <div className="status-strip">
+              <StatusItem label="Status" value={statusLabelFor(status)} />
+              <StatusItem label="Trains" value={mapSnapshot?.trainCount ?? '...'} />
+              <StatusItem label="Plotted" value={visibleTrains.filter(train => train.coordinate != null).length} />
+              <StatusItem label="Cached" value={mapSnapshot?.cached ? 'Yes' : 'No'} />
+              <StatusItem label="Station gaps" value={mapSnapshot?.stationsFailed ?? '...'} />
+            </div>
+          </div>
 
-      <main className="layout">
-        <section className="map-panel">
+          <section className="map-panel">
           <MapContainer
             center={londonCenter}
             zoom={11}
@@ -189,11 +190,14 @@ function App() {
               </Marker>
             ))}
           </MapContainer>
+          </section>
         </section>
 
-        <aside className="list-panel">
-          <h2>Visible trains</h2>
-
+        <section className="list-panel">
+          <div className="list-header">
+            <h2>Visible trains</h2>
+            <span>{listedTrains.length} shown</span>
+          </div>
           <div className="train-list">
             {listedTrains.map(train => (
               <article className="train-row" key={train.trainId}>
@@ -213,7 +217,7 @@ function App() {
               <div className="empty-state">No trains are available for the selected line.</div>
             ) : null}
           </div>
-        </aside>
+        </section>
       </main>
     </div>
   )

@@ -17,33 +17,28 @@ class RealTubeMetadataRepositoryTest {
     fun `getTubeNetwork merges shared stations across lines`() {
         runBlocking {
             val tubeData = FakeTubeData(
-                lineStationHandler = { lineId ->
-                    when (lineId) {
-                        LineId("victoria") ->
+                modeStationHandler = { mode ->
+                    when (mode) {
+                        TransportModeName("tube") ->
                             Success(
                                 listOf(
                                     TubeStationRecord(
                                         StationId("940GZZLUKSX"),
                                         StationName("King's Cross St. Pancras Underground Station"),
                                         GeoCoordinate(51.530663, -0.123194),
-                                        lineId
-                                    )
-                                )
-                            )
-                        LineId("circle") ->
-                            Success(
-                                listOf(
+                                        LineId("victoria")
+                                    ),
                                     TubeStationRecord(
                                         StationId("940GZZLUKSX"),
                                         StationName("King's Cross St. Pancras Underground Station"),
                                         GeoCoordinate(51.530663, -0.123194),
-                                        lineId
+                                        LineId("circle")
                                     ),
                                     TubeStationRecord(
                                         StationId("940GZZLUGPK"),
                                         StationName("Green Park Underground Station"),
                                         GeoCoordinate(51.506947, -0.142787),
-                                        lineId
+                                        LineId("circle")
                                     )
                                 )
                             )
@@ -79,16 +74,16 @@ class RealTubeMetadataRepositoryTest {
         runBlocking {
             val requests = AtomicInteger(0)
             val tubeData = FakeTubeData(
-                lineStationHandler = { lineId ->
+                modeStationHandler = { mode ->
                     requests.incrementAndGet()
-                    if (lineId == LineId("victoria")) {
+                    if (mode == TransportModeName("tube")) {
                         Success(
                             listOf(
                                 TubeStationRecord(
                                     StationId("940GZZLUGPK"),
                                     StationName("Green Park Underground Station"),
                                     GeoCoordinate(51.506947, -0.142787),
-                                    lineId
+                                    LineId("victoria")
                                 )
                             )
                         )
@@ -108,7 +103,7 @@ class RealTubeMetadataRepositoryTest {
             expectThat(repository.getTubeNetwork()).isSuccess()
             expectThat(repository.getTubeNetwork()).isSuccess()
 
-            expectThat(requests.get()).isEqualTo(supportedRailLineIds.size)
+            expectThat(requests.get()).isEqualTo(supportedRailModes.size)
         }
     }
 
@@ -116,9 +111,9 @@ class RealTubeMetadataRepositoryTest {
     fun `getTubeNetwork returns failure when upstream metadata call fails`() {
         runBlocking {
             val tubeData = FakeTubeData(
-                lineStationHandler = { lineId ->
-                    if (lineId == supportedRailLineIds.first()) {
-                        Failure(TransportError.UpstreamNetworkFailure("/Line/${lineId.value}/StopPoints", "boom"))
+                modeStationHandler = { mode ->
+                    if (mode == supportedRailModes.first()) {
+                        Failure(TransportError.UpstreamNetworkFailure("/StopPoint/Mode/${mode.value}", "boom"))
                     } else {
                         Success(emptyList())
                     }

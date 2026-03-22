@@ -26,8 +26,8 @@ class RealTubeSnapshotServiceTest {
         runBlocking {
             val predictionRequests = AtomicInteger(0)
             val tubeData = FakeTubeData(
-                lineStationHandler = { lineId ->
-                    Failure(TransportError.MetadataUnavailable(lineId.value))
+                modeStationHandler = { mode ->
+                    Failure(TransportError.MetadataUnavailable(mode.value))
                 },
                 lineRouteHandler = { lineId ->
                     Failure(TransportError.MetadataUnavailable(lineId.value))
@@ -59,8 +59,8 @@ class RealTubeSnapshotServiceTest {
         runBlocking {
             val shouldFail = AtomicBoolean(false)
             val tubeData = FakeTubeData(
-                lineStationHandler = { lineId ->
-                    Failure(TransportError.MetadataUnavailable(lineId.value))
+                modeStationHandler = { mode ->
+                    Failure(TransportError.MetadataUnavailable(mode.value))
                 },
                 lineRouteHandler = { lineId ->
                     Failure(TransportError.MetadataUnavailable(lineId.value))
@@ -94,8 +94,8 @@ class RealTubeSnapshotServiceTest {
     fun `getLiveSnapshot returns failure when the bulk tube feed fails`() {
         runBlocking {
             val tubeData = FakeTubeData(
-                lineStationHandler = { lineId ->
-                    Failure(TransportError.MetadataUnavailable(lineId.value))
+                modeStationHandler = { mode ->
+                    Failure(TransportError.MetadataUnavailable(mode.value))
                 },
                 lineRouteHandler = { lineId ->
                     Failure(TransportError.MetadataUnavailable(lineId.value))

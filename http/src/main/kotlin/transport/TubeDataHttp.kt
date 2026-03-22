@@ -3,6 +3,7 @@ package transport
 import dev.forkhandles.result4k.Failure
 import dev.forkhandles.result4k.Success
 import dev.forkhandles.result4k.flatMap
+import dev.forkhandles.result4k.map
 import java.net.URI
 import java.net.URLEncoder
 import java.net.http.HttpClient
@@ -19,10 +20,17 @@ class TubeDataHttp(
     private val httpClient: HttpClient,
     private val tflPayloadParser: TflPayloadParser
 ) : TubeData {
-    override suspend fun fetchLineStations(lineId: LineId) =
-        fetchEndpoint("/Line/${lineId.value}/StopPoints", emptyList())
-            .flatMap { body ->
-                tflPayloadParser.parseLineStations(body, lineId, "/Line/${lineId.value}/StopPoints")
+    override suspend fun fetchModeStations(mode: TransportModeName) =
+        fetchModeStationsPage(mode, 1)
+            .flatMap { firstPage ->
+                val remainingPageNumbers = ((firstPage.page + 1)..lastPage(firstPage)).toList()
+                remainingPageNumbers
+                    .map { pageNumber -> fetchModeStationsPage(mode, pageNumber) }
+                    .failFast()
+                    .map { remainingPages ->
+                        (listOf(firstPage) + remainingPages)
+                            .flatMap(TflModeStationsPage::stations)
+                    }
             }
 
     override suspend fun fetchLineRoutes(lineId: LineId) =
@@ -41,6 +49,17 @@ class TubeDataHttp(
             .flatMap { body ->
                 tflPayloadParser.parsePredictions(body, "/Mode/${mode.value}/Arrivals")
             }
+
+    private suspend fun fetchModeStationsPage(
+        mode: TransportModeName,
+        pageNumber: Int
+    ) =
+        fetchEndpoint(
+            "/StopPoint/Mode/${mode.value}",
+            listOf(QueryParameter("page", pageNumber.toString()))
+        ).flatMap { body ->
+            tflPayloadParser.parseModeStationsPage(body, "/StopPoint/Mode/${mode.value}?page=$pageNumber")
+        }
 
     private suspend fun fetchEndpoint(
         endpoint: String,
@@ -120,6 +139,14 @@ class TubeDataHttp(
             2 -> 500L
             else -> 1000L
         }
+
+    private fun lastPage(page: TflModeStationsPage): Int {
+        if (page.total <= 0 || page.pageSize <= 0) {
+            return page.page
+        }
+
+        return ((page.total - 1) / page.pageSize) + 1
+    }
 
     private fun buildUri(endpoint: String, queryParameters: List<QueryParameter>): URI {
         val queryParts = mutableListOf<String>()

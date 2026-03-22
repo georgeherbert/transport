@@ -9,7 +9,24 @@ data class TflStopPointJson(
     val commonName: String,
     val lat: Double,
     val lon: Double,
-    val stopType: String
+    val stopType: String,
+    val lines: List<TflIdentifierJson>
+)
+
+@Serializable
+data class TflStopPointsResponseJson(
+    val stopPoints: List<TflStopPointJson>,
+    val pageSize: Int,
+    val total: Int,
+    val page: Int
+)
+
+@Serializable
+data class TflIdentifierJson(
+    val id: String,
+    val name: String,
+    val uri: String,
+    val type: String
 )
 
 @Serializable
