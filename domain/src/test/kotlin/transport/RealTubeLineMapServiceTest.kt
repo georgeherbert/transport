@@ -26,7 +26,8 @@ class RealTubeLineMapServiceTest {
                                                 GeoCoordinate(51.1, -0.2)
                                             )
                                         )
-                                    )
+                                    ),
+                                    emptyList()
                                 )
                             )
                         )

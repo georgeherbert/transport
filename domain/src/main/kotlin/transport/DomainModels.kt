@@ -38,11 +38,17 @@ data class TubeLineMap(
 data class TubeLine(
     val id: LineId,
     val name: LineName,
-    val paths: List<TubeLinePath>
+    val paths: List<TubeLinePath>,
+    val sequences: List<TubeLineSequence>
 )
 
 data class TubeLinePath(
     val coordinates: List<GeoCoordinate>
+)
+
+data class TubeLineSequence(
+    val direction: TrainDirection,
+    val stations: List<StationReference>
 )
 
 data class TubeMapTrain(
@@ -55,6 +61,7 @@ data class TubeMapTrain(
     val towards: TowardsDescription?,
     val currentLocation: LocationDescription,
     val coordinate: GeoCoordinate?,
+    val heading: HeadingDegrees?,
     val secondsToNextStop: Duration?,
     val expectedArrival: Instant?,
     val observedAt: Instant?
@@ -133,11 +140,17 @@ data class TubePredictionRecord(
 data class TubeLineRouteRecord(
     val lineId: LineId,
     val lineName: LineName,
-    val paths: List<TubeLinePathRecord>
+    val paths: List<TubeLinePathRecord>,
+    val sequences: List<TubeLineSequenceRecord>
 )
 
 data class TubeLinePathRecord(
     val coordinates: List<GeoCoordinate>
+)
+
+data class TubeLineSequenceRecord(
+    val direction: TrainDirection,
+    val stations: List<StationReference>
 )
 
 data class TubeStation(

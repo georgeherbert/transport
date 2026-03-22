@@ -37,12 +37,19 @@ class TflPayloadParserHttp(
                     .failFast()
                     .map(List<List<TubeLinePathRecord>>::flatten)
                     .map(::deduplicatePaths)
-                    .map { paths ->
-                        TubeLineRouteRecord(
-                            LineId(routeSequence.lineId),
-                            LineName(routeSequence.lineName),
-                            paths
-                        )
+                    .flatMap { paths ->
+                        routeSequence.stopPointSequences
+                            .map { stopPointSequence -> parseStopPointSequence(stopPointSequence, endpoint) }
+                            .failFast()
+                            .map(::deduplicateSequences)
+                            .map { sequences ->
+                                TubeLineRouteRecord(
+                                    LineId(routeSequence.lineId),
+                                    LineName(routeSequence.lineName),
+                                    paths,
+                                    sequences
+                                )
+                            }
                     }
             }
 
@@ -139,6 +146,25 @@ class TflPayloadParserHttp(
                 }
             }
 
+    private fun parseStopPointSequence(
+        stopPointSequence: TflRouteStopPointSequenceJson,
+        endpoint: String
+    ): TransportResult<TubeLineSequenceRecord> {
+        val direction = stopPointSequence.direction
+            .takeIf(String::isNotBlank)
+            ?.let(::TrainDirection)
+            ?: return Failure(TransportError.UpstreamPayloadFailure(endpoint, "TfL returned a route sequence without a direction."))
+
+        return Success(
+            TubeLineSequenceRecord(
+                direction,
+                stopPointSequence.stopPoint
+                    .filter { stopPoint -> stopPoint.stopType == "NaptanMetroStation" }
+                    .map(::stationReference)
+            )
+        )
+    }
+
     private fun parseCoordinate(coordinate: List<Double>, endpoint: String): TransportResult<GeoCoordinate> =
         if (coordinate.size < 2) {
             Failure(TransportError.UpstreamPayloadFailure(endpoint, "TfL returned an invalid line coordinate."))
@@ -148,6 +174,11 @@ class TflPayloadParserHttp(
 
     private fun deduplicatePaths(paths: List<TubeLinePathRecord>) =
         paths.distinctBy(::pathKey)
+
+    private fun deduplicateSequences(sequences: List<TubeLineSequenceRecord>) =
+        sequences
+            .filter { sequence -> sequence.stations.isNotEmpty() }
+            .distinctBy(::sequenceKey)
 
     private fun pathKey(path: TubeLinePathRecord): String {
         val forward = path.coordinates.joinToString(";") { coordinate ->
@@ -159,6 +190,16 @@ class TflPayloadParserHttp(
 
         return if (forward <= reverse) forward else reverse
     }
+
+    private fun sequenceKey(sequence: TubeLineSequenceRecord) =
+        sequence.direction.value + "|" + sequence.stations.joinToString(";") { station -> station.id.value }
+
+    private fun stationReference(stopPoint: TflRouteStopPointJson) =
+        StationReference(
+            StationId(stopPoint.id),
+            StationName(stopPoint.name),
+            GeoCoordinate(stopPoint.lat, stopPoint.lon)
+        )
 
     private fun parseInstant(
         value: String,

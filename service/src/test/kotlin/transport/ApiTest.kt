@@ -217,7 +217,8 @@ class ApiTest {
                                 GeoCoordinate(51.506947, -0.142787)
                             )
                         )
-                    )
+                    ),
+                    emptyList()
                 )
             )
         )
@@ -244,6 +245,7 @@ class ApiTest {
                     TowardsDescription("Walthamstow Central"),
                     LocationDescription("Approaching Green Park"),
                     GeoCoordinate(51.506947, -0.142787),
+                    HeadingDegrees(42.0),
                     Duration.ofSeconds(90),
                     Instant.parse("2026-03-22T00:50:50Z"),
                     Instant.parse("2026-03-22T00:49:20Z")

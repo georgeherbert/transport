@@ -1,8 +1,11 @@
 package transport
 
 import kotlin.math.abs
+import kotlin.math.atan2
+import kotlin.math.ln
 import kotlin.math.pow
 import kotlin.math.sqrt
+import kotlin.math.tan
 
 interface TubeMapProjector {
     fun project(snapshot: LiveTubeSnapshot, lineMap: TubeLineMap): TubeMapSnapshot
@@ -37,7 +40,8 @@ class RealTubeMapProjector(
         val lineId = train.lineIds.firstOrNull() ?: return null
         val lineName = train.lineNames.firstOrNull() ?: LineName(lineId.value)
         val projectedLine = projectedLines.firstOrNull { line -> line.line.id == lineId }
-        val coordinate = projectedLine?.let { line -> projectTrainCoordinate(train, line) } ?: fallbackCoordinate(train)
+        val projection = projectedLine?.let { line -> projectTrainProjection(train, line) }
+        val coordinate = projection?.coordinate ?: fallbackCoordinate(train)
 
         return TubeMapTrain(
             train.trainId,
@@ -49,34 +53,33 @@ class RealTubeMapProjector(
             train.towards,
             train.currentLocation,
             coordinate,
+            projection?.heading,
             train.secondsToNextStop,
             train.expectedArrival,
             train.observedAt
         )
     }
 
-    private fun projectTrainCoordinate(train: LiveTubeTrain, projectedLine: ProjectedTubeLine): GeoCoordinate? {
+    private fun projectTrainProjection(train: LiveTubeTrain, projectedLine: ProjectedTubeLine): TrainMapProjection? {
         val location = train.location
-        val betweenCoordinate = location.fromStation?.let { fromStation ->
+        val betweenProjection = location.fromStation?.let { fromStation ->
             location.toStation?.let { toStation ->
                 projectedLine.projectBetweenStations(fromStation, toStation)
             }
         }
-        if (betweenCoordinate != null) {
-            return betweenCoordinate
+        if (betweenProjection != null) {
+            return betweenProjection
         }
 
-        val stationCoordinate = location.station?.let { station ->
-            projectedLine.projectStation(station.coordinate)
-        } ?: train.nextStop?.let { nextStop ->
-            projectedLine.projectStation(nextStop.coordinate)
-        }
-        if (stationCoordinate != null) {
-            return stationCoordinate
+        val stationProjection = projectedLine.projectStationMovement(train)
+        if (stationProjection != null) {
+            return stationProjection
         }
 
         return fallbackCoordinate(train)?.let { coordinate ->
-            projectedLine.projectCoordinate(coordinate)
+            projectedLine.projectCoordinate(coordinate)?.let { projectedCoordinate ->
+                TrainMapProjection(projectedCoordinate, null)
+            }
         }
     }
 
@@ -99,7 +102,8 @@ class RealTubePathSmoother(
                     line.name,
                     line.paths.map { path ->
                         TubeLinePath(smoothCoordinates(path.coordinates))
-                    }
+                    },
+                    line.sequences
                 )
             }
         )
@@ -192,7 +196,7 @@ data class ProjectedTubeLine(
     fun projectBetweenStations(
         fromStation: StationReference,
         toStation: StationReference
-    ): GeoCoordinate? =
+    ): TrainMapProjection? =
         projectedPaths
             .mapNotNull { path ->
                 val fromProjection = path.projectCoordinate(fromStation.coordinate)
@@ -209,10 +213,86 @@ data class ProjectedTubeLine(
                 }
             }
             .minByOrNull(BetweenStationsProjection::distanceSquared)
-            ?.let { projection ->
-                val midpointDistance = (projection.fromProjection.distanceAlongPath + projection.toProjection.distanceAlongPath) / 2
-                projection.path.coordinateAt(midpointDistance)
+            ?.toTrainMapProjection()
+
+    fun projectStationMovement(train: LiveTubeTrain): TrainMapProjection? {
+        val anchorStation = train.location.station ?: train.nextStop ?: return null
+        val candidateSegments = matchingSequences(train.direction)
+            .mapNotNull { sequence -> stationMovement(sequence, train.location.type, anchorStation.id) }
+        if (candidateSegments.isEmpty()) {
+            return projectStation(anchorStation.coordinate)?.let { coordinate ->
+                TrainMapProjection(coordinate, null)
             }
+        }
+
+        return candidateSegments
+            .flatMap { movement ->
+                projectedPaths.mapNotNull { path -> projectStationMovement(path, movement) }
+            }
+            .minByOrNull(StationMovementProjection::distanceSquared)
+            ?.toTrainMapProjection()
+    }
+
+    private fun matchingSequences(direction: TrainDirection?): List<TubeLineSequence> {
+        if (line.sequences.isEmpty()) {
+            return emptyList()
+        }
+
+        val matchingDirections = direction?.let { trainDirection ->
+            line.sequences.filter { sequence -> sequence.direction == trainDirection }
+        }.orEmpty()
+
+        return if (matchingDirections.isNotEmpty()) matchingDirections else line.sequences
+    }
+
+    private fun stationMovement(
+        sequence: TubeLineSequence,
+        locationType: LocationType,
+        anchorStationId: StationId
+    ): StationMovement? {
+        val anchorIndex = sequence.stations.indexOfFirst { station -> station.id == anchorStationId }
+        if (anchorIndex < 0) {
+            return null
+        }
+
+        val anchorStation = sequence.stations[anchorIndex]
+        val previousStation = sequence.stations.getOrNull(anchorIndex - 1)
+        val nextStation = sequence.stations.getOrNull(anchorIndex + 1)
+
+        return when (locationType) {
+            LocationType.APPROACHING_STATION ->
+                previousStation?.let { station -> StationMovement(station, anchorStation, anchorStation, AnchorPosition.END) }
+            LocationType.AT_STATION,
+            LocationType.DEPARTED_STATION,
+            LocationType.NEAR_STATION ->
+                nextStation?.let { station -> StationMovement(anchorStation, station, anchorStation, AnchorPosition.START) }
+            LocationType.STATION_BOARD ->
+                previousStation?.let { station -> StationMovement(station, anchorStation, anchorStation, AnchorPosition.END) }
+            LocationType.BETWEEN_STATIONS,
+            LocationType.UNKNOWN -> null
+        }
+    }
+
+    private fun projectStationMovement(
+        path: ProjectedTubeLinePath,
+        movement: StationMovement
+    ): StationMovementProjection? {
+        val fromProjection = path.projectCoordinate(movement.fromStation.coordinate)
+        val toProjection = path.projectCoordinate(movement.toStation.coordinate)
+        val anchorProjection = path.projectCoordinate(movement.anchorStation.coordinate)
+        if (fromProjection == null || toProjection == null || anchorProjection == null) {
+            return null
+        }
+
+        return StationMovementProjection(
+            path,
+            fromProjection,
+            toProjection,
+            anchorProjection,
+            movement.anchorPosition,
+            fromProjection.distanceSquared + toProjection.distanceSquared + anchorProjection.distanceSquared
+        )
+    }
 }
 
 data class ProjectedTubeLinePath(
@@ -266,6 +346,37 @@ data class ProjectedTubeLinePath(
         return interpolate(startCoordinate, endCoordinate, fraction)
     }
 
+    fun headingAlongTravel(
+        travelStartDistance: Double,
+        travelEndDistance: Double,
+        anchorPosition: AnchorPosition
+    ): HeadingDegrees? {
+        val travelLength = abs(travelEndDistance - travelStartDistance)
+        if (travelLength < 0.0000001) {
+            return null
+        }
+
+        val step = (travelLength / 4.0).coerceAtLeast(0.00001).coerceAtMost(travelLength)
+        val startOffset = when (anchorPosition) {
+            AnchorPosition.START -> 0.0
+            AnchorPosition.MIDDLE -> ((travelLength / 2.0) - (step / 2.0)).coerceAtLeast(0.0)
+            AnchorPosition.END -> (travelLength - step).coerceAtLeast(0.0)
+        }
+        val endOffset = when (anchorPosition) {
+            AnchorPosition.START -> step.coerceAtMost(travelLength)
+            AnchorPosition.MIDDLE -> ((travelLength / 2.0) + (step / 2.0)).coerceAtMost(travelLength)
+            AnchorPosition.END -> travelLength
+        }
+
+        val startCoordinate = coordinateAt(travelDistanceAtOffset(travelStartDistance, travelEndDistance, startOffset))
+        val endCoordinate = coordinateAt(travelDistanceAtOffset(travelStartDistance, travelEndDistance, endOffset))
+        if (startCoordinate == null || endCoordinate == null) {
+            return null
+        }
+
+        return bearingBetween(startCoordinate, endCoordinate)
+    }
+
     private fun projectOntoSegment(target: GeoCoordinate, segmentIndex: Int): LinePathProjection {
         val startCoordinate = path.coordinates[segmentIndex]
         val endCoordinate = path.coordinates[segmentIndex + 1]
@@ -308,6 +419,17 @@ data class ProjectedTubeLinePath(
         }
         return cumulative
     }
+
+    private fun travelDistanceAtOffset(
+        travelStartDistance: Double,
+        travelEndDistance: Double,
+        offset: Double
+    ) =
+        if (travelEndDistance >= travelStartDistance) {
+            travelStartDistance + offset
+        } else {
+            travelStartDistance - offset
+        }
 }
 
 data class LinePathProjection(
@@ -324,14 +446,79 @@ data class BetweenStationsProjection(
     val distanceSquared: Double
 )
 
+data class StationMovement(
+    val fromStation: StationReference,
+    val toStation: StationReference,
+    val anchorStation: StationReference,
+    val anchorPosition: AnchorPosition
+)
+
+data class StationMovementProjection(
+    val path: ProjectedTubeLinePath,
+    val fromProjection: LinePathProjection,
+    val toProjection: LinePathProjection,
+    val anchorProjection: LinePathProjection,
+    val anchorPosition: AnchorPosition,
+    val distanceSquared: Double
+)
+
+data class TrainMapProjection(
+    val coordinate: GeoCoordinate,
+    val heading: HeadingDegrees?
+)
+
+enum class AnchorPosition {
+    START,
+    MIDDLE,
+    END
+}
+
+private fun BetweenStationsProjection.toTrainMapProjection(): TrainMapProjection? {
+    val midpointDistance = (fromProjection.distanceAlongPath + toProjection.distanceAlongPath) / 2.0
+    val coordinate = path.coordinateAt(midpointDistance) ?: return null
+    val heading = path.headingAlongTravel(fromProjection.distanceAlongPath, toProjection.distanceAlongPath, AnchorPosition.MIDDLE)
+    return TrainMapProjection(coordinate, heading)
+}
+
+private fun StationMovementProjection.toTrainMapProjection() =
+    TrainMapProjection(
+        anchorProjection.coordinate,
+        path.headingAlongTravel(fromProjection.distanceAlongPath, toProjection.distanceAlongPath, anchorPosition)
+    )
+
 private fun squaredDistance(left: GeoCoordinate, right: GeoCoordinate): Double =
     (left.lat - right.lat).pow(2) + (left.lon - right.lon).pow(2)
 
 private fun distance(left: GeoCoordinate, right: GeoCoordinate): Double =
     sqrt(squaredDistance(left, right))
 
+private fun bearingBetween(startCoordinate: GeoCoordinate, endCoordinate: GeoCoordinate): HeadingDegrees? {
+    val startProjected = projectToMercator(startCoordinate)
+    val endProjected = projectToMercator(endCoordinate)
+    val xDelta = endProjected.x - startProjected.x
+    val yDelta = endProjected.y - startProjected.y
+    if (abs(xDelta) < 0.0000001 && abs(yDelta) < 0.0000001) {
+        return null
+    }
+
+    val rawDegrees = Math.toDegrees(atan2(xDelta, yDelta))
+    val normalizedDegrees = (rawDegrees + 360.0) % 360.0
+    return HeadingDegrees(normalizedDegrees)
+}
+
+private fun projectToMercator(coordinate: GeoCoordinate) =
+    MapPlaneCoordinate(
+        Math.toRadians(coordinate.lon),
+        ln(tan((Math.PI / 4.0) + (Math.toRadians(coordinate.lat) / 2.0)))
+    )
+
 private fun interpolate(startCoordinate: GeoCoordinate, endCoordinate: GeoCoordinate, fraction: Double) =
     GeoCoordinate(
         startCoordinate.lat + ((endCoordinate.lat - startCoordinate.lat) * fraction),
         startCoordinate.lon + ((endCoordinate.lon - startCoordinate.lon) * fraction)
     )
+
+data class MapPlaneCoordinate(
+    val x: Double,
+    val y: Double
+)

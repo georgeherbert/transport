@@ -78,6 +78,7 @@ data class TubeMapTrainJson(
     val towards: String?,
     val currentLocation: String,
     val coordinate: GeoCoordinateJson?,
+    val headingDegrees: Double?,
     val secondsToNextStop: Int?,
     val expectedArrival: String?,
     val observedAt: String?

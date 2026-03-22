@@ -32,7 +32,8 @@ class RealTubeMapProjectorTest {
                                 GeoCoordinate(51.2, -0.1)
                             )
                         )
-                    )
+                    ),
+                    emptyList()
                 )
             )
         )
@@ -106,6 +107,28 @@ class RealTubeMapProjectorTest {
                                 GeoCoordinate(51.1, -0.1)
                             )
                         )
+                    ),
+                    listOf(
+                        TubeLineSequence(
+                            TrainDirection("outbound"),
+                            listOf(
+                                StationReference(
+                                    StationId("A"),
+                                    StationName("Alpha Underground Station"),
+                                    GeoCoordinate(51.0, -0.3)
+                                ),
+                                StationReference(
+                                    StationId("B"),
+                                    StationName("Bravo Underground Station"),
+                                    GeoCoordinate(51.0, -0.2)
+                                ),
+                                StationReference(
+                                    StationId("C"),
+                                    StationName("Charlie Underground Station"),
+                                    GeoCoordinate(51.1, -0.1)
+                                )
+                            )
+                        )
                     )
                 )
             )
@@ -120,6 +143,8 @@ class RealTubeMapProjectorTest {
         expectThat(projected.trains.first().coordinate).isNotNull().get { lat }.isGreaterThan(50.99)
         expectThat(projected.trains.first().coordinate).isNotNull().get { lon }.isLessThan(-0.2)
         expectThat(projected.trains.first().coordinate).isNotNull().get { lon }.isGreaterThan(-0.3)
+        expectThat(projected.trains.first().heading).isNotNull().get { value }.isGreaterThan(80.0)
+        expectThat(projected.trains.first().heading).isNotNull().get { value }.isLessThan(100.0)
     }
 
     @Test
@@ -184,6 +209,23 @@ class RealTubeMapProjectorTest {
                                 GeoCoordinate(51.6, 0.6)
                             )
                         )
+                    ),
+                    listOf(
+                        TubeLineSequence(
+                            TrainDirection("outbound"),
+                            listOf(
+                                StationReference(
+                                    StationId("C"),
+                                    StationName("Branch Station Underground Station"),
+                                    GeoCoordinate(51.5, 0.5)
+                                ),
+                                StationReference(
+                                    StationId("D"),
+                                    StationName("Downstream Underground Station"),
+                                    GeoCoordinate(51.6, 0.6)
+                                )
+                            )
+                        )
                     )
                 )
             )
@@ -192,5 +234,89 @@ class RealTubeMapProjectorTest {
         val projected = projector.project(snapshot, lineMap)
 
         expectThat(projected.trains.first().coordinate).isEqualTo(GeoCoordinate(51.5, 0.5))
+        expectThat(projected.trains.first().heading).isNotNull().get { value }.isGreaterThan(30.0)
+        expectThat(projected.trains.first().heading).isNotNull().get { value }.isLessThan(60.0)
+    }
+
+    @Test
+    fun `project uses map projection for heading so diagonal trains align with rendered paths`() {
+        val snapshot = LiveTubeSnapshot(
+            transportSourceName,
+            Instant.parse("2026-03-22T00:49:20Z"),
+            false,
+            Duration.ZERO,
+            StationQueryCount(1),
+            StationFailureCount(0),
+            false,
+            LiveTrainCount(1),
+            listOf(LineId("victoria")),
+            listOf(
+                LiveTubeTrain(
+                    TrainId("victoria|401"),
+                    VehicleId("401"),
+                    listOf(LineId("victoria")),
+                    listOf(LineName("Victoria")),
+                    TrainDirection("outbound"),
+                    DestinationName("Downstream Underground Station"),
+                    TowardsDescription("Downstream"),
+                    LocationDescription("At Alpha"),
+                    LocationEstimate(
+                        LocationType.AT_STATION,
+                        LocationDescription("At Alpha"),
+                        GeoCoordinate(51.5, 0.5),
+                        StationReference(
+                            StationId("A"),
+                            StationName("Alpha Underground Station"),
+                            GeoCoordinate(51.5, 0.5)
+                        ),
+                        null,
+                        null
+                    ),
+                    null,
+                    Duration.ofSeconds(45),
+                    Instant.parse("2026-03-22T00:50:05Z"),
+                    Instant.parse("2026-03-22T00:49:20Z"),
+                    PredictionCount(1)
+                )
+            )
+        )
+        val lineMap = TubeLineMap(
+            listOf(
+                TubeLine(
+                    LineId("victoria"),
+                    LineName("Victoria"),
+                    listOf(
+                        TubeLinePath(
+                            listOf(
+                                GeoCoordinate(51.5, 0.5),
+                                GeoCoordinate(51.6, 0.6)
+                            )
+                        )
+                    ),
+                    listOf(
+                        TubeLineSequence(
+                            TrainDirection("outbound"),
+                            listOf(
+                                StationReference(
+                                    StationId("A"),
+                                    StationName("Alpha Underground Station"),
+                                    GeoCoordinate(51.5, 0.5)
+                                ),
+                                StationReference(
+                                    StationId("B"),
+                                    StationName("Downstream Underground Station"),
+                                    GeoCoordinate(51.6, 0.6)
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+
+        val projected = projector.project(snapshot, lineMap)
+
+        expectThat(projected.trains.first().heading).isNotNull().get { value }.isGreaterThan(30.0)
+        expectThat(projected.trains.first().heading).isNotNull().get { value }.isLessThan(35.0)
     }
 }

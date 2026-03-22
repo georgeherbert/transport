@@ -36,7 +36,8 @@ class ServiceResponseMapperHttpTest {
                                     GeoCoordinate(51.506947, -0.142787)
                                 )
                             )
-                        )
+                        ),
+                        emptyList()
                     )
                 ),
                 listOf(
@@ -50,6 +51,7 @@ class ServiceResponseMapperHttpTest {
                         TowardsDescription("Walthamstow Central"),
                         LocationDescription("Approaching Green Park"),
                         GeoCoordinate(51.506947, -0.142787),
+                        HeadingDegrees(42.0),
                         Duration.ofSeconds(90),
                         Instant.parse("2026-03-22T00:50:50Z"),
                         Instant.parse("2026-03-22T00:49:20Z")
@@ -61,6 +63,7 @@ class ServiceResponseMapperHttpTest {
         expectThat(response.lines).hasSize(1)
         expectThat(response.trains.first().lineId).isEqualTo("victoria")
         expectThat(response.trains.first().coordinate).isNotNull().get { lat }.isEqualTo(51.506947)
+        expectThat(response.trains.first().headingDegrees).isEqualTo(42.0)
     }
 
     @Test
@@ -78,7 +81,8 @@ class ServiceResponseMapperHttpTest {
                                     GeoCoordinate(51.506947, -0.142787)
                                 )
                             )
-                        )
+                        ),
+                        emptyList()
                     )
                 )
             )

@@ -40,6 +40,15 @@ class TflPayloadParserHttpTest {
               "lineStrings":[
                 "[[[-0.019885,51.582965],[-0.04115,51.586919]]]",
                 "[[[-0.04115,51.586919],[-0.019885,51.582965]]]"
+              ],
+              "stopPointSequences":[
+                {
+                  "direction":"outbound",
+                  "stopPoint":[
+                    {"id":"940GZZLUWWL","name":"Walthamstow Central Underground Station","lat":51.582965,"lon":-0.019885,"stopType":"NaptanMetroStation"},
+                    {"id":"940GZZLUBLR","name":"Blackhorse Road Underground Station","lat":51.586919,"lon":-0.04115,"stopType":"NaptanMetroStation"}
+                  ]
+                }
               ]
             }
             """.trimIndent(),
@@ -48,6 +57,8 @@ class TflPayloadParserHttpTest {
 
         expectThat(result).isSuccess().get { lineId }.isEqualTo(LineId("victoria"))
         expectThat(result).isSuccess().get { paths }.hasSize(1)
+        expectThat(result).isSuccess().get { sequences }.hasSize(1)
+        expectThat(result).isSuccess().get { sequences.first().direction }.isEqualTo(TrainDirection("outbound"))
         expectThat(result).isSuccess().get { paths.first().coordinates.first() }.isEqualTo(GeoCoordinate(51.582965, -0.019885))
     }
 
@@ -60,6 +71,14 @@ class TflPayloadParserHttpTest {
               "lineName":"Victoria",
               "lineStrings":[
                 "[[[-0.019885]]]"
+              ],
+              "stopPointSequences":[
+                {
+                  "direction":"outbound",
+                  "stopPoint":[
+                    {"id":"940GZZLUWWL","name":"Walthamstow Central Underground Station","lat":51.582965,"lon":-0.019885,"stopType":"NaptanMetroStation"}
+                  ]
+                }
               ]
             }
             """.trimIndent(),

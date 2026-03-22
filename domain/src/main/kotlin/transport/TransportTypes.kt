@@ -60,6 +60,9 @@ value class LiveTrainCount(val value: Int)
 @JvmInline
 value class PredictionCount(val value: Int)
 
+@JvmInline
+value class HeadingDegrees(val value: Double)
+
 val tubeLineIds = listOf(
     LineId("bakerloo"),
     LineId("central"),

@@ -51,6 +51,9 @@ class RealTubeLineMapRepository(
                         routeRecord.lineName,
                         routeRecord.paths.map { pathRecord ->
                             TubeLinePath(pathRecord.coordinates)
+                        },
+                        routeRecord.sequences.map { sequenceRecord ->
+                            TubeLineSequence(sequenceRecord.direction, sequenceRecord.stations)
                         }
                     )
                 }

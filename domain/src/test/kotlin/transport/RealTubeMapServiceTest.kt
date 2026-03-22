@@ -110,7 +110,8 @@ class RealTubeMapServiceTest {
                                 GeoCoordinate(51.1, -0.1)
                             )
                         )
-                    )
+                    ),
+                    emptyList()
                 )
             )
         )

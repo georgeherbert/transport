@@ -105,6 +105,7 @@ class ServiceResponseMapperHttp : ServiceResponseMapper {
             train.towards?.value,
             train.currentLocation.value,
             train.coordinate?.let(::geoCoordinateJson),
+            train.heading?.value,
             train.secondsToNextStop?.seconds?.toInt(),
             train.expectedArrival?.toString(),
             train.observedAt?.toString()

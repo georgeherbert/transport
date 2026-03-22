@@ -365,17 +365,23 @@ function markerLabelForLine(lineId) {
 
 function createTrainIcon(train) {
   const lineColor = colorForLine(train.primaryLineId)
+  const headingDegrees = train.headingDegrees ?? 0
+  const arrowClassName =
+    train.headingDegrees == null ? 'train-marker-arrow train-marker-arrow--hidden' : 'train-marker-arrow'
 
   return L.divIcon({
     className: 'train-icon-shell',
     html: `
-      <div class="train-icon" style="--line-color: ${lineColor}">
-        <span>${markerLabelForLine(train.primaryLineId)}</span>
+      <div class="train-marker" style="--line-color: ${lineColor}; --heading-degrees: ${headingDegrees}deg">
+        <div class="${arrowClassName}"></div>
+        <div class="train-icon">
+          <span>${markerLabelForLine(train.primaryLineId)}</span>
+        </div>
       </div>
     `,
-    iconSize: [26, 26],
-    iconAnchor: [13, 13],
-    popupAnchor: [0, -14]
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+    popupAnchor: [0, -22]
   })
 }
 

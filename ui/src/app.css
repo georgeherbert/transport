@@ -215,7 +215,53 @@ body {
   border: 0;
 }
 
+.train-marker {
+  position: relative;
+  width: 40px;
+  height: 40px;
+}
+
+.train-marker-arrow {
+  position: absolute;
+  inset: 0;
+  transform: rotate(var(--heading-degrees));
+  transform-origin: 20px 20px;
+  filter: drop-shadow(0 1px 1px rgba(15, 23, 42, 0.4));
+}
+
+.train-marker-arrow::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 2px;
+  width: 4px;
+  height: 16px;
+  transform: translateX(-50%);
+  background: var(--line-color);
+  border-radius: 999px;
+  box-shadow: 0 0 0 2px #ffffff;
+}
+
+.train-marker-arrow::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -1px;
+  transform: translateX(-50%);
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-bottom: 12px solid var(--line-color);
+  filter: drop-shadow(0 0 0 2px #ffffff);
+}
+
+.train-marker-arrow--hidden {
+  display: none;
+}
+
 .train-icon {
+  position: absolute;
+  left: 7px;
+  top: 7px;
   display: grid;
   place-items: center;
   width: 26px;
@@ -226,6 +272,7 @@ body {
   font-size: 0.62rem;
   font-weight: 700;
   border: 2px solid #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.25);
 }
 
 .popup-card {

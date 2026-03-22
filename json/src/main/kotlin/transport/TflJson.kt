@@ -37,5 +37,21 @@ data class TflArrivalJson(
 data class TflRouteSequenceJson(
     val lineId: String,
     val lineName: String,
-    val lineStrings: List<String>
+    val lineStrings: List<String>,
+    val stopPointSequences: List<TflRouteStopPointSequenceJson>
+)
+
+@Serializable
+data class TflRouteStopPointSequenceJson(
+    val direction: String,
+    val stopPoint: List<TflRouteStopPointJson>
+)
+
+@Serializable
+data class TflRouteStopPointJson(
+    val id: String,
+    val name: String,
+    val lat: Double,
+    val lon: Double,
+    val stopType: String
 )

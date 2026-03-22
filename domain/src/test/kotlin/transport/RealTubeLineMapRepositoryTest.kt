@@ -31,7 +31,8 @@ class RealTubeLineMapRepositoryTest {
                                         GeoCoordinate(51.1, -0.2)
                                     )
                                 )
-                            )
+                            ),
+                            emptyList()
                         )
                     )
                 },
@@ -62,6 +63,7 @@ class RealTubeLineMapRepositoryTest {
                         TubeLineRouteRecord(
                             lineId,
                             LineName(lineId.value.replaceFirstChar(Char::titlecase)),
+                            emptyList(),
                             emptyList()
                         )
                     )
@@ -94,6 +96,7 @@ class RealTubeLineMapRepositoryTest {
                             TubeLineRouteRecord(
                                 lineId,
                                 LineName(lineId.value.replaceFirstChar(Char::titlecase)),
+                                emptyList(),
                                 emptyList()
                             )
                         )
