@@ -26,7 +26,7 @@ data class TflArrivalJson(
     val destinationName: String? = null,
     val timestamp: String,
     val timeToStation: Int? = null,
-    val currentLocation: String,
+    val currentLocation: String? = null,
     val towards: String,
     val expectedArrival: String,
     val timeToLive: String,

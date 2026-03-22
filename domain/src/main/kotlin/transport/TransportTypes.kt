@@ -87,7 +87,8 @@ val supportedRailLines = listOf(
     SupportedLine(LineId("mildmay"), TransportModeName("overground")),
     SupportedLine(LineId("suffragette"), TransportModeName("overground")),
     SupportedLine(LineId("weaver"), TransportModeName("overground")),
-    SupportedLine(LineId("windrush"), TransportModeName("overground"))
+    SupportedLine(LineId("windrush"), TransportModeName("overground")),
+    SupportedLine(LineId("tram"), TransportModeName("tram"))
 )
 
 val supportedRailLineIds = supportedRailLines.map(SupportedLine::id)

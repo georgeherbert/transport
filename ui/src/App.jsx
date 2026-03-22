@@ -33,6 +33,7 @@ const linePalette = {
   northern: '#202124',
   piccadilly: '#1640b4',
   suffragette: '#2f8f5b',
+  tram: '#7dc242',
   victoria: '#0097d7',
   'waterloo-city': '#67c6c2',
   weaver: '#8a3a2f',
@@ -99,8 +100,8 @@ function App() {
     <div className="page">
       <header className="topbar">
         <div>
-          <h1>London Rail Map</h1>
-          <p>Live TfL rail map projection from Tube, DLR, Elizabeth line, and Overground data.</p>
+          <h1>London Rail and Tram Map</h1>
+          <p>Live TfL map projection from Tube, DLR, Elizabeth line, Overground, and Tram data.</p>
         </div>
         <button className="refresh-button" type="button" onClick={() => requestMap(true)}>
           Refresh

@@ -223,6 +223,37 @@ class TflPayloadParserHttpTest {
     }
 
     @Test
+    fun `parsePredictions allows missing tram current location`() {
+        val result = tflPayloadParser.parsePredictions(
+            """
+            [
+              {
+                "id":"-2131546322",
+                "vehicleId":"2531",
+                "naptanId":"940GZZCRWCR",
+                "stationName":"West Croydon Tram Stop",
+                "lineId":"tram",
+                "lineName":"Tram",
+                "platformName":"Westbound - Platform 2",
+                "direction":"outbound",
+                "destinationName":"West Croydon",
+                "timestamp":"2026-03-22T16:31:56Z",
+                "towards":"West Croydon",
+                "expectedArrival":"2026-03-22T16:32:00Z",
+                "timeToLive":"2026-03-22T16:32:00Z",
+                "modeName":"tram"
+              }
+            ]
+            """.trimIndent(),
+            "/Mode/tram/Arrivals"
+        )
+
+        expectThat(result).isSuccess().hasSize(1)
+        expectThat(result).isSuccess().get { first().currentLocation }.isEqualTo(null)
+        expectThat(result).isSuccess().get { first().modeName }.isEqualTo(TransportModeName("tram"))
+    }
+
+    @Test
     fun `parsePredictions returns payload failure for invalid timestamps`() {
         val result = tflPayloadParser.parsePredictions(
             """

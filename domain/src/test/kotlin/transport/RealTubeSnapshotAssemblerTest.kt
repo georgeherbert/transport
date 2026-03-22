@@ -18,7 +18,8 @@ class RealTubeSnapshotAssemblerTest {
             testStation("940GZZLUWSM", "Warren Street Underground Station", 51.524951, -0.138321, setOf("victoria")),
             testStation("940GZZLUKSX", "King's Cross St. Pancras Underground Station", 51.530663, -0.123194, setOf("victoria")),
             testStation("940GZZLUEUS", "Euston Square Underground Station", 51.525604, -0.135829, setOf("metropolitan", "hammersmith-city")),
-            testStation("910GABWDXR", "Abbey Wood", 51.490719, 0.121823, setOf("elizabeth"))
+            testStation("910GABWDXR", "Abbey Wood", 51.490719, 0.121823, setOf("elizabeth")),
+            testStation("940GZZCRWCR", "West Croydon Tram Stop", 51.378785, -0.102882, setOf("tram"))
         )
     )
     private val assembler: TubeSnapshotAssembler =
@@ -188,5 +189,37 @@ class RealTubeSnapshotAssemblerTest {
         expectThat(snapshot.trains.first().lineIds).contains(LineId("elizabeth"))
         expectThat(snapshot.trains.first().currentLocation).isEqualTo(LocationDescription("Abbey Wood"))
         expectThat(snapshot.trains.first().nextStop).isNotNull().get { id }.isEqualTo(StationId("910GABWDXR"))
+    }
+
+    @Test
+    fun `assemble includes tram predictions when current location is missing`() {
+        val snapshot = assembler.assemble(
+            tubeNetwork,
+            listOf(
+                TubePredictionRecord(
+                    VehicleId("2531"),
+                    StationId("940GZZCRWCR"),
+                    StationName("West Croydon Tram Stop"),
+                    LineId("tram"),
+                    LineName("Tram"),
+                    TrainDirection("outbound"),
+                    DestinationName("West Croydon"),
+                    Instant.parse("2026-03-22T16:31:56Z"),
+                    null,
+                    null,
+                    TowardsDescription("West Croydon"),
+                    Instant.parse("2026-03-22T16:32:00Z"),
+                    TransportModeName("tram")
+                )
+            ),
+            Instant.parse("2026-03-22T16:31:56Z"),
+            StationQueryCount(1),
+            StationFailureCount(0)
+        )
+
+        expectThat(snapshot.trains).hasSize(1)
+        expectThat(snapshot.trains.first().lineIds).contains(LineId("tram"))
+        expectThat(snapshot.trains.first().currentLocation).isEqualTo(LocationDescription("West Croydon Tram Stop"))
+        expectThat(snapshot.trains.first().location.type).isEqualTo(LocationType.STATION_BOARD)
     }
 }
