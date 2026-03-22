@@ -38,6 +38,9 @@ class RealTubeLineMapRepositoryTest {
                 },
                 predictionHandler = { mode ->
                     Failure(TransportError.SnapshotUnavailable("unused"))
+                },
+                vehiclePredictionHandler = { vehicleIds ->
+                    Failure(TransportError.SnapshotUnavailable("unused"))
                 }
             )
             val repository = RealTubeLineMapRepository(tubeData)
@@ -69,6 +72,9 @@ class RealTubeLineMapRepositoryTest {
                     )
                 },
                 predictionHandler = { mode ->
+                    Failure(TransportError.SnapshotUnavailable("unused"))
+                },
+                vehiclePredictionHandler = { vehicleIds ->
                     Failure(TransportError.SnapshotUnavailable("unused"))
                 }
             )
@@ -103,6 +109,9 @@ class RealTubeLineMapRepositoryTest {
                     }
                 },
                 predictionHandler = { mode ->
+                    Failure(TransportError.SnapshotUnavailable("unused"))
+                },
+                vehiclePredictionHandler = { vehicleIds ->
                     Failure(TransportError.SnapshotUnavailable("unused"))
                 }
             )

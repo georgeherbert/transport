@@ -51,6 +51,21 @@ class TubeDataHttp(
                 tflPayloadParser.parsePredictions(body, "/Mode/${mode.value}/Arrivals")
             }
 
+    override suspend fun fetchVehiclePredictions(vehicleIds: List<VehicleId>) =
+        if (vehicleIds.isEmpty()) {
+            Success(emptyList())
+        } else {
+            fetchEndpoint(
+                "/Vehicle/${vehicleIds.joinToString(",") { vehicleId -> vehicleId.value }}/Arrivals",
+                emptyList()
+            ).flatMap { body ->
+                tflPayloadParser.parsePredictions(
+                    body,
+                    "/Vehicle/${vehicleIds.joinToString(",") { vehicleId -> vehicleId.value }}/Arrivals"
+                )
+            }
+        }
+
     private suspend fun fetchModeStationsPage(
         mode: TransportModeName,
         pageNumber: Int

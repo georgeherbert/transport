@@ -200,7 +200,9 @@ function App() {
                     {train.towards != null ? (
                       <TrainDetail label="Towards">{train.towards}</TrainDetail>
                     ) : null}
-                    <TrainDetail label="Next stop">{secondsLabelFor(train.secondsToNextStop)}</TrainDetail>
+                    {train.secondsToNextStop != null ? (
+                      <TrainDetail label="Next stop">{secondsLabelFor(train.secondsToNextStop)}</TrainDetail>
+                    ) : null}
                   </div>
                 </Popup>
               </Marker>
@@ -224,7 +226,9 @@ function App() {
                 <div className="train-row-body">
                   <strong>{currentLocationLabelFor(train)}</strong>
                   <span>{serviceLabelFor(train)}</span>
-                  <span>{secondsLabelFor(train.secondsToNextStop)}</span>
+                  {train.secondsToNextStop != null ? (
+                    <span>{secondsLabelFor(train.secondsToNextStop)}</span>
+                  ) : null}
                 </div>
               </article>
             ))}

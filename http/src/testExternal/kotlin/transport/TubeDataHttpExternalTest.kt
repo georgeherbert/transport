@@ -1,5 +1,7 @@
 package transport
 
+import dev.forkhandles.result4k.Failure
+import dev.forkhandles.result4k.Success
 import io.ktor.client.HttpClient
 import java.time.Duration
 import kotlin.test.AfterTest
@@ -7,6 +9,7 @@ import kotlin.test.Test
 import kotlinx.coroutines.runBlocking
 import strikt.api.expectThat
 import strikt.assertions.get
+import strikt.assertions.isEqualTo
 import strikt.assertions.isGreaterThan
 
 class TubeDataHttpExternalTest {
@@ -57,6 +60,37 @@ class TubeDataHttpExternalTest {
             val result = tubeData.fetchPredictions(TransportModeName("tram"))
 
             expectThat(result).isSuccess().get { size }.isGreaterThan(0)
+        }
+    }
+
+    @Test
+    fun `fetchVehiclePredictions returns live tube timings when vehicle ids are available`() {
+        runBlocking {
+            val bulkPredictionResult = tubeData.fetchPredictions(TransportModeName("tube"))
+            expectThat(bulkPredictionResult).isSuccess()
+
+            val vehicleIds = when (bulkPredictionResult) {
+                is Success ->
+                    bulkPredictionResult.value
+                        .mapNotNull { prediction -> prediction.vehicleId }
+                        .distinct()
+                        .take(3)
+                is Failure ->
+                    error("Expected the live tube feed to succeed.")
+            }
+
+            val vehiclePredictionResult = tubeData.fetchVehiclePredictions(vehicleIds)
+            expectThat(vehiclePredictionResult).isSuccess()
+
+            val timedPredictionCount = when (vehiclePredictionResult) {
+                is Success ->
+                    vehiclePredictionResult.value.count { prediction -> prediction.secondsToNextStop != null }
+                is Failure ->
+                    error("Expected live vehicle predictions to succeed.")
+            }
+
+            expectThat(vehicleIds.isEmpty()).isEqualTo(false)
+            expectThat(timedPredictionCount).isGreaterThan(0)
         }
     }
 }

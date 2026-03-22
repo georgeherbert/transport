@@ -167,6 +167,58 @@ class TubeDataHttpTest {
     }
 
     @Test
+    fun `fetchVehiclePredictions parses the vehicle arrivals payload`() {
+        runBlocking {
+            val observedQuery = AtomicReference<String?>(null)
+            server.createContext(
+                "/Vehicle/257,258/Arrivals",
+                RecordingJsonHandler(
+                    observedQuery,
+                    200,
+                    """
+                    [
+                      {
+                        "id":"-303938351",
+                        "vehicleId":"257",
+                        "naptanId":"940GZZLUGPK",
+                        "stationName":"Green Park Underground Station",
+                        "lineId":"victoria",
+                        "lineName":"Victoria",
+                        "platformName":"Northbound - Platform 4",
+                        "direction":"outbound",
+                        "destinationNaptanId":"940GZZLUWWL",
+                        "destinationName":"Walthamstow Central Underground Station",
+                        "timestamp":"2026-03-22T00:49:20Z",
+                        "timeToStation":75,
+                        "currentLocation":"Approaching Green Park",
+                        "towards":"Walthamstow Central",
+                        "expectedArrival":"2026-03-22T00:50:35Z",
+                        "timeToLive":"2026-03-22T00:50:35Z",
+                        "modeName":"tube"
+                      }
+                    ]
+                    """.trimIndent()
+                )
+            )
+
+            val result = tubeData.fetchVehiclePredictions(listOf(VehicleId("257"), VehicleId("258")))
+
+            expectThat(result).isSuccess().hasSize(1)
+            expectThat(result).isSuccess().get { first().secondsToNextStop }.isEqualTo(Duration.ofSeconds(75))
+            expectThat(observedQuery.get()).isNotNull().contains("app_key=test-key")
+        }
+    }
+
+    @Test
+    fun `fetchVehiclePredictions returns empty without calling upstream for an empty batch`() {
+        runBlocking {
+            val result = tubeData.fetchVehiclePredictions(emptyList())
+
+            expectThat(result).isSuccess().hasSize(0)
+        }
+    }
+
+    @Test
     fun `fetchLineRoutes requests regular service geometry`() {
         runBlocking {
             val observedQuery = AtomicReference<String?>(null)

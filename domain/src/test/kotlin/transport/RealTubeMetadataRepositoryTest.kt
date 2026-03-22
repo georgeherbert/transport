@@ -50,6 +50,9 @@ class RealTubeMetadataRepositoryTest {
                 },
                 predictionHandler = { mode ->
                     Failure(TransportError.SnapshotUnavailable("unused"))
+                },
+                vehiclePredictionHandler = { vehicleIds ->
+                    Failure(TransportError.SnapshotUnavailable("unused"))
                 }
             )
             val repository = RealTubeMetadataRepository(tubeData)
@@ -96,6 +99,9 @@ class RealTubeMetadataRepositoryTest {
                 },
                 predictionHandler = { mode ->
                     Failure(TransportError.SnapshotUnavailable("unused"))
+                },
+                vehiclePredictionHandler = { vehicleIds ->
+                    Failure(TransportError.SnapshotUnavailable("unused"))
                 }
             )
             val repository = RealTubeMetadataRepository(tubeData)
@@ -122,6 +128,9 @@ class RealTubeMetadataRepositoryTest {
                     Failure(TransportError.MetadataUnavailable(lineId.value))
                 },
                 predictionHandler = { mode ->
+                    Failure(TransportError.SnapshotUnavailable("unused"))
+                },
+                vehiclePredictionHandler = { vehicleIds ->
                     Failure(TransportError.SnapshotUnavailable("unused"))
                 }
             )
