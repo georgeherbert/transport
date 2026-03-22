@@ -3,8 +3,8 @@ package transport
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpHandler
 import com.sun.net.httpserver.HttpServer
+import io.ktor.client.HttpClient
 import java.net.InetSocketAddress
-import java.net.http.HttpClient
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
@@ -22,25 +22,28 @@ import strikt.assertions.isNotNull
 
 class TubeDataHttpTest {
     private lateinit var server: HttpServer
+    private lateinit var httpClient: HttpClient
     private lateinit var tubeData: TubeData
 
     @BeforeTest
     fun setUp() {
         server = HttpServer.create(InetSocketAddress(0), 0)
         server.start()
+        httpClient = createTflHttpClient(Duration.ofSeconds(5))
         tubeData = TubeDataHttp(
             TflHttpClientConfig(
                 "http://127.0.0.1:${server.address.port}",
                 Duration.ofSeconds(5),
                 "test-key"
             ),
-            HttpClient.newHttpClient(),
+            httpClient,
             TflPayloadParserHttp(transportJson())
         )
     }
 
     @AfterTest
     fun tearDown() {
+        httpClient.close()
         server.stop(0)
     }
 
@@ -318,13 +321,15 @@ class TubeDataHttpTest {
     @Test
     fun `fetchModeStations returns upstream network failure when the socket cannot be reached`() {
         runBlocking {
+            httpClient.close()
+            httpClient = createTflHttpClient(Duration.ofMillis(250))
             tubeData = TubeDataHttp(
                 TflHttpClientConfig(
                     "http://127.0.0.1:1",
                     Duration.ofMillis(250),
                     "test-key"
                 ),
-                HttpClient.newHttpClient(),
+                httpClient,
                 TflPayloadParserHttp(transportJson())
             )
 
@@ -344,13 +349,15 @@ class TubeDataHttpTest {
                 "/Mode/elizabeth-line/Arrivals",
                 RecordingJsonHandler(observedQuery, 200, "[]")
             )
+            httpClient.close()
+            httpClient = createTflHttpClient(Duration.ofSeconds(5))
             tubeData = TubeDataHttp(
                 TflHttpClientConfig(
                     "http://127.0.0.1:${server.address.port}",
                     Duration.ofSeconds(5),
                     "secret/key"
                 ),
-                HttpClient.newHttpClient(),
+                httpClient,
                 TflPayloadParserHttp(transportJson())
             )
 

@@ -4,16 +4,17 @@ import dev.forkhandles.result4k.Failure
 import dev.forkhandles.result4k.Success
 import dev.forkhandles.result4k.flatMap
 import dev.forkhandles.result4k.map
-import java.net.URI
-import java.net.URLEncoder
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
-import java.nio.charset.StandardCharsets
 import java.io.IOException
+import io.ktor.client.HttpClient
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.request.parameter
+import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.HttpHeaders
+import io.ktor.http.isSuccess
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 class TubeDataHttp(
     private val tflHttpClientConfig: TflHttpClientConfig,
@@ -69,9 +70,7 @@ class TubeDataHttp(
         var attempt = 1
 
         while (attempt <= maxAttempts) {
-            val result = withContext(Dispatchers.IO) {
-                sendRequest(endpoint, queryParameters)
-            }
+            val result = sendRequest(endpoint, queryParameters)
 
             if (!shouldRetry(result, attempt, maxAttempts)) {
                 return result
@@ -81,38 +80,17 @@ class TubeDataHttp(
             attempt += 1
         }
 
-        return withContext(Dispatchers.IO) {
-            sendRequest(endpoint, queryParameters)
-        }
+        return sendRequest(endpoint, queryParameters)
     }
 
-    private fun sendRequest(
+    private suspend fun sendRequest(
         endpoint: String,
         queryParameters: List<QueryParameter>
     ): TransportResult<String> {
-        val request = HttpRequest.newBuilder(buildUri(endpoint, queryParameters))
-            .timeout(tflHttpClientConfig.requestTimeout)
-            .header("Accept", "application/json")
-            .header("User-Agent", "transport-rail-api/1.0")
-            .GET()
-            .build()
-
         return try {
-            val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
-            if (response.statusCode() in 200..299) {
-                Success(response.body())
-            } else {
-                Failure(
-                    TransportError.UpstreamHttpFailure(
-                        endpoint,
-                        response.statusCode(),
-                        response.body().take(250)
-                    )
-                )
-            }
-        } catch (exception: InterruptedException) {
-            Thread.currentThread().interrupt()
-            Failure(TransportError.UpstreamNetworkFailure(endpoint, exception.message ?: "Request interrupted"))
+            request(endpoint, queryParameters).toTransportResult(endpoint)
+        } catch (exception: CancellationException) {
+            throw exception
         } catch (exception: IOException) {
             Failure(TransportError.UpstreamNetworkFailure(endpoint, exception.message ?: exception.javaClass.simpleName))
         }
@@ -148,19 +126,33 @@ class TubeDataHttp(
         return ((page.total - 1) / page.pageSize) + 1
     }
 
-    private fun buildUri(endpoint: String, queryParameters: List<QueryParameter>): URI {
-        val queryParts = mutableListOf<String>()
-        queryParameters.forEach { queryParameter ->
-            queryParts += "${queryParameter.name}=${encodeQueryValue(queryParameter.value)}"
+    private suspend fun request(
+        endpoint: String,
+        queryParameters: List<QueryParameter>
+    ) =
+        httpClient.get(tflHttpClientConfig.baseUrl.removeSuffix("/") + endpoint) {
+            header(HttpHeaders.Accept, "application/json")
+            header(HttpHeaders.UserAgent, "transport-rail-api/1.0")
+            queryParameters.forEach { queryParameter ->
+                parameter(queryParameter.name, queryParameter.value)
+            }
+            parameter("app_key", tflHttpClientConfig.subscriptionKey)
         }
-        queryParts += "app_key=${encodeQueryValue(tflHttpClientConfig.subscriptionKey)}"
 
-        val query = if (queryParts.isEmpty()) "" else "?${queryParts.joinToString("&")}"
-        return URI.create(tflHttpClientConfig.baseUrl.removeSuffix("/") + endpoint + query)
+    private suspend fun HttpResponse.toTransportResult(endpoint: String): TransportResult<String> {
+        val body = bodyAsText()
+        if (status.isSuccess()) {
+            return Success(body)
+        }
+
+        return Failure(
+            TransportError.UpstreamHttpFailure(
+                endpoint,
+                status.value,
+                body.take(250)
+            )
+        )
     }
-
-    private fun encodeQueryValue(value: String) =
-        URLEncoder.encode(value, StandardCharsets.UTF_8)
 }
 
 data class QueryParameter(

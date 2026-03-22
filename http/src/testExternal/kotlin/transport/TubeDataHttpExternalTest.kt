@@ -1,7 +1,8 @@
 package transport
 
-import java.net.http.HttpClient
+import io.ktor.client.HttpClient
 import java.time.Duration
+import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlinx.coroutines.runBlocking
 import strikt.api.expectThat
@@ -10,6 +11,7 @@ import strikt.assertions.isGreaterThan
 
 class TubeDataHttpExternalTest {
     private val subscriptionKey = requiredEnvironmentVariable("TFL_SUBSCRIPTION_KEY")
+    private val httpClient: HttpClient = createTflHttpClient(Duration.ofSeconds(20))
     private val tubeData: TubeData =
         TubeDataHttp(
             TflHttpClientConfig(
@@ -17,7 +19,7 @@ class TubeDataHttpExternalTest {
                 Duration.ofSeconds(20),
                 subscriptionKey
             ),
-            HttpClient.newHttpClient(),
+            httpClient,
             TflPayloadParserHttp(transportJson())
         )
 
@@ -25,6 +27,11 @@ class TubeDataHttpExternalTest {
         System.getenv().getOrDefault(name, "").ifBlank {
             throw IllegalArgumentException("Missing required environment variable $name.")
         }
+
+    @AfterTest
+    fun tearDown() {
+        httpClient.close()
+    }
 
     @Test
     fun `fetchModeStations returns live elizabeth stop points`() {

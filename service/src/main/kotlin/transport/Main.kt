@@ -1,58 +1,72 @@
 package transport
 
+import io.ktor.client.HttpClient
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
-import java.net.http.HttpClient
 import java.time.Clock
 
 fun main() {
     val transportServiceConfig = loadTransportServiceConfig(System.getenv())
     val json = transportJson()
     val serviceResponseMapper = ServiceResponseMapperHttp()
-    val services = createTransportServices(transportServiceConfig, json)
+    val httpClient = createTflHttpClient(transportServiceConfig.requestTimeout)
+    val services = createTransportServices(transportServiceConfig, json, httpClient)
 
-    embeddedServer(
-        factory = Netty,
-        port = transportServiceConfig.port,
-        host = transportServiceConfig.host,
-        module = {
-            transportModule(
-                services.tubeSnapshotService,
-                services.tubeLineMapService,
-                services.tubeMapService,
-                serviceResponseMapper,
-                json
-            )
-        }
-    ).start(wait = true)
+    try {
+        embeddedServer(
+            factory = Netty,
+            port = transportServiceConfig.port,
+            host = transportServiceConfig.host,
+            module = {
+                transportModule(
+                    services.tubeSnapshotService,
+                    services.tubeLineMapService,
+                    services.tubeMapService,
+                    serviceResponseMapper,
+                    json
+                )
+            }
+        ).start(wait = true)
+    } finally {
+        httpClient.close()
+    }
 }
 
 fun createTubeSnapshotService(
     transportServiceConfig: TransportServiceConfig,
     json: kotlinx.serialization.json.Json
 ): TubeSnapshotService =
-    createTransportServices(transportServiceConfig, json).tubeSnapshotService
+    createTransportServices(
+        transportServiceConfig,
+        json,
+        createTflHttpClient(transportServiceConfig.requestTimeout)
+    ).tubeSnapshotService
 
 fun createTubeLineMapService(
     transportServiceConfig: TransportServiceConfig,
     json: kotlinx.serialization.json.Json
 ): TubeLineMapService =
-    createTransportServices(transportServiceConfig, json).tubeLineMapService
+    createTransportServices(
+        transportServiceConfig,
+        json,
+        createTflHttpClient(transportServiceConfig.requestTimeout)
+    ).tubeLineMapService
 
 fun createTubeMapService(
     transportServiceConfig: TransportServiceConfig,
     json: kotlinx.serialization.json.Json
 ): TubeMapService =
-    createTransportServices(transportServiceConfig, json).tubeMapService
+    createTransportServices(
+        transportServiceConfig,
+        json,
+        createTflHttpClient(transportServiceConfig.requestTimeout)
+    ).tubeMapService
 
 private fun createTransportServices(
     transportServiceConfig: TransportServiceConfig,
-    json: kotlinx.serialization.json.Json
+    json: kotlinx.serialization.json.Json,
+    httpClient: HttpClient
 ): TransportServices {
-    val httpClient = HttpClient.newBuilder()
-        .connectTimeout(transportServiceConfig.requestTimeout)
-        .version(HttpClient.Version.HTTP_2)
-        .build()
     val tubeData = TubeDataHttp(
         transportServiceConfig.toTflHttpClientConfig(),
         httpClient,

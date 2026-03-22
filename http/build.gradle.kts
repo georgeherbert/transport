@@ -4,6 +4,7 @@ plugins {
     kotlin("jvm")
 }
 
+val ktorVersion: String by rootProject.extra
 val coroutinesVersion: String by rootProject.extra
 val kotlinxSerializationVersion: String by rootProject.extra
 val result4kVersion: String by rootProject.extra
@@ -12,6 +13,8 @@ val striktVersion: String by rootProject.extra
 dependencies {
     implementation(project(":domain"))
     implementation(project(":json"))
+    implementation("io.ktor:ktor-client-core-jvm:$ktorVersion")
+    implementation("io.ktor:ktor-client-cio-jvm:$ktorVersion")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:$coroutinesVersion")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:$kotlinxSerializationVersion")
     implementation("dev.forkhandles:result4k:$result4kVersion")

@@ -12,14 +12,12 @@ val result4kVersion: String by rootProject.extra
 val striktVersion: String by rootProject.extra
 val uiDirectory = rootProject.layout.projectDirectory.dir("ui")
 
-fun npmCommand() =
-    if (System.getProperty("os.name").startsWith("Windows")) "npm.cmd" else "npm"
-
 dependencies {
     implementation(project(":domain"))
     implementation(project(":json"))
     implementation(project(":http"))
     implementation("dev.forkhandles:result4k:$result4kVersion")
+    implementation("io.ktor:ktor-client-core-jvm:$ktorVersion")
     implementation("io.ktor:ktor-server-core-jvm:$ktorVersion")
     implementation("io.ktor:ktor-server-netty-jvm:$ktorVersion")
     implementation("io.ktor:ktor-server-content-negotiation-jvm:$ktorVersion")
@@ -50,7 +48,8 @@ application {
 
 val installUiDependencies = tasks.register<Exec>("installUiDependencies") {
     workingDir = uiDirectory.asFile
-    commandLine(npmCommand(), "ci")
+    environment("PATH", System.getenv("PATH").orEmpty())
+    commandLine("npm", "ci")
     inputs.file(uiDirectory.file("package.json"))
     inputs.file(uiDirectory.file("package-lock.json"))
     outputs.dir(uiDirectory.dir("node_modules"))
@@ -59,7 +58,8 @@ val installUiDependencies = tasks.register<Exec>("installUiDependencies") {
 val buildUi = tasks.register<Exec>("buildUi") {
     dependsOn(installUiDependencies)
     workingDir = uiDirectory.asFile
-    commandLine(npmCommand(), "run", "build")
+    environment("PATH", System.getenv("PATH").orEmpty())
+    commandLine("npm", "run", "build")
     inputs.file(uiDirectory.file("index.html"))
     inputs.file(uiDirectory.file("package.json"))
     inputs.file(uiDirectory.file("package-lock.json"))
