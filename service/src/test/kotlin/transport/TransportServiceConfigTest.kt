@@ -1,8 +1,12 @@
 package transport
 
 import kotlin.test.Test
+import strikt.api.expectCatching
 import strikt.api.expectThat
+import strikt.assertions.get
+import strikt.assertions.isA
 import strikt.assertions.isEqualTo
+import strikt.assertions.isFailure
 
 class TransportServiceConfigTest {
     @Test
@@ -17,11 +21,13 @@ class TransportServiceConfigTest {
     }
 
     @Test
-    fun `loadTransportServiceConfig leaves subscription key empty when unset`() {
-        val config = loadTransportServiceConfig(
-            emptyMap()
-        )
-
-        expectThat(config.tflSubscriptionKey).isEqualTo(null)
+    fun `loadTransportServiceConfig fails when the subscription key is unset`() {
+        expectCatching {
+            loadTransportServiceConfig(emptyMap())
+        }
+            .isFailure()
+            .isA<IllegalArgumentException>()
+            .get(Throwable::message)
+            .isEqualTo("Missing required environment variable TFL_SUBSCRIPTION_KEY.")
     }
 }

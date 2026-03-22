@@ -8,6 +8,7 @@ import strikt.assertions.get
 import strikt.assertions.isEqualTo
 
 class TransportServiceExternalTest {
+    private val subscriptionKey = requiredEnvironmentVariable("TFL_SUBSCRIPTION_KEY")
     private val snapshotService: TubeSnapshotService =
         createTubeSnapshotService(
             TransportServiceConfig(
@@ -16,10 +17,15 @@ class TransportServiceExternalTest {
                 Duration.ofSeconds(20),
                 Duration.ofSeconds(20),
                 "https://api.tfl.gov.uk",
-                System.getenv("TFL_SUBSCRIPTION_KEY")
+                subscriptionKey
             ),
             transportJson()
         )
+
+    private fun requiredEnvironmentVariable(name: String) =
+        System.getenv().getOrDefault(name, "").ifBlank {
+            throw IllegalArgumentException("Missing required environment variable $name.")
+        }
 
     @Test
     fun `live snapshot uses the bulk feed without partial station failures`() {

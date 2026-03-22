@@ -153,9 +153,7 @@ class TubeDataHttp(
         queryParameters.forEach { queryParameter ->
             queryParts += "${queryParameter.name}=${encodeQueryValue(queryParameter.value)}"
         }
-        if (tflHttpClientConfig.subscriptionKey != null) {
-            queryParts += "app_key=${encodeQueryValue(tflHttpClientConfig.subscriptionKey)}"
-        }
+        queryParts += "app_key=${encodeQueryValue(tflHttpClientConfig.subscriptionKey)}"
 
         val query = if (queryParts.isEmpty()) "" else "?${queryParts.joinToString("&")}"
         return URI.create(tflHttpClientConfig.baseUrl.removeSuffix("/") + endpoint + query)

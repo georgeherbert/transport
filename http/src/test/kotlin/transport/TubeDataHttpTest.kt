@@ -32,7 +32,7 @@ class TubeDataHttpTest {
             TflHttpClientConfig(
                 "http://127.0.0.1:${server.address.port}",
                 Duration.ofSeconds(5),
-                null
+                "test-key"
             ),
             HttpClient.newHttpClient(),
             TflPayloadParserHttp(transportJson())
@@ -322,7 +322,7 @@ class TubeDataHttpTest {
                 TflHttpClientConfig(
                     "http://127.0.0.1:1",
                     Duration.ofMillis(250),
-                    null
+                    "test-key"
                 ),
                 HttpClient.newHttpClient(),
                 TflPayloadParserHttp(transportJson())

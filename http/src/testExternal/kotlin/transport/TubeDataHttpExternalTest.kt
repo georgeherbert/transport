@@ -9,16 +9,22 @@ import strikt.assertions.get
 import strikt.assertions.isGreaterThan
 
 class TubeDataHttpExternalTest {
+    private val subscriptionKey = requiredEnvironmentVariable("TFL_SUBSCRIPTION_KEY")
     private val tubeData: TubeData =
         TubeDataHttp(
             TflHttpClientConfig(
                 "https://api.tfl.gov.uk",
                 Duration.ofSeconds(20),
-                System.getenv("TFL_SUBSCRIPTION_KEY")
+                subscriptionKey
             ),
             HttpClient.newHttpClient(),
             TflPayloadParserHttp(transportJson())
         )
+
+    private fun requiredEnvironmentVariable(name: String) =
+        System.getenv().getOrDefault(name, "").ifBlank {
+            throw IllegalArgumentException("Missing required environment variable $name.")
+        }
 
     @Test
     fun `fetchModeStations returns live elizabeth stop points`() {
