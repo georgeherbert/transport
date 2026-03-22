@@ -26,4 +26,3 @@ fun TransportServiceConfig.toTflHttpClientConfig() =
 
 private fun loadTflSubscriptionKey(environment: Map<String, String>) =
     environment["TFL_SUBSCRIPTION_KEY"]?.takeIf(String::isNotBlank)
-        ?: environment["TFL_APP_KEY"]?.takeIf(String::isNotBlank)

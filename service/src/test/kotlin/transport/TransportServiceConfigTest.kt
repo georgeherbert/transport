@@ -6,11 +6,10 @@ import strikt.assertions.isEqualTo
 
 class TransportServiceConfigTest {
     @Test
-    fun `loadTransportServiceConfig prefers subscription key environment variable`() {
+    fun `loadTransportServiceConfig reads subscription key environment variable`() {
         val config = loadTransportServiceConfig(
             mapOf(
-                "TFL_SUBSCRIPTION_KEY" to "preferred-key",
-                "TFL_APP_KEY" to "legacy-key"
+                "TFL_SUBSCRIPTION_KEY" to "preferred-key"
             )
         )
 
@@ -18,13 +17,11 @@ class TransportServiceConfigTest {
     }
 
     @Test
-    fun `loadTransportServiceConfig falls back to legacy app key environment variable`() {
+    fun `loadTransportServiceConfig leaves subscription key empty when unset`() {
         val config = loadTransportServiceConfig(
-            mapOf(
-                "TFL_APP_KEY" to "legacy-key"
-            )
+            emptyMap()
         )
 
-        expectThat(config.tflSubscriptionKey).isEqualTo("legacy-key")
+        expectThat(config.tflSubscriptionKey).isEqualTo(null)
     }
 }

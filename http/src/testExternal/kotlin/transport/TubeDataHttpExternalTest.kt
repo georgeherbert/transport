@@ -14,7 +14,7 @@ class TubeDataHttpExternalTest {
             TflHttpClientConfig(
                 "https://api.tfl.gov.uk",
                 Duration.ofSeconds(20),
-                System.getenv("TFL_SUBSCRIPTION_KEY") ?: System.getenv("TFL_APP_KEY")
+                System.getenv("TFL_SUBSCRIPTION_KEY")
             ),
             HttpClient.newHttpClient(),
             TflPayloadParserHttp(transportJson())
