@@ -27,7 +27,7 @@ class RealTubeSnapshotAssembler(
             .filter(::isSupportedPrediction)
             .groupBy(::trainIdentityKey)
             .values
-            .map { group -> buildTrain(tubeNetwork, group, generatedAt) }
+            .map { group -> buildTrain(tubeNetwork, group) }
             .sortedWith(
                 compareBy<LiveTubeTrain>(
                     { train -> train.lineNames.firstOrNull()?.value.orEmpty() },
@@ -52,8 +52,7 @@ class RealTubeSnapshotAssembler(
 
     private fun buildTrain(
         tubeNetwork: TubeNetwork,
-        predictions: List<TubePredictionRecord>,
-        generatedAt: Instant
+        predictions: List<TubePredictionRecord>
     ): LiveTubeTrain {
         val representative = predictions.minWith(predictionComparator)
         val boardStation = representative.stationId?.let { stationId -> tubeNetwork.stationsById[stationId] }
@@ -78,7 +77,7 @@ class RealTubeSnapshotAssembler(
             currentLocation,
             location,
             boardStation?.toReference(),
-            secondsToNextStopFor(representative, generatedAt),
+            representative.secondsToNextStop,
             representative.expectedArrival,
             representative.observedAt,
             PredictionCount(predictions.size)
@@ -104,15 +103,6 @@ class RealTubeSnapshotAssembler(
 
     private fun trainIdFor(prediction: TubePredictionRecord): TrainId =
         TrainId(trainIdentityKey(prediction))
-
-    private fun secondsToNextStopFor(
-        prediction: TubePredictionRecord,
-        generatedAt: Instant
-    ): Duration? =
-        prediction.secondsToNextStop ?: prediction.expectedArrival?.let { expectedArrival ->
-            val remaining = Duration.between(generatedAt, expectedArrival)
-            if (remaining.isNegative) Duration.ZERO else remaining
-        }
 
     private companion object {
         val predictionComparator = compareBy<TubePredictionRecord>(

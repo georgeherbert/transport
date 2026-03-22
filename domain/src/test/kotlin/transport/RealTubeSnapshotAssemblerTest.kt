@@ -130,7 +130,7 @@ class RealTubeSnapshotAssemblerTest {
     }
 
     @Test
-    fun `assemble derives seconds to next stop from expected arrival when timeToStation is missing`() {
+    fun `assemble leaves seconds to next stop empty when timeToStation is missing`() {
         val snapshot = assembler.assemble(
             tubeNetwork,
             listOf(
@@ -156,7 +156,7 @@ class RealTubeSnapshotAssemblerTest {
         )
 
         expectThat(snapshot.trains).hasSize(1)
-        expectThat(snapshot.trains.first().secondsToNextStop).isNotNull().get { seconds }.isEqualTo(90)
+        expectThat(snapshot.trains.first().secondsToNextStop).isEqualTo(null)
     }
 
     @Test
