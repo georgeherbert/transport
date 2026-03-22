@@ -19,6 +19,8 @@ import kotlinx.serialization.json.Json
 
 fun Application.transportModule(
     tubeSnapshotService: TubeSnapshotService,
+    tubeLineMapService: TubeLineMapService,
+    tubeMapService: TubeMapService,
     serviceResponseMapper: ServiceResponseMapper,
     transportJson: Json
 ) {
@@ -33,6 +35,27 @@ fun Application.transportModule(
 
         get("/health") {
             call.respond(serviceResponseMapper.healthResponse(Instant.now()))
+        }
+
+        get("/api/tubes/map") {
+            val forceRefresh = call.request.queryParameters["refresh"]?.equals("true", true) == true
+            when (val mapResult = tubeMapService.getTubeMap(forceRefresh)) {
+                is Success -> call.respond(serviceResponseMapper.mapResponse(mapResult.value))
+                is Failure -> call.respond(
+                    httpStatus(mapResult.reason),
+                    serviceResponseMapper.errorResponse(mapResult.reason)
+                )
+            }
+        }
+
+        get("/api/tubes/lines") {
+            when (val lineMapResult = tubeLineMapService.getTubeLineMap()) {
+                is Success -> call.respond(serviceResponseMapper.lineMapResponse(lineMapResult.value))
+                is Failure -> call.respond(
+                    httpStatus(lineMapResult.reason),
+                    serviceResponseMapper.errorResponse(lineMapResult.reason)
+                )
+            }
         }
 
         get("/api/tubes/live") {

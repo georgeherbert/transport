@@ -37,6 +37,53 @@ data class LiveTubeSnapshotJson(
 )
 
 @Serializable
+data class TubeMapSnapshotJson(
+    val source: String,
+    val generatedAt: String,
+    val cached: Boolean,
+    val cacheAgeSeconds: Long,
+    val stationsQueried: Int,
+    val stationsFailed: Int,
+    val partial: Boolean,
+    val trainCount: Int,
+    val lines: List<TubeLineJson>,
+    val trains: List<TubeMapTrainJson>
+)
+
+@Serializable
+data class TubeLineMapJson(
+    val lines: List<TubeLineJson>
+)
+
+@Serializable
+data class TubeLineJson(
+    val id: String,
+    val name: String,
+    val paths: List<TubeLinePathJson>
+)
+
+@Serializable
+data class TubeLinePathJson(
+    val coordinates: List<GeoCoordinateJson>
+)
+
+@Serializable
+data class TubeMapTrainJson(
+    val trainId: String,
+    val vehicleId: String?,
+    val lineId: String,
+    val lineName: String,
+    val direction: String?,
+    val destinationName: String?,
+    val towards: String?,
+    val currentLocation: String,
+    val coordinate: GeoCoordinateJson?,
+    val secondsToNextStop: Int?,
+    val expectedArrival: String?,
+    val observedAt: String?
+)
+
+@Serializable
 data class LiveTubeTrainJson(
     val trainId: String,
     val vehicleId: String?,

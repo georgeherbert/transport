@@ -29,6 +29,9 @@ class RealTubeSnapshotServiceTest {
                 lineStationHandler = { lineId ->
                     Failure(TransportError.MetadataUnavailable(lineId.value))
                 },
+                lineRouteHandler = { lineId ->
+                    Failure(TransportError.MetadataUnavailable(lineId.value))
+                },
                 tubePredictionHandler = {
                     predictionRequests.incrementAndGet()
                     Success(
@@ -75,6 +78,9 @@ class RealTubeSnapshotServiceTest {
             val shouldFail = AtomicBoolean(false)
             val tubeData = FakeTubeData(
                 lineStationHandler = { lineId ->
+                    Failure(TransportError.MetadataUnavailable(lineId.value))
+                },
+                lineRouteHandler = { lineId ->
                     Failure(TransportError.MetadataUnavailable(lineId.value))
                 },
                 tubePredictionHandler = {
@@ -125,6 +131,9 @@ class RealTubeSnapshotServiceTest {
         runBlocking {
             val tubeData = FakeTubeData(
                 lineStationHandler = { lineId ->
+                    Failure(TransportError.MetadataUnavailable(lineId.value))
+                },
+                lineRouteHandler = { lineId ->
                     Failure(TransportError.MetadataUnavailable(lineId.value))
                 },
                 tubePredictionHandler = {

@@ -31,6 +31,15 @@ class TubeDataHttpExternalTest {
     }
 
     @Test
+    fun `fetchLineRoutes returns live victoria geometry`() {
+        runBlocking {
+            val result = tubeData.fetchLineRoutes(LineId("victoria"))
+
+            expectThat(result).isSuccess().get { paths.size }.isGreaterThan(0)
+        }
+    }
+
+    @Test
     fun `fetchTubePredictions returns the live tube feed`() {
         runBlocking {
             val result = tubeData.fetchTubePredictions()

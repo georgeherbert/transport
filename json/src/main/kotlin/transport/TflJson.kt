@@ -32,3 +32,10 @@ data class TflArrivalJson(
     val timeToLive: String,
     val modeName: String
 )
+
+@Serializable
+data class TflRouteSequenceJson(
+    val lineId: String,
+    val lineName: String,
+    val lineStrings: List<String>
+)

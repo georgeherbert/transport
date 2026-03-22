@@ -18,6 +18,48 @@ data class LiveTubeSnapshot(
     val trains: List<LiveTubeTrain>
 )
 
+data class TubeMapSnapshot(
+    val source: SourceName,
+    val generatedAt: Instant,
+    val cached: Boolean,
+    val cacheAge: Duration,
+    val stationsQueried: StationQueryCount,
+    val stationsFailed: StationFailureCount,
+    val partial: Boolean,
+    val trainCount: LiveTrainCount,
+    val lines: List<TubeLine>,
+    val trains: List<TubeMapTrain>
+)
+
+data class TubeLineMap(
+    val lines: List<TubeLine>
+)
+
+data class TubeLine(
+    val id: LineId,
+    val name: LineName,
+    val paths: List<TubeLinePath>
+)
+
+data class TubeLinePath(
+    val coordinates: List<GeoCoordinate>
+)
+
+data class TubeMapTrain(
+    val trainId: TrainId,
+    val vehicleId: VehicleId?,
+    val lineId: LineId,
+    val lineName: LineName,
+    val direction: TrainDirection?,
+    val destinationName: DestinationName?,
+    val towards: TowardsDescription?,
+    val currentLocation: LocationDescription,
+    val coordinate: GeoCoordinate?,
+    val secondsToNextStop: Duration?,
+    val expectedArrival: Instant?,
+    val observedAt: Instant?
+)
+
 data class LiveTubeTrain(
     val trainId: TrainId,
     val vehicleId: VehicleId?,
@@ -86,6 +128,16 @@ data class TubePredictionRecord(
     val towards: TowardsDescription?,
     val expectedArrival: Instant?,
     val modeName: TransportModeName?
+)
+
+data class TubeLineRouteRecord(
+    val lineId: LineId,
+    val lineName: LineName,
+    val paths: List<TubeLinePathRecord>
+)
+
+data class TubeLinePathRecord(
+    val coordinates: List<GeoCoordinate>
 )
 
 data class TubeStation(

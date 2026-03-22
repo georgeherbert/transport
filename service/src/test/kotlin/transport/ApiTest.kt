@@ -15,6 +15,14 @@ import strikt.assertions.isEqualTo
 
 class ApiTest {
     private val serviceResponseMapper: ServiceResponseMapper = ServiceResponseMapperHttp()
+    private val tubeLineMapService: TubeLineMapService =
+        FakeLineMapService {
+            Success(sampleLineMap())
+        }
+    private val tubeMapService: TubeMapService =
+        FakeMapService { forceRefresh ->
+            Success(sampleMap(forceRefresh))
+        }
 
     @Test
     fun `root serves the react app shell`() {
@@ -24,6 +32,8 @@ class ApiTest {
                     FakeSnapshotService { forceRefresh ->
                         Success(sampleSnapshot(forceRefresh))
                     },
+                    tubeLineMapService,
+                    tubeMapService,
                     serviceResponseMapper,
                     transportJson()
                 )
@@ -44,6 +54,8 @@ class ApiTest {
                     FakeSnapshotService { forceRefresh ->
                         Success(sampleSnapshot(forceRefresh))
                     },
+                    tubeLineMapService,
+                    tubeMapService,
                     serviceResponseMapper,
                     transportJson()
                 )
@@ -64,6 +76,8 @@ class ApiTest {
                     FakeSnapshotService { forceRefresh ->
                         Success(sampleSnapshot(forceRefresh))
                     },
+                    tubeLineMapService,
+                    tubeMapService,
                     serviceResponseMapper,
                     transportJson()
                 )
@@ -84,6 +98,10 @@ class ApiTest {
                     FakeSnapshotService { forceRefresh ->
                         Failure(TransportError.SnapshotUnavailable("TfL unavailable"))
                     },
+                    tubeLineMapService,
+                    FakeMapService { forceRefresh ->
+                        Failure(TransportError.SnapshotUnavailable("TfL unavailable"))
+                    },
                     serviceResponseMapper,
                     transportJson()
                 )
@@ -93,6 +111,50 @@ class ApiTest {
 
             expectThat(response.status).isEqualTo(HttpStatusCode.ServiceUnavailable)
             expectThat(response.bodyAsText()).contains("snapshot_unavailable")
+        }
+    }
+
+    @Test
+    fun `api returns tube line map payload`() {
+        testApplication {
+            application {
+                transportModule(
+                    FakeSnapshotService { forceRefresh ->
+                        Success(sampleSnapshot(forceRefresh))
+                    },
+                    tubeLineMapService,
+                    tubeMapService,
+                    serviceResponseMapper,
+                    transportJson()
+                )
+            }
+
+            val response = client.get("/api/tubes/lines")
+
+            expectThat(response.status).isEqualTo(HttpStatusCode.OK)
+            expectThat(response.bodyAsText()).contains("\"paths\"")
+        }
+    }
+
+    @Test
+    fun `api returns projected tube map payload`() {
+        testApplication {
+            application {
+                transportModule(
+                    FakeSnapshotService { forceRefresh ->
+                        Success(sampleSnapshot(forceRefresh))
+                    },
+                    tubeLineMapService,
+                    tubeMapService,
+                    serviceResponseMapper,
+                    transportJson()
+                )
+            }
+
+            val response = client.get("/api/tubes/map")
+
+            expectThat(response.status).isEqualTo(HttpStatusCode.OK)
+            expectThat(response.bodyAsText()).contains("\"coordinate\"")
         }
     }
 
@@ -141,11 +203,72 @@ class ApiTest {
                 )
             )
         )
+
+    private fun sampleLineMap() =
+        TubeLineMap(
+            listOf(
+                TubeLine(
+                    LineId("victoria"),
+                    LineName("Victoria"),
+                    listOf(
+                        TubeLinePath(
+                            listOf(
+                                GeoCoordinate(51.496359, -0.143102),
+                                GeoCoordinate(51.506947, -0.142787)
+                            )
+                        )
+                    )
+                )
+            )
+        )
+
+    private fun sampleMap(forceRefresh: Boolean) =
+        TubeMapSnapshot(
+            transportSourceName,
+            Instant.parse("2026-03-22T00:49:20Z"),
+            forceRefresh,
+            Duration.ZERO,
+            StationQueryCount(1),
+            StationFailureCount(0),
+            false,
+            LiveTrainCount(1),
+            sampleLineMap().lines,
+            listOf(
+                TubeMapTrain(
+                    TrainId("victoria|257"),
+                    VehicleId("257"),
+                    LineId("victoria"),
+                    LineName("Victoria"),
+                    TrainDirection("outbound"),
+                    DestinationName("Walthamstow Central Underground Station"),
+                    TowardsDescription("Walthamstow Central"),
+                    LocationDescription("Approaching Green Park"),
+                    GeoCoordinate(51.506947, -0.142787),
+                    Duration.ofSeconds(90),
+                    Instant.parse("2026-03-22T00:50:50Z"),
+                    Instant.parse("2026-03-22T00:49:20Z")
+                )
+            )
+        )
 }
 
 private class FakeSnapshotService(
     private val handler: suspend (Boolean) -> TransportResult<LiveTubeSnapshot>
 ) : TubeSnapshotService {
     override suspend fun getLiveSnapshot(forceRefresh: Boolean) =
+        handler(forceRefresh)
+}
+
+private class FakeLineMapService(
+    private val handler: suspend () -> TransportResult<TubeLineMap>
+) : TubeLineMapService {
+    override suspend fun getTubeLineMap() =
+        handler()
+}
+
+private class FakeMapService(
+    private val handler: suspend (Boolean) -> TransportResult<TubeMapSnapshot>
+) : TubeMapService {
+    override suspend fun getTubeMap(forceRefresh: Boolean) =
         handler(forceRefresh)
 }

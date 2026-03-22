@@ -13,6 +13,7 @@ import kotlinx.serialization.json.Json
 
 interface TflPayloadParser {
     fun parseLineStations(body: String, lineId: LineId, endpoint: String): TransportResult<List<TubeStationRecord>>
+    fun parseLineRoute(body: String, endpoint: String): TransportResult<TubeLineRouteRecord>
     fun parsePredictions(body: String, endpoint: String): TransportResult<List<TubePredictionRecord>>
 }
 
@@ -28,6 +29,23 @@ class TflPayloadParserHttp(
                     .map { stationRecords -> stationRecords.flatten() }
             }
 
+    override fun parseLineRoute(body: String, endpoint: String) =
+        decodeObject<TflRouteSequenceJson>(body, endpoint)
+            .flatMap { routeSequence ->
+                routeSequence.lineStrings
+                    .map { lineString -> parseLineString(lineString, endpoint) }
+                    .failFast()
+                    .map(List<List<TubeLinePathRecord>>::flatten)
+                    .map(::deduplicatePaths)
+                    .map { paths ->
+                        TubeLineRouteRecord(
+                            LineId(routeSequence.lineId),
+                            LineName(routeSequence.lineName),
+                            paths
+                        )
+                    }
+            }
+
     override fun parsePredictions(body: String, endpoint: String) =
         decodeList<TflArrivalJson>(body, endpoint)
             .flatMap { arrivals ->
@@ -39,6 +57,14 @@ class TflPayloadParserHttp(
     private inline fun <reified T> decodeList(body: String, endpoint: String): TransportResult<List<T>> {
         return try {
             Success(json.decodeFromString<List<T>>(body))
+        } catch (exception: SerializationException) {
+            Failure(TransportError.UpstreamPayloadFailure(endpoint, exception.message ?: "Invalid JSON payload"))
+        }
+    }
+
+    private inline fun <reified T> decodeObject(body: String, endpoint: String): TransportResult<T> {
+        return try {
+            Success(json.decodeFromString<T>(body))
         } catch (exception: SerializationException) {
             Failure(TransportError.UpstreamPayloadFailure(endpoint, exception.message ?: "Invalid JSON payload"))
         }
@@ -89,6 +115,50 @@ class TflPayloadParserHttp(
                         )
                     }
             }
+
+    private fun parseLineString(lineString: String, endpoint: String): TransportResult<List<TubeLinePathRecord>> =
+        decodeObject<List<List<List<Double>>>>(lineString, endpoint)
+            .flatMap { coordinateGroups ->
+                coordinateGroups
+                    .map { coordinates -> parseLinePath(coordinates, endpoint) }
+                    .failFast()
+            }
+
+    private fun parseLinePath(
+        coordinates: List<List<Double>>,
+        endpoint: String
+    ): TransportResult<TubeLinePathRecord> =
+        coordinates
+            .map { coordinate -> parseCoordinate(coordinate, endpoint) }
+            .failFast()
+            .flatMap { parsedCoordinates ->
+                if (parsedCoordinates.isEmpty()) {
+                    Failure(TransportError.UpstreamPayloadFailure(endpoint, "TfL returned an empty line path."))
+                } else {
+                    Success(TubeLinePathRecord(parsedCoordinates))
+                }
+            }
+
+    private fun parseCoordinate(coordinate: List<Double>, endpoint: String): TransportResult<GeoCoordinate> =
+        if (coordinate.size < 2) {
+            Failure(TransportError.UpstreamPayloadFailure(endpoint, "TfL returned an invalid line coordinate."))
+        } else {
+            Success(GeoCoordinate(coordinate[1], coordinate[0]))
+        }
+
+    private fun deduplicatePaths(paths: List<TubeLinePathRecord>) =
+        paths.distinctBy(::pathKey)
+
+    private fun pathKey(path: TubeLinePathRecord): String {
+        val forward = path.coordinates.joinToString(";") { coordinate ->
+            "${coordinate.lat},${coordinate.lon}"
+        }
+        val reverse = path.coordinates.asReversed().joinToString(";") { coordinate ->
+            "${coordinate.lat},${coordinate.lon}"
+        }
+
+        return if (forward <= reverse) forward else reverse
+    }
 
     private fun parseInstant(
         value: String,

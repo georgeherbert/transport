@@ -31,6 +31,49 @@ class TflPayloadParserHttpTest {
     }
 
     @Test
+    fun `parseLineRoute parses unique route geometry from line strings`() {
+        val result = tflPayloadParser.parseLineRoute(
+            """
+            {
+              "lineId":"victoria",
+              "lineName":"Victoria",
+              "lineStrings":[
+                "[[[-0.019885,51.582965],[-0.04115,51.586919]]]",
+                "[[[-0.04115,51.586919],[-0.019885,51.582965]]]"
+              ]
+            }
+            """.trimIndent(),
+            "/Line/victoria/Route/Sequence/all"
+        )
+
+        expectThat(result).isSuccess().get { lineId }.isEqualTo(LineId("victoria"))
+        expectThat(result).isSuccess().get { paths }.hasSize(1)
+        expectThat(result).isSuccess().get { paths.first().coordinates.first() }.isEqualTo(GeoCoordinate(51.582965, -0.019885))
+    }
+
+    @Test
+    fun `parseLineRoute returns payload failure for invalid coordinate pairs`() {
+        val result = tflPayloadParser.parseLineRoute(
+            """
+            {
+              "lineId":"victoria",
+              "lineName":"Victoria",
+              "lineStrings":[
+                "[[[-0.019885]]]"
+              ]
+            }
+            """.trimIndent(),
+            "/Line/victoria/Route/Sequence/all"
+        )
+
+        expectThat(result)
+            .isFailure()
+            .isA<TransportError.UpstreamPayloadFailure>()
+            .get(TransportError.UpstreamPayloadFailure::message)
+            .contains("invalid line coordinate")
+    }
+
+    @Test
     fun `parsePredictions parses live arrival payload`() {
         val result = tflPayloadParser.parsePredictions(
             """

@@ -50,6 +50,9 @@ class RealTubeMetadataRepositoryTest {
                         else -> Success(emptyList())
                     }
                 },
+                lineRouteHandler = { lineId ->
+                    Failure(TransportError.MetadataUnavailable(lineId.value))
+                },
                 tubePredictionHandler = {
                     Failure(TransportError.SnapshotUnavailable("unused"))
                 }
@@ -93,6 +96,9 @@ class RealTubeMetadataRepositoryTest {
                         Success(emptyList())
                     }
                 },
+                lineRouteHandler = { lineId ->
+                    Failure(TransportError.MetadataUnavailable(lineId.value))
+                },
                 tubePredictionHandler = {
                     Failure(TransportError.SnapshotUnavailable("unused"))
                 }
@@ -116,6 +122,9 @@ class RealTubeMetadataRepositoryTest {
                     } else {
                         Success(emptyList())
                     }
+                },
+                lineRouteHandler = { lineId ->
+                    Failure(TransportError.MetadataUnavailable(lineId.value))
                 },
                 tubePredictionHandler = {
                     Failure(TransportError.SnapshotUnavailable("unused"))

@@ -6,7 +6,7 @@ import {
   useState
 } from 'react'
 import L from 'leaflet'
-import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet'
+import { MapContainer, Marker, Polyline, Popup, TileLayer } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 
 const londonCenter = [51.5072, -0.1276]
@@ -27,16 +27,16 @@ const linePalette = {
 }
 
 function App() {
-  const [snapshot, setSnapshot] = useState(null)
+  const [mapSnapshot, setMapSnapshot] = useState(null)
   const [status, setStatus] = useState('loading')
   const [errorMessage, setErrorMessage] = useState('')
   const [selectedLineId, setSelectedLineId] = useState('all')
 
-  const requestSnapshot = useEffectEvent(async forceRefresh => {
-    setStatus(currentStatus => (snapshot == null ? 'loading' : currentStatus === 'ready' ? 'refreshing' : currentStatus))
+  const requestMap = useEffectEvent(async forceRefresh => {
+    setStatus(currentStatus => (mapSnapshot == null ? 'loading' : currentStatus === 'ready' ? 'refreshing' : currentStatus))
 
     try {
-      const endpoint = forceRefresh ? '/api/tubes/live?refresh=true' : '/api/tubes/live'
+      const endpoint = forceRefresh ? '/api/tubes/map?refresh=true' : '/api/tubes/map'
       const response = await fetch(endpoint, {
         headers: {
           Accept: 'application/json'
@@ -45,30 +45,30 @@ function App() {
       const payload = await response.json()
 
       if (!response.ok) {
-        throw new Error(payload.message ?? 'Unable to load the live tube feed.')
+        throw new Error(payload.message ?? 'Unable to load the projected tube map.')
       }
 
       startTransition(() => {
-        setSnapshot(payload)
+        setMapSnapshot(payload)
         setErrorMessage('')
         setStatus('ready')
       })
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : 'Unable to load the live tube feed.'
+        error instanceof Error ? error.message : 'Unable to load the projected tube map.'
 
       startTransition(() => {
         setErrorMessage(message)
-        setStatus(snapshot == null ? 'error' : 'stale')
+        setStatus(mapSnapshot == null ? 'error' : 'stale')
       })
     }
   })
 
   useEffect(() => {
-    requestSnapshot(true)
+    requestMap(true)
 
     const intervalId = window.setInterval(() => {
-      requestSnapshot(true)
+      requestMap(true)
     }, refreshIntervalMs)
 
     return () => {
@@ -77,8 +77,9 @@ function App() {
   }, [])
 
   const deferredSelectedLineId = useDeferredValue(selectedLineId)
-  const lineOptions = buildLineOptions(snapshot)
-  const visibleTrains = buildVisibleTrains(snapshot, deferredSelectedLineId)
+  const lineOptions = buildLineOptions(mapSnapshot)
+  const visibleLinePaths = buildVisibleLinePaths(mapSnapshot, deferredSelectedLineId)
+  const visibleTrains = buildVisibleTrains(mapSnapshot, deferredSelectedLineId)
   const listedTrains = visibleTrains.slice(0, 12)
 
   return (
@@ -86,22 +87,22 @@ function App() {
       <header className="topbar">
         <div>
           <h1>London Tube Map</h1>
-          <p>Live Underground train positions from the TfL feed.</p>
+          <p>Live Underground map projection from TfL route and arrival data.</p>
         </div>
-        <button className="refresh-button" type="button" onClick={() => requestSnapshot(true)}>
+        <button className="refresh-button" type="button" onClick={() => requestMap(true)}>
           Refresh
         </button>
       </header>
 
       <section className="status-row">
         <StatusItem label="Status" value={statusLabelFor(status)} />
-        <StatusItem label="Generated" value={snapshot == null ? 'Waiting for data' : formatDateTime(snapshot.generatedAt)} />
-        <StatusItem label="Trains" value={snapshot?.trainCount ?? '...'} />
-        <StatusItem label="Plotted" value={visibleTrains.length} />
+        <StatusItem label="Generated" value={mapSnapshot == null ? 'Waiting for data' : formatDateTime(mapSnapshot.generatedAt)} />
+        <StatusItem label="Trains" value={mapSnapshot?.trainCount ?? '...'} />
+        <StatusItem label="Plotted" value={visibleTrains.filter(train => train.coordinate != null).length} />
       </section>
 
       {errorMessage !== '' ? <div className="banner banner--error">{errorMessage}</div> : null}
-      {snapshot?.partial ? (
+      {mapSnapshot?.partial ? (
         <div className="banner banner--warning">
           Live feed incomplete. Some upstream data was unavailable.
         </div>
@@ -121,8 +122,8 @@ function App() {
         </label>
 
         <div className="toolbar-meta">
-          <span>Stations failed: {snapshot?.stationsFailed ?? '...'}</span>
-          <span>Cached: {snapshot?.cached ? 'Yes' : 'No'}</span>
+          <span>Stations failed: {mapSnapshot?.stationsFailed ?? '...'}</span>
+          <span>Cached: {mapSnapshot?.cached ? 'Yes' : 'No'}</span>
         </div>
       </section>
 
@@ -141,7 +142,19 @@ function App() {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
 
-            {visibleTrains.map(train => (
+            {visibleLinePaths.map(path => (
+              <Polyline
+                key={path.id}
+                positions={path.coordinates.map(coordinate => [coordinate.lat, coordinate.lon])}
+                pathOptions={{
+                  color: colorForLine(path.lineId),
+                  weight: 4,
+                  opacity: 0.65
+                }}
+              />
+            ))}
+
+            {visibleTrains.filter(train => train.coordinate != null).map(train => (
               <Marker
                 key={train.trainId}
                 position={[train.coordinate.lat, train.coordinate.lon]}
@@ -197,55 +210,48 @@ function StatusItem({ label, value }) {
   )
 }
 
-function buildLineOptions(snapshot) {
-  if (snapshot == null) {
+function buildLineOptions(mapSnapshot) {
+  if (mapSnapshot == null) {
     return []
   }
 
-  return snapshot.lines
-    .map(lineId => ({
-      id: lineId,
-      name: prettifyLineId(lineId)
+  return mapSnapshot.lines
+    .map(line => ({
+      id: line.id,
+      name: line.name
     }))
     .sort((leftLine, rightLine) => leftLine.name.localeCompare(rightLine.name))
 }
 
-function buildVisibleTrains(snapshot, selectedLineId) {
-  if (snapshot == null) {
+function buildVisibleLinePaths(mapSnapshot, selectedLineId) {
+  if (mapSnapshot == null) {
     return []
   }
 
-  return snapshot.trains
-    .map(train => {
-      const coordinate = resolveCoordinate(train)
-
-      if (coordinate == null) {
-        return null
-      }
-
-      const primaryLineId = train.lineIds[0] ?? 'northern'
-
-      return {
-        ...train,
-        coordinate,
-        primaryLineId,
-        lineLabel: train.lineNames[0] ?? prettifyLineId(primaryLineId)
-      }
-    })
-    .filter(train => train != null)
-    .filter(train => selectedLineId === 'all' || train.lineIds.includes(selectedLineId))
-    .sort((leftTrain, rightTrain) => compareArrivalPriority(leftTrain, rightTrain))
+  return mapSnapshot.lines
+    .filter(line => selectedLineId === 'all' || line.id === selectedLineId)
+    .flatMap(line =>
+      line.paths.map((path, index) => ({
+        id: `${line.id}:${index}`,
+        lineId: line.id,
+        coordinates: path.coordinates
+      }))
+    )
 }
 
-function resolveCoordinate(train) {
-  return (
-    train.location.coordinate ??
-    train.nextStop?.coordinate ??
-    train.location.station?.coordinate ??
-    train.location.toStation?.coordinate ??
-    train.location.fromStation?.coordinate ??
-    null
-  )
+function buildVisibleTrains(mapSnapshot, selectedLineId) {
+  if (mapSnapshot == null) {
+    return []
+  }
+
+  return mapSnapshot.trains
+    .filter(train => selectedLineId === 'all' || train.lineId === selectedLineId)
+    .map(train => ({
+      ...train,
+      primaryLineId: train.lineId,
+      lineLabel: train.lineName
+    }))
+    .sort((leftTrain, rightTrain) => compareArrivalPriority(leftTrain, rightTrain))
 }
 
 function compareArrivalPriority(leftTrain, rightTrain) {

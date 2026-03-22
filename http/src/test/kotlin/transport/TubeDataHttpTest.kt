@@ -6,6 +6,7 @@ import com.sun.net.httpserver.HttpServer
 import java.net.InetSocketAddress
 import java.net.http.HttpClient
 import java.time.Duration
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -67,6 +68,31 @@ class TubeDataHttpTest {
     }
 
     @Test
+    fun `fetchLineRoutes parses the route sequence payload`() {
+        runBlocking {
+            respond(
+                "/Line/victoria/Route/Sequence/all",
+                200,
+                """
+                {
+                  "lineId":"victoria",
+                  "lineName":"Victoria",
+                  "lineStrings":[
+                    "[[[-0.019885,51.582965],[-0.04115,51.586919]]]"
+                  ]
+                }
+                """.trimIndent()
+            )
+
+            val result = tubeData.fetchLineRoutes(LineId("victoria"))
+
+            expectThat(result).isSuccess().get { lineId }.isEqualTo(LineId("victoria"))
+            expectThat(result).isSuccess().get { paths }.hasSize(1)
+            expectThat(result).isSuccess().get { paths.first().coordinates.first() }.isEqualTo(GeoCoordinate(51.582965, -0.019885))
+        }
+    }
+
+    @Test
     fun `fetchTubePredictions parses the bulk arrivals payload`() {
         runBlocking {
             respond(
@@ -102,6 +128,69 @@ class TubeDataHttpTest {
             expectThat(result).isSuccess().hasSize(1)
             expectThat(result).isSuccess().get { first().vehicleId }.isEqualTo(VehicleId("257"))
             expectThat(result).isSuccess().get { first().currentLocation }.isEqualTo(LocationDescription("Approaching Green Park"))
+        }
+    }
+
+    @Test
+    fun `fetchLineRoutes requests regular service geometry`() {
+        runBlocking {
+            val observedQuery = AtomicReference<String?>(null)
+            server.createContext(
+                "/Line/victoria/Route/Sequence/all",
+                RecordingJsonHandler(
+                    observedQuery,
+                    200,
+                    """
+                    {
+                      "lineId":"victoria",
+                      "lineName":"Victoria",
+                      "lineStrings":[]
+                    }
+                    """.trimIndent()
+                )
+            )
+
+            val result = tubeData.fetchLineRoutes(LineId("victoria"))
+
+            expectThat(result).isSuccess().get { paths }.hasSize(0)
+            expectThat(observedQuery.get()).isNotNull().contains("serviceTypes=Regular")
+        }
+    }
+
+    @Test
+    fun `fetchLineRoutes retries once when TfL rate limits the request`() {
+        runBlocking {
+            val attempts = AtomicInteger(0)
+            server.createContext(
+                "/Line/victoria/Route/Sequence/all"
+            ) { exchange ->
+                val attempt = attempts.incrementAndGet()
+                val body = if (attempt == 1) {
+                    """{"message":"Rate limit is exceeded"}"""
+                } else {
+                    """
+                    {
+                      "lineId":"victoria",
+                      "lineName":"Victoria",
+                      "lineStrings":[
+                        "[[[-0.019885,51.582965],[-0.04115,51.586919]]]"
+                      ]
+                    }
+                    """.trimIndent()
+                }
+                val status = if (attempt == 1) 429 else 200
+                val bytes = body.toByteArray()
+                exchange.responseHeaders.add("Content-Type", "application/json")
+                exchange.sendResponseHeaders(status, bytes.size.toLong())
+                exchange.responseBody.use { output ->
+                    output.write(bytes)
+                }
+            }
+
+            val result = tubeData.fetchLineRoutes(LineId("victoria"))
+
+            expectThat(result).isSuccess().get { lineId }.isEqualTo(LineId("victoria"))
+            expectThat(attempts.get()).isEqualTo(2)
         }
     }
 
