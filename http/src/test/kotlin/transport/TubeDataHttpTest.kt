@@ -32,7 +32,6 @@ class TubeDataHttpTest {
             TflHttpClientConfig(
                 "http://127.0.0.1:${server.address.port}",
                 Duration.ofSeconds(5),
-                null,
                 null
             ),
             HttpClient.newHttpClient(),
@@ -323,7 +322,6 @@ class TubeDataHttpTest {
                 TflHttpClientConfig(
                     "http://127.0.0.1:1",
                     Duration.ofMillis(250),
-                    null,
                     null
                 ),
                 HttpClient.newHttpClient(),
@@ -350,7 +348,6 @@ class TubeDataHttpTest {
                 TflHttpClientConfig(
                     "http://127.0.0.1:${server.address.port}",
                     Duration.ofSeconds(5),
-                    "my app",
                     "secret/key"
                 ),
                 HttpClient.newHttpClient(),
@@ -360,7 +357,6 @@ class TubeDataHttpTest {
             val result = tubeData.fetchPredictions(TransportModeName("elizabeth-line"))
 
             expectThat(result).isSuccess().hasSize(0)
-            expectThat(observedQuery.get()).isNotNull().contains("app_id=my+app")
             expectThat(observedQuery.get()).isNotNull().contains("app_key=secret/key")
             expectThat(observedQuery.get()).isNotNull().contains("count=-1")
         }

@@ -16,8 +16,7 @@ class TransportServiceExternalTest {
                 Duration.ofSeconds(20),
                 Duration.ofSeconds(20),
                 "https://api.tfl.gov.uk",
-                System.getenv("TFL_APP_ID"),
-                System.getenv("TFL_APP_KEY")
+                System.getenv("TFL_SUBSCRIPTION_KEY") ?: System.getenv("TFL_APP_KEY")
             ),
             transportJson()
         )

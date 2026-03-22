@@ -153,11 +153,8 @@ class TubeDataHttp(
         queryParameters.forEach { queryParameter ->
             queryParts += "${queryParameter.name}=${encodeQueryValue(queryParameter.value)}"
         }
-        if (tflHttpClientConfig.appId != null) {
-            queryParts += "app_id=${encodeQueryValue(tflHttpClientConfig.appId)}"
-        }
-        if (tflHttpClientConfig.appKey != null) {
-            queryParts += "app_key=${encodeQueryValue(tflHttpClientConfig.appKey)}"
+        if (tflHttpClientConfig.subscriptionKey != null) {
+            queryParts += "app_key=${encodeQueryValue(tflHttpClientConfig.subscriptionKey)}"
         }
 
         val query = if (queryParts.isEmpty()) "" else "?${queryParts.joinToString("&")}"
