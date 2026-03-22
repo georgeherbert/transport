@@ -10,7 +10,6 @@ import { MapContainer, Marker, Polyline, Popup, TileLayer } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 
 const londonCenter = [51.5072, -0.1276]
-const refreshIntervalMs = 20000
 const basemapUrl = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
 const basemapAttribution =
   '&copy; <a href="https://carto.com/attributions" target="_blank" rel="noreferrer">CARTO</a> ' +
@@ -45,12 +44,30 @@ function App() {
   const [errorMessage, setErrorMessage] = useState('')
   const [selectedLineId, setSelectedLineId] = useState('all')
 
-  const requestMap = useEffectEvent(async forceRefresh => {
-    setStatus(currentStatus => (mapSnapshot == null ? 'loading' : currentStatus === 'ready' ? 'refreshing' : currentStatus))
+  const applySnapshotUpdate = useEffectEvent(snapshot => {
+    startTransition(() => {
+      setMapSnapshot(snapshot)
+      setErrorMessage('')
+      setStatus('live')
+    })
+  })
 
+  const applyErrorUpdate = useEffectEvent(message => {
+    startTransition(() => {
+      setErrorMessage(message)
+      setStatus(mapSnapshot == null ? 'error' : 'stale')
+    })
+  })
+
+  const applyStreamDisconnect = useEffectEvent(() => {
+    startTransition(() => {
+      setStatus(mapSnapshot == null ? 'error' : 'stale')
+    })
+  })
+
+  const requestCachedMap = useEffectEvent(async () => {
     try {
-      const endpoint = forceRefresh ? '/api/rail/map?refresh=true' : '/api/rail/map'
-      const response = await fetch(endpoint, {
+      const response = await fetch('/api/rail/map', {
         headers: {
           Accept: 'application/json'
         }
@@ -61,31 +78,34 @@ function App() {
         throw new Error(payload.message ?? 'Unable to load the projected rail map.')
       }
 
-      startTransition(() => {
-        setMapSnapshot(payload)
-        setErrorMessage('')
-        setStatus('ready')
-      })
+      applySnapshotUpdate(payload)
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Unable to load the projected rail map.'
 
-      startTransition(() => {
-        setErrorMessage(message)
-        setStatus(mapSnapshot == null ? 'error' : 'stale')
-      })
+      applyErrorUpdate(message)
     }
   })
 
   useEffect(() => {
-    requestMap(false)
+    requestCachedMap()
+    const eventSource = new EventSource('/api/rail/map/stream')
 
-    const intervalId = window.setInterval(() => {
-      requestMap(false)
-    }, refreshIntervalMs)
+    eventSource.addEventListener('snapshot', event => {
+      applySnapshotUpdate(JSON.parse(event.data))
+    })
+
+    eventSource.addEventListener('transport_error', event => {
+      const payload = JSON.parse(event.data)
+      applyErrorUpdate(payload.message ?? 'Unable to load the projected rail map.')
+    })
+
+    eventSource.onerror = () => {
+      applyStreamDisconnect()
+    }
 
     return () => {
-      window.clearInterval(intervalId)
+      eventSource.close()
     }
   }, [])
 
@@ -106,9 +126,6 @@ function App() {
           <span className="topbar-generated">
             {mapSnapshot == null ? 'Waiting for first snapshot' : `Updated ${formatDateTime(mapSnapshot.generatedAt)}`}
           </span>
-          <button className="refresh-button" type="button" onClick={() => requestMap(true)}>
-            Refresh
-          </button>
         </div>
       </header>
 
@@ -138,7 +155,6 @@ function App() {
               <StatusItem label="Status" value={statusLabelFor(status)} />
               <StatusItem label="Trains" value={mapSnapshot?.trainCount ?? '...'} />
               <StatusItem label="Plotted" value={visibleTrains.filter(train => train.coordinate != null).length} />
-              <StatusItem label="Cached" value={mapSnapshot?.cached ? 'Yes' : 'No'} />
               <StatusItem label="Station gaps" value={mapSnapshot?.stationsFailed ?? '...'} />
             </div>
           </div>

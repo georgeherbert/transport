@@ -2,13 +2,22 @@ package transport
 
 import dev.forkhandles.result4k.Failure
 import dev.forkhandles.result4k.Success
+import io.ktor.client.call.body
 import io.ktor.client.request.get
+import io.ktor.client.request.prepareGet
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.testApplication
+import io.ktor.utils.io.ByteReadChannel
+import io.ktor.utils.io.readLine
 import java.time.Duration
 import java.time.Instant
 import kotlin.test.Test
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.withTimeout
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import strikt.api.expectThat
 import strikt.assertions.contains
 import strikt.assertions.isEqualTo
@@ -16,12 +25,21 @@ import strikt.assertions.isEqualTo
 class ApiTest {
     private val serviceResponseMapper: ServiceResponseMapper = ServiceResponseMapperHttp()
     private val tubeLineMapService: TubeLineMapService =
-        FakeLineMapService {
+        StubTubeLineMapService {
             Success(sampleLineMap())
         }
-    private val tubeMapService: TubeMapService =
-        FakeMapService { forceRefresh ->
-            Success(sampleMap(forceRefresh))
+    private val tubeMapFeedService: TubeMapFeedService =
+        StubTubeMapFeedService(
+            {},
+            { forceRefresh ->
+                Success(sampleMap(true))
+            },
+            { null },
+            emptyFlow()
+        )
+    private val snapshotService: TubeSnapshotService =
+        StubTubeSnapshotService { forceRefresh ->
+            Success(sampleSnapshot(forceRefresh))
         }
 
     @Test
@@ -29,11 +47,9 @@ class ApiTest {
         testApplication {
             application {
                 transportModule(
-                    FakeSnapshotService { forceRefresh ->
-                        Success(sampleSnapshot(forceRefresh))
-                    },
+                    snapshotService,
                     tubeLineMapService,
-                    tubeMapService,
+                    tubeMapFeedService,
                     serviceResponseMapper,
                     transportJson()
                 )
@@ -51,11 +67,9 @@ class ApiTest {
         testApplication {
             application {
                 transportModule(
-                    FakeSnapshotService { forceRefresh ->
-                        Success(sampleSnapshot(forceRefresh))
-                    },
+                    snapshotService,
                     tubeLineMapService,
-                    tubeMapService,
+                    tubeMapFeedService,
                     serviceResponseMapper,
                     transportJson()
                 )
@@ -73,11 +87,9 @@ class ApiTest {
         testApplication {
             application {
                 transportModule(
-                    FakeSnapshotService { forceRefresh ->
-                        Success(sampleSnapshot(forceRefresh))
-                    },
+                    snapshotService,
                     tubeLineMapService,
-                    tubeMapService,
+                    tubeMapFeedService,
                     serviceResponseMapper,
                     transportJson()
                 )
@@ -95,13 +107,18 @@ class ApiTest {
         testApplication {
             application {
                 transportModule(
-                    FakeSnapshotService { forceRefresh ->
+                    StubTubeSnapshotService { forceRefresh ->
                         Failure(TransportError.SnapshotUnavailable("TfL unavailable"))
                     },
                     tubeLineMapService,
-                    FakeMapService { forceRefresh ->
-                        Failure(TransportError.SnapshotUnavailable("TfL unavailable"))
-                    },
+                    StubTubeMapFeedService(
+                        {},
+                        { forceRefresh ->
+                            Failure(TransportError.SnapshotUnavailable("TfL unavailable"))
+                        },
+                        { TransportError.SnapshotUnavailable("TfL unavailable") },
+                        emptyFlow()
+                    ),
                     serviceResponseMapper,
                     transportJson()
                 )
@@ -119,11 +136,9 @@ class ApiTest {
         testApplication {
             application {
                 transportModule(
-                    FakeSnapshotService { forceRefresh ->
-                        Success(sampleSnapshot(forceRefresh))
-                    },
+                    snapshotService,
                     tubeLineMapService,
-                    tubeMapService,
+                    tubeMapFeedService,
                     serviceResponseMapper,
                     transportJson()
                 )
@@ -137,24 +152,24 @@ class ApiTest {
     }
 
     @Test
-    fun `api returns projected rail map payload`() {
+    fun `api returns cached projected rail map payload`() {
         testApplication {
             application {
                 transportModule(
-                    FakeSnapshotService { forceRefresh ->
-                        Success(sampleSnapshot(forceRefresh))
-                    },
+                    snapshotService,
                     tubeLineMapService,
-                    tubeMapService,
+                    tubeMapFeedService,
                     serviceResponseMapper,
                     transportJson()
                 )
             }
 
             val response = client.get("/api/rail/map")
+            val payload = transportJson().parseToJsonElement(response.bodyAsText()).jsonObject
 
             expectThat(response.status).isEqualTo(HttpStatusCode.OK)
-            expectThat(response.bodyAsText()).contains("\"coordinate\"")
+            expectThat(payload["cached"]?.jsonPrimitive?.content).isEqualTo("true")
+            expectThat(payload["trainCount"]?.jsonPrimitive?.int).isEqualTo(1)
         }
     }
 
@@ -163,11 +178,9 @@ class ApiTest {
         testApplication {
             application {
                 transportModule(
-                    FakeSnapshotService { forceRefresh ->
-                        Success(sampleSnapshot(forceRefresh))
-                    },
+                    snapshotService,
                     tubeLineMapService,
-                    tubeMapService,
+                    tubeMapFeedService,
                     serviceResponseMapper,
                     transportJson()
                 )
@@ -179,6 +192,94 @@ class ApiTest {
             expectThat(response.bodyAsText()).contains("\"coordinate\"")
         }
     }
+
+    @Test
+    fun `api streams the current cached rail map snapshot`() {
+        testApplication {
+            application {
+                transportModule(
+                    snapshotService,
+                    tubeLineMapService,
+                    tubeMapFeedService,
+                    serviceResponseMapper,
+                    transportJson()
+                )
+            }
+
+            client.prepareGet("/api/rail/map/stream").execute { response ->
+                val channel: ByteReadChannel = response.body()
+                val eventLines = withTimeout(1000) {
+                    readSseEventLines(channel)
+                }
+                val payload = transportJson()
+                    .parseToJsonElement(joinSseDataLines(eventLines))
+                    .jsonObject
+
+                expectThat(response.status).isEqualTo(HttpStatusCode.OK)
+                expectThat(eventLines.joinToString("\n")).contains("event: snapshot")
+                expectThat(payload["trainCount"]?.jsonPrimitive?.int).isEqualTo(1)
+            }
+        }
+    }
+
+    @Test
+    fun `api streams the current upstream error`() {
+        testApplication {
+            application {
+                transportModule(
+                    snapshotService,
+                    tubeLineMapService,
+                    StubTubeMapFeedService(
+                        {},
+                        { forceRefresh ->
+                            Failure(TransportError.UpstreamHttpFailure("/Mode/tube/Arrivals", 503, "down"))
+                        },
+                        { TransportError.UpstreamHttpFailure("/Mode/tube/Arrivals", 503, "down") },
+                        emptyFlow()
+                    ),
+                    serviceResponseMapper,
+                    transportJson()
+                )
+            }
+
+            client.prepareGet("/api/rail/map/stream").execute { response ->
+                val channel: ByteReadChannel = response.body()
+                val eventLines = withTimeout(1000) {
+                    readSseEventLines(channel)
+                }
+
+                expectThat(response.status).isEqualTo(HttpStatusCode.OK)
+                expectThat(eventLines.joinToString("\n")).contains("event: transport_error")
+                expectThat(eventLines.joinToString("\n")).contains("upstream_http_failure")
+            }
+        }
+    }
+
+    private suspend fun readSseEventLines(channel: ByteReadChannel): List<String> {
+        val lines = mutableListOf<String>()
+
+        while (true) {
+            val line = checkNotNull(channel.readLine()) {
+                "Unexpected end of SSE stream."
+            }
+            if (line.startsWith("retry: ")) {
+                continue
+            }
+
+            if (line.isBlank() && lines.isNotEmpty()) {
+                return lines
+            }
+
+            if (line.isNotBlank()) {
+                lines.add(line)
+            }
+        }
+    }
+
+    private fun joinSseDataLines(lines: List<String>) =
+        lines
+            .filter { line -> line.startsWith("data: ") }
+            .joinToString("\n") { line -> line.removePrefix("data: ") }
 
     private fun sampleSnapshot(forceRefresh: Boolean) =
         LiveTubeSnapshot(
@@ -274,25 +375,4 @@ class ApiTest {
                 )
             )
         )
-}
-
-private class FakeSnapshotService(
-    private val handler: suspend (Boolean) -> TransportResult<LiveTubeSnapshot>
-) : TubeSnapshotService {
-    override suspend fun getLiveSnapshot(forceRefresh: Boolean) =
-        handler(forceRefresh)
-}
-
-private class FakeLineMapService(
-    private val handler: suspend () -> TransportResult<TubeLineMap>
-) : TubeLineMapService {
-    override suspend fun getTubeLineMap() =
-        handler()
-}
-
-private class FakeMapService(
-    private val handler: suspend (Boolean) -> TransportResult<TubeMapSnapshot>
-) : TubeMapService {
-    override suspend fun getTubeMap(forceRefresh: Boolean) =
-        handler(forceRefresh)
 }

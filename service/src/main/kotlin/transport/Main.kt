@@ -4,6 +4,11 @@ import io.ktor.client.HttpClient
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import java.time.Clock
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.runBlocking
 
 fun main() {
     val transportServiceConfig = loadTransportServiceConfig(System.getenv())
@@ -11,8 +16,20 @@ fun main() {
     val serviceResponseMapper = ServiceResponseMapperHttp()
     val httpClient = createTflHttpClient(transportServiceConfig.requestTimeout)
     val services = createTransportServices(transportServiceConfig, json, httpClient)
+    val feedScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    val tubeMapFeedService: TubeMapFeedService =
+        RealTubeMapFeedService(
+            services.tubeMapService,
+            Clock.systemUTC(),
+            transportServiceConfig.cacheTtl,
+            feedScope
+        )
 
     try {
+        runBlocking {
+            tubeMapFeedService.start()
+        }
+
         embeddedServer(
             factory = Netty,
             port = transportServiceConfig.port,
@@ -21,13 +38,14 @@ fun main() {
                 transportModule(
                     services.tubeSnapshotService,
                     services.tubeLineMapService,
-                    services.tubeMapService,
+                    tubeMapFeedService,
                     serviceResponseMapper,
                     json
                 )
             }
         ).start(wait = true)
     } finally {
+        feedScope.cancel()
         httpClient.close()
     }
 }

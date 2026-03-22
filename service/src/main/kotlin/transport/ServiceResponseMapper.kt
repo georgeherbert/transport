@@ -19,12 +19,12 @@ class ServiceResponseMapperHttp : ServiceResponseMapper {
             listOf(
                 "GET /health",
                 "GET /api/rail/map",
-                "GET /api/rail/map?refresh=true",
+                "GET /api/rail/map/stream",
                 "GET /api/rail/lines",
                 "GET /api/rail/live",
                 "GET /api/rail/live?refresh=true",
                 "GET /api/tubes/map",
-                "GET /api/tubes/map?refresh=true",
+                "GET /api/tubes/map/stream",
                 "GET /api/tubes/lines",
                 "GET /api/tubes/live",
                 "GET /api/tubes/live?refresh=true"
@@ -32,7 +32,8 @@ class ServiceResponseMapperHttp : ServiceResponseMapper {
             listOf(
                 "Location text comes directly from TfL prediction data.",
                 "Supported modes are Tube, DLR, Elizabeth line, London Overground, and Tram.",
-                "Coordinates are derived from station metadata, TfL route geometry, and domain projection logic, not onboard GPS."
+                "Coordinates are derived from station metadata, TfL route geometry, and domain projection logic, not onboard GPS.",
+                "The backend polls TfL on a fixed interval and pushes fresh snapshots and upstream errors to connected UIs."
             )
         )
 

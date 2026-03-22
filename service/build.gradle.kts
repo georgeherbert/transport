@@ -8,6 +8,7 @@ plugins {
 }
 
 val ktorVersion: String by rootProject.extra
+val coroutinesVersion: String by rootProject.extra
 val result4kVersion: String by rootProject.extra
 val striktVersion: String by rootProject.extra
 val uiDirectory = rootProject.layout.projectDirectory.dir("ui")
@@ -22,6 +23,7 @@ dependencies {
     implementation("io.ktor:ktor-server-netty-jvm:$ktorVersion")
     implementation("io.ktor:ktor-server-content-negotiation-jvm:$ktorVersion")
     implementation("io.ktor:ktor-serialization-kotlinx-json-jvm:$ktorVersion")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:$coroutinesVersion")
 
     testImplementation(kotlin("test-junit5"))
     testImplementation("io.strikt:strikt-core:$striktVersion")

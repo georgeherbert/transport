@@ -11,16 +11,19 @@ import io.ktor.server.http.content.staticResources
 import io.ktor.server.application.install
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.response.respondBytes
+import io.ktor.server.response.respondTextWriter
 import io.ktor.server.response.respond
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import java.time.Instant
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
+import kotlinx.coroutines.flow.collect
 
 fun Application.transportModule(
     tubeSnapshotService: TubeSnapshotService,
     tubeLineMapService: TubeLineMapService,
-    tubeMapService: TubeMapService,
+    tubeMapFeedService: TubeMapFeedService,
     serviceResponseMapper: ServiceResponseMapper,
     transportJson: Json
 ) {
@@ -39,12 +42,20 @@ fun Application.transportModule(
 
         get("/api/rail/map") {
             val forceRefresh = call.request.queryParameters["refresh"]?.equals("true", true) == true
-            call.respondMap(forceRefresh, tubeMapService, serviceResponseMapper)
+            call.respondMap(forceRefresh, tubeMapFeedService, serviceResponseMapper)
         }
 
         get("/api/tubes/map") {
             val forceRefresh = call.request.queryParameters["refresh"]?.equals("true", true) == true
-            call.respondMap(forceRefresh, tubeMapService, serviceResponseMapper)
+            call.respondMap(forceRefresh, tubeMapFeedService, serviceResponseMapper)
+        }
+
+        get("/api/rail/map/stream") {
+            call.respondMapStream(tubeMapFeedService, serviceResponseMapper, transportJson)
+        }
+
+        get("/api/tubes/map/stream") {
+            call.respondMapStream(tubeMapFeedService, serviceResponseMapper, transportJson)
         }
 
         get("/api/rail/lines") {
@@ -79,15 +90,63 @@ fun Application.transportModule(
 
 private suspend fun io.ktor.server.application.ApplicationCall.respondMap(
     forceRefresh: Boolean,
-    tubeMapService: TubeMapService,
+    tubeMapFeedService: TubeMapFeedService,
     serviceResponseMapper: ServiceResponseMapper
 ) =
-    when (val mapResult = tubeMapService.getTubeMap(forceRefresh)) {
+    when (val mapResult = tubeMapFeedService.getTubeMap(forceRefresh)) {
         is Success -> respond(serviceResponseMapper.mapResponse(mapResult.value))
         is Failure -> respond(
             httpStatus(mapResult.reason),
             serviceResponseMapper.errorResponse(mapResult.reason)
         )
+    }
+
+private suspend fun io.ktor.server.application.ApplicationCall.respondMapStream(
+    tubeMapFeedService: TubeMapFeedService,
+    serviceResponseMapper: ServiceResponseMapper,
+    transportJson: Json
+) =
+    respondTextWriter(ContentType.parse("text/event-stream")) {
+        write("retry: 5000\n\n")
+        flush()
+
+        when (val currentSnapshot = tubeMapFeedService.getTubeMap(false)) {
+            is Success -> {
+                writeSseEvent(
+                    "snapshot",
+                    transportJson.encodeToString(serviceResponseMapper.mapResponse(currentSnapshot.value))
+                )
+                flush()
+            }
+            is Failure -> Unit
+        }
+
+        tubeMapFeedService.currentError()?.let { error ->
+            writeSseEvent(
+                "transport_error",
+                transportJson.encodeToString(serviceResponseMapper.errorResponse(error))
+            )
+            flush()
+        }
+
+        tubeMapFeedService.updates().collect { update ->
+            when (update) {
+                is TubeMapFeedUpdate.SnapshotUpdated -> {
+                    writeSseEvent(
+                        "snapshot",
+                        transportJson.encodeToString(serviceResponseMapper.mapResponse(update.snapshot))
+                    )
+                    flush()
+                }
+                is TubeMapFeedUpdate.ErrorUpdated -> {
+                    writeSseEvent(
+                        "transport_error",
+                        transportJson.encodeToString(serviceResponseMapper.errorResponse(update.error))
+                    )
+                    flush()
+                }
+            }
+        }
     }
 
 private suspend fun io.ktor.server.application.ApplicationCall.respondLineMap(
@@ -123,3 +182,11 @@ fun httpStatus(error: TransportError) =
         is TransportError.UpstreamNetworkFailure -> HttpStatusCode.BadGateway
         is TransportError.UpstreamPayloadFailure -> HttpStatusCode.BadGateway
     }
+
+private fun Appendable.writeSseEvent(event: String, data: String) {
+    append("event: ").append(event).append('\n')
+    data.lines().forEach { line ->
+        append("data: ").append(line).append('\n')
+    }
+    append('\n')
+}

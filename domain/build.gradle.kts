@@ -12,8 +12,10 @@ dependencies {
     implementation("dev.forkhandles:result4k:$result4kVersion")
 
     testImplementation(kotlin("test-junit5"))
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutinesVersion")
     testImplementation("io.strikt:strikt-core:$striktVersion")
 
+    testFixturesImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:$coroutinesVersion")
     testFixturesImplementation("io.strikt:strikt-core:$striktVersion")
     testFixturesImplementation("dev.forkhandles:result4k:$result4kVersion")
 }
