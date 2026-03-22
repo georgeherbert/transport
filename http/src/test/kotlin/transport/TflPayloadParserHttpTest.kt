@@ -1,0 +1,191 @@
+package transport
+
+import kotlin.test.Test
+import strikt.api.expectThat
+import strikt.assertions.contains
+import strikt.assertions.get
+import strikt.assertions.hasSize
+import strikt.assertions.isA
+import strikt.assertions.isEqualTo
+
+class TflPayloadParserHttpTest {
+    private val tflPayloadParser: TflPayloadParser =
+        TflPayloadParserHttp(transportJson())
+
+    @Test
+    fun `parseLineStations filters non metro stop points`() {
+        val result = tflPayloadParser.parseLineStations(
+            """
+            [
+              {"id":"940GZZLUGPK","naptanId":"940GZZLUGPK","commonName":"Green Park Underground Station","lat":51.506947,"lon":-0.142787,"stopType":"NaptanMetroStation"},
+              {"id":"4900ZZLUGPK1","naptanId":"4900ZZLUGPK1","commonName":"Green Park Station","lat":51.506947,"lon":-0.142787,"stopType":"NaptanMetroEntrance"}
+            ]
+            """.trimIndent(),
+            LineId("victoria"),
+            "/Line/victoria/StopPoints"
+        )
+
+        expectThat(result).isSuccess().hasSize(1)
+        expectThat(result).isSuccess().get { first().stationId }.isEqualTo(StationId("940GZZLUGPK"))
+        expectThat(result).isSuccess().get { first().name }.isEqualTo(StationName("Green Park Underground Station"))
+    }
+
+    @Test
+    fun `parsePredictions parses live arrival payload`() {
+        val result = tflPayloadParser.parsePredictions(
+            """
+            [
+              {
+                "id":"-303938351",
+                "vehicleId":"257",
+                "naptanId":"940GZZLUGPK",
+                "stationName":"Green Park Underground Station",
+                "lineId":"victoria",
+                "lineName":"Victoria",
+                "platformName":"Northbound - Platform 4",
+                "direction":"outbound",
+                "destinationNaptanId":"940GZZLUWWL",
+                "destinationName":"Walthamstow Central Underground Station",
+                "timestamp":"2026-03-22T00:49:20Z",
+                "timeToStation":120,
+                "currentLocation":"Approaching Green Park",
+                "towards":"Walthamstow Central",
+                "expectedArrival":"2026-03-22T00:51:20Z",
+                "timeToLive":"2026-03-22T00:51:20Z",
+                "modeName":"tube"
+              }
+            ]
+            """.trimIndent(),
+            "/StopPoint/940GZZLUGPK/Arrivals"
+        )
+
+        expectThat(result).isSuccess().hasSize(1)
+        expectThat(result).isSuccess().get { first().vehicleId }.isEqualTo(VehicleId("257"))
+        expectThat(result).isSuccess().get { first().currentLocation }.isEqualTo(LocationDescription("Approaching Green Park"))
+    }
+
+    @Test
+    fun `parsePredictions allows missing optional direction and destination fields`() {
+        val result = tflPayloadParser.parsePredictions(
+            """
+            [
+              {
+                "id":"-303938351",
+                "vehicleId":"257",
+                "naptanId":"940GZZLUGPK",
+                "stationName":"Green Park Underground Station",
+                "lineId":"victoria",
+                "lineName":"Victoria",
+                "platformName":"Northbound - Platform 4",
+                "timestamp":"2026-03-22T00:49:20Z",
+                "timeToStation":120,
+                "currentLocation":"Approaching Green Park",
+                "towards":"Walthamstow Central",
+                "expectedArrival":"2026-03-22T00:51:20Z",
+                "timeToLive":"2026-03-22T00:51:20Z",
+                "modeName":"tube"
+              }
+            ]
+            """.trimIndent(),
+            "/StopPoint/940GZZLUGPK/Arrivals"
+        )
+
+        expectThat(result).isSuccess().hasSize(1)
+        expectThat(result).isSuccess().get { first().direction }.isEqualTo(null)
+        expectThat(result).isSuccess().get { first().destinationName }.isEqualTo(null)
+    }
+
+    @Test
+    fun `parsePredictions allows missing optional timeToStation`() {
+        val result = tflPayloadParser.parsePredictions(
+            """
+            [
+              {
+                "id":"-303938351",
+                "vehicleId":"257",
+                "naptanId":"940GZZLUGPK",
+                "stationName":"Green Park Underground Station",
+                "lineId":"victoria",
+                "lineName":"Victoria",
+                "platformName":"Northbound - Platform 4",
+                "timestamp":"2026-03-22T00:49:20Z",
+                "currentLocation":"At Platform",
+                "towards":"Walthamstow Central",
+                "expectedArrival":"2026-03-22T00:51:20Z",
+                "timeToLive":"2026-03-22T00:51:20Z",
+                "modeName":"tube"
+              }
+            ]
+            """.trimIndent(),
+            "/Mode/tube/Arrivals"
+        )
+
+        expectThat(result).isSuccess().hasSize(1)
+        expectThat(result).isSuccess().get { first().secondsToNextStop }.isEqualTo(null)
+    }
+
+    @Test
+    fun `parsePredictions returns payload failure for invalid timestamps`() {
+        val result = tflPayloadParser.parsePredictions(
+            """
+            [
+              {
+                "id":"-303938351",
+                "vehicleId":"257",
+                "naptanId":"940GZZLUGPK",
+                "stationName":"Green Park Underground Station",
+                "lineId":"victoria",
+                "lineName":"Victoria",
+                "platformName":"Northbound - Platform 4",
+                "timestamp":"not-an-instant",
+                "timeToStation":120,
+                "currentLocation":"Approaching Green Park",
+                "towards":"Walthamstow Central",
+                "expectedArrival":"2026-03-22T00:51:20Z",
+                "timeToLive":"2026-03-22T00:51:20Z",
+                "modeName":"tube"
+              }
+            ]
+            """.trimIndent(),
+            "/StopPoint/940GZZLUGPK/Arrivals"
+        )
+
+        expectThat(result)
+            .isFailure()
+            .isA<TransportError.UpstreamPayloadFailure>()
+            .get(TransportError.UpstreamPayloadFailure::message)
+            .contains("Invalid instant field 'timestamp'")
+    }
+
+    @Test
+    fun `parsePredictions returns payload failure when a required field is missing`() {
+        val result = tflPayloadParser.parsePredictions(
+            """
+            [
+              {
+                "id":"-303938351",
+                "vehicleId":"257",
+                "naptanId":"940GZZLUGPK",
+                "stationName":"Green Park Underground Station",
+                "lineName":"Victoria",
+                "platformName":"Northbound - Platform 4",
+                "timestamp":"2026-03-22T00:49:20Z",
+                "timeToStation":120,
+                "currentLocation":"Approaching Green Park",
+                "towards":"Walthamstow Central",
+                "expectedArrival":"2026-03-22T00:51:20Z",
+                "timeToLive":"2026-03-22T00:51:20Z",
+                "modeName":"tube"
+              }
+            ]
+            """.trimIndent(),
+            "/StopPoint/940GZZLUGPK/Arrivals"
+        )
+
+        expectThat(result)
+            .isFailure()
+            .isA<TransportError.UpstreamPayloadFailure>()
+            .get(TransportError.UpstreamPayloadFailure::message)
+            .contains("lineId")
+    }
+}

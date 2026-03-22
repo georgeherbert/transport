@@ -1,0 +1,159 @@
+package transport
+
+import java.time.Duration
+import java.time.Instant
+import kotlin.test.Test
+import strikt.api.expectThat
+import strikt.assertions.contains
+import strikt.assertions.get
+import strikt.assertions.hasSize
+import strikt.assertions.isNotNull
+import strikt.assertions.isEqualTo
+
+class RealTubeSnapshotAssemblerTest {
+    private val tubeNetwork = testTubeNetwork(
+        listOf(
+            testStation("940GZZLUVIC", "Victoria Underground Station", 51.496359, -0.143102, setOf("victoria")),
+            testStation("940GZZLUGPK", "Green Park Underground Station", 51.506947, -0.142787, setOf("victoria")),
+            testStation("940GZZLUWSM", "Warren Street Underground Station", 51.524951, -0.138321, setOf("victoria")),
+            testStation("940GZZLUKSX", "King's Cross St. Pancras Underground Station", 51.530663, -0.123194, setOf("victoria")),
+            testStation("940GZZLUEUS", "Euston Square Underground Station", 51.525604, -0.135829, setOf("metropolitan", "hammersmith-city"))
+        )
+    )
+    private val assembler: TubeSnapshotAssembler =
+        RealTubeSnapshotAssembler(RealTubeLocationEstimator())
+
+    @Test
+    fun `assemble deduplicates the same train across station boards`() {
+        val predictions = listOf(
+            TubePredictionRecord(
+                VehicleId("257"),
+                StationId("940GZZLUKSX"),
+                StationName("King's Cross St. Pancras Underground Station"),
+                LineId("victoria"),
+                LineName("Victoria"),
+                TrainDirection("outbound"),
+                DestinationName("Walthamstow Central Underground Station"),
+                Instant.parse("2026-03-22T00:49:20Z"),
+                Duration.ofSeconds(492),
+                LocationDescription("Between Victoria and Green Park"),
+                TowardsDescription("Walthamstow Central"),
+                Instant.parse("2026-03-22T00:57:32Z"),
+                TransportModeName("tube")
+            ),
+            TubePredictionRecord(
+                VehicleId("257"),
+                StationId("940GZZLUWSM"),
+                StationName("Warren Street Underground Station"),
+                LineId("victoria"),
+                LineName("Victoria"),
+                TrainDirection("outbound"),
+                DestinationName("Walthamstow Central Underground Station"),
+                Instant.parse("2026-03-22T00:49:20Z"),
+                Duration.ofSeconds(120),
+                LocationDescription("Approaching Warren Street"),
+                TowardsDescription("Walthamstow Central"),
+                Instant.parse("2026-03-22T00:51:20Z"),
+                TransportModeName("tube")
+            )
+        )
+
+        val snapshot = assembler.assemble(
+            tubeNetwork,
+            predictions,
+            Instant.parse("2026-03-22T00:49:20Z"),
+            StationQueryCount(2),
+            StationFailureCount(0)
+        )
+
+        expectThat(snapshot.trains).hasSize(1)
+        expectThat(snapshot.trains.first().trainId).isEqualTo(TrainId("victoria|257"))
+        expectThat(snapshot.trains.first().location.type).isEqualTo(LocationType.APPROACHING_STATION)
+        expectThat(snapshot.trains.first().nextStop!!.id).isEqualTo(StationId("940GZZLUWSM"))
+        expectThat(snapshot.trains.first().sourcePredictions).isEqualTo(PredictionCount(2))
+    }
+
+    @Test
+    fun `assemble separates reused vehicle ids across different lines`() {
+        val predictions = listOf(
+            TubePredictionRecord(
+                VehicleId("175"),
+                StationId("940GZZLUEUS"),
+                StationName("Euston Square Underground Station"),
+                LineId("hammersmith-city"),
+                LineName("Hammersmith & City"),
+                null,
+                DestinationName("Check Front of Train"),
+                Instant.parse("2026-03-22T00:49:20Z"),
+                Duration.ofSeconds(132),
+                LocationDescription("At Euston Square Platform 2"),
+                TowardsDescription("Check Front of Train"),
+                Instant.parse("2026-03-22T00:51:32Z"),
+                TransportModeName("tube")
+            ),
+            TubePredictionRecord(
+                VehicleId("175"),
+                StationId("940GZZLUEUS"),
+                StationName("Euston Square Underground Station"),
+                LineId("metropolitan"),
+                LineName("Metropolitan"),
+                null,
+                DestinationName("Check Front of Train"),
+                Instant.parse("2026-03-22T00:49:20Z"),
+                Duration.ofSeconds(131),
+                LocationDescription("At Euston Square Platform 2"),
+                TowardsDescription("Check Front of Train"),
+                Instant.parse("2026-03-22T00:51:31Z"),
+                TransportModeName("tube")
+            )
+        )
+
+        val snapshot = assembler.assemble(
+            tubeNetwork,
+            predictions,
+            Instant.parse("2026-03-22T00:49:20Z"),
+            StationQueryCount(1),
+            StationFailureCount(0)
+        )
+
+        expectThat(snapshot.trains).hasSize(2)
+        expectThat(snapshot.trains.map(LiveTubeTrain::trainId)).contains(
+            TrainId("hammersmith-city|175"),
+            TrainId("metropolitan|175")
+        )
+        expectThat(snapshot.trains.map(LiveTubeTrain::lineIds)).contains(
+            listOf(LineId("hammersmith-city")),
+            listOf(LineId("metropolitan"))
+        )
+    }
+
+    @Test
+    fun `assemble derives seconds to next stop from expected arrival when timeToStation is missing`() {
+        val snapshot = assembler.assemble(
+            tubeNetwork,
+            listOf(
+                TubePredictionRecord(
+                    VehicleId("257"),
+                    StationId("940GZZLUKSX"),
+                    StationName("King's Cross St. Pancras Underground Station"),
+                    LineId("victoria"),
+                    LineName("Victoria"),
+                    TrainDirection("outbound"),
+                    DestinationName("Walthamstow Central Underground Station"),
+                    Instant.parse("2026-03-22T00:49:20Z"),
+                    null,
+                    LocationDescription("Approaching Warren Street"),
+                    TowardsDescription("Walthamstow Central"),
+                    Instant.parse("2026-03-22T00:51:20Z"),
+                    TransportModeName("tube")
+                )
+            ),
+            Instant.parse("2026-03-22T00:49:50Z"),
+            StationQueryCount(1),
+            StationFailureCount(0)
+        )
+
+        expectThat(snapshot.trains).hasSize(1)
+        expectThat(snapshot.trains.first().secondsToNextStop).isNotNull().get { seconds }.isEqualTo(90)
+    }
+}
