@@ -163,9 +163,12 @@ function App() {
                 <Popup>
                   <div className="popup-card">
                     <strong>{train.lineLabel}</strong>
-                    <div>{train.destinationName ?? 'Destination unavailable'}</div>
-                    <div>{train.currentLocation}</div>
-                    <div>{secondsLabelFor(train.secondsToNextStop)}</div>
+                    <TrainDetail label="Current">{currentLocationLabelFor(train)}</TrainDetail>
+                    <TrainDetail label="Destination">{destinationLabelFor(train)}</TrainDetail>
+                    {train.towards != null ? (
+                      <TrainDetail label="Towards">{train.towards}</TrainDetail>
+                    ) : null}
+                    <TrainDetail label="Next stop">{secondsLabelFor(train.secondsToNextStop)}</TrainDetail>
                   </div>
                 </Popup>
               </Marker>
@@ -184,8 +187,8 @@ function App() {
                   style={{ '--line-color': colorForLine(train.primaryLineId) }}
                 ></span>
                 <div className="train-row-body">
-                  <strong>{train.destinationName ?? train.lineLabel}</strong>
-                  <span>{train.currentLocation}</span>
+                  <strong>{currentLocationLabelFor(train)}</strong>
+                  <span>{serviceLabelFor(train)}</span>
                   <span>{secondsLabelFor(train.secondsToNextStop)}</span>
                 </div>
               </article>
@@ -206,6 +209,15 @@ function StatusItem({ label, value }) {
     <div className="status-item">
       <span>{label}</span>
       <strong>{value}</strong>
+    </div>
+  )
+}
+
+function TrainDetail({ label, children }) {
+  return (
+    <div className="train-detail">
+      <span className="train-detail-label">{label}</span>
+      <span>{children}</span>
     </div>
   )
 }
@@ -302,7 +314,7 @@ function formatDateTime(value) {
 
 function secondsLabelFor(seconds) {
   if (seconds == null) {
-    return 'Arrival time unavailable'
+    return 'Time to next stop unavailable'
   }
 
   if (seconds < 60) {
@@ -310,6 +322,24 @@ function secondsLabelFor(seconds) {
   }
 
   return `${Math.round(seconds / 60)}m to next stop`
+}
+
+function currentLocationLabelFor(train) {
+  return train.currentLocation
+}
+
+function destinationLabelFor(train) {
+  return train.destinationName ?? 'Destination unavailable'
+}
+
+function serviceLabelFor(train) {
+  const destination = destinationLabelFor(train)
+
+  if (train.towards != null && train.towards !== destination) {
+    return `${train.lineLabel} to ${destination} via ${train.towards}`
+  }
+
+  return `${train.lineLabel} to ${destination}`
 }
 
 function prettifyLineId(lineId) {
