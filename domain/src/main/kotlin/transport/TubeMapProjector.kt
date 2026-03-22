@@ -234,13 +234,11 @@ data class ProjectedTubeLine(
     }
 
     private fun matchingSequences(direction: TrainDirection?): List<TubeLineSequence> {
-        if (line.sequences.isEmpty()) {
+        if (line.sequences.isEmpty() || direction == null) {
             return emptyList()
         }
 
-        val matchingDirections = direction?.let { trainDirection ->
-            line.sequences.filter { sequence -> sequence.direction == trainDirection }
-        }.orEmpty()
+        val matchingDirections = line.sequences.filter { sequence -> sequence.direction == direction }
 
         return if (matchingDirections.isNotEmpty()) matchingDirections else line.sequences
     }

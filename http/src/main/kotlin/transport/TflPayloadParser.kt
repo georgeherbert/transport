@@ -82,7 +82,7 @@ class TflPayloadParserHttp(
         lineId: LineId,
         endpoint: String
     ): TransportResult<List<TubeStationRecord>> {
-        if (stopPoint.stopType != "NaptanMetroStation") {
+        if (!isSupportedStationStopType(stopPoint.stopType)) {
             return Success(emptyList())
         }
 
@@ -104,7 +104,7 @@ class TflPayloadParserHttp(
                 parseInstant(arrival.expectedArrival, "expectedArrival", endpoint)
                     .map { expectedArrival ->
                         TubePredictionRecord(
-                            VehicleId(arrival.vehicleId),
+                            arrival.vehicleId.toValue(::VehicleId),
                             StationId(arrival.naptanId),
                             StationName(arrival.stationName),
                             LineId(arrival.lineId),
@@ -115,8 +115,8 @@ class TflPayloadParserHttp(
                             arrival.timeToStation?.let { timeToStation ->
                                 Duration.ofSeconds(timeToStation.toLong())
                             },
-                            LocationDescription(arrival.currentLocation),
-                            TowardsDescription(arrival.towards),
+                            arrival.currentLocation.toValue(::LocationDescription),
+                            arrival.towards.toValue(::TowardsDescription),
                             expectedArrival,
                             TransportModeName(arrival.modeName)
                         )
@@ -159,7 +159,7 @@ class TflPayloadParserHttp(
             TubeLineSequenceRecord(
                 direction,
                 stopPointSequence.stopPoint
-                    .filter { stopPoint -> stopPoint.stopType == "NaptanMetroStation" }
+                    .filter { stopPoint -> isSupportedStationStopType(stopPoint.stopType) }
                     .map(::stationReference)
             )
         )
@@ -216,4 +216,7 @@ class TflPayloadParserHttp(
         this
             ?.takeIf(String::isNotBlank)
             ?.let(factory)
+
+    private fun isSupportedStationStopType(stopType: String) =
+        stopType == "NaptanMetroStation" || stopType == "NaptanRailStation"
 }

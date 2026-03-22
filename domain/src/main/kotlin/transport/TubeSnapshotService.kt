@@ -2,6 +2,7 @@ package transport
 
 import dev.forkhandles.result4k.Failure
 import dev.forkhandles.result4k.Success
+import dev.forkhandles.result4k.map
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
@@ -66,16 +67,24 @@ class RealTubeSnapshotService(
         }
 
     private suspend fun fetchPredictionBatch(tubeNetwork: TubeNetwork): TransportResult<PredictionBatch> =
-        when (val predictionResult = tubeData.fetchTubePredictions()) {
-            is Success -> Success(
+        supportedRailModes
+            .map { mode -> tubeData.fetchPredictions(mode) }
+            .failFast()
+            .map(List<List<TubePredictionRecord>>::flatten)
+            .map { predictions ->
                 PredictionBatch(
-                    predictionResult.value,
+                    predictions,
                     StationQueryCount(tubeNetwork.stationsById.size),
                     StationFailureCount(0)
                 )
-            )
-            is Failure -> Failure(TransportError.SnapshotUnavailable(describeTransportError(predictionResult.reason)))
-        }
+            }
+            .flatMapFailure()
+
+private fun TransportResult<PredictionBatch>.flatMapFailure() =
+    when (this) {
+        is Success -> this
+        is Failure -> Failure(TransportError.SnapshotUnavailable(describeTransportError(reason)))
+    }
 }
 
 data class PredictionBatch(

@@ -53,7 +53,7 @@ class RealTubeMetadataRepositoryTest {
                 lineRouteHandler = { lineId ->
                     Failure(TransportError.MetadataUnavailable(lineId.value))
                 },
-                tubePredictionHandler = {
+                predictionHandler = { mode ->
                     Failure(TransportError.SnapshotUnavailable("unused"))
                 }
             )
@@ -99,7 +99,7 @@ class RealTubeMetadataRepositoryTest {
                 lineRouteHandler = { lineId ->
                     Failure(TransportError.MetadataUnavailable(lineId.value))
                 },
-                tubePredictionHandler = {
+                predictionHandler = { mode ->
                     Failure(TransportError.SnapshotUnavailable("unused"))
                 }
             )
@@ -108,7 +108,7 @@ class RealTubeMetadataRepositoryTest {
             expectThat(repository.getTubeNetwork()).isSuccess()
             expectThat(repository.getTubeNetwork()).isSuccess()
 
-            expectThat(requests.get()).isEqualTo(tubeLineIds.size)
+            expectThat(requests.get()).isEqualTo(supportedRailLineIds.size)
         }
     }
 
@@ -117,7 +117,7 @@ class RealTubeMetadataRepositoryTest {
         runBlocking {
             val tubeData = FakeTubeData(
                 lineStationHandler = { lineId ->
-                    if (lineId == tubeLineIds.first()) {
+                    if (lineId == supportedRailLineIds.first()) {
                         Failure(TransportError.UpstreamNetworkFailure("/Line/${lineId.value}/StopPoints", "boom"))
                     } else {
                         Success(emptyList())
@@ -126,7 +126,7 @@ class RealTubeMetadataRepositoryTest {
                 lineRouteHandler = { lineId ->
                     Failure(TransportError.MetadataUnavailable(lineId.value))
                 },
-                tubePredictionHandler = {
+                predictionHandler = { mode ->
                     Failure(TransportError.SnapshotUnavailable("unused"))
                 }
             )

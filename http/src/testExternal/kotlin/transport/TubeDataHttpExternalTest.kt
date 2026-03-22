@@ -31,6 +31,15 @@ class TubeDataHttpExternalTest {
     }
 
     @Test
+    fun `fetchLineStations returns live elizabeth stop points`() {
+        runBlocking {
+            val result = tubeData.fetchLineStations(LineId("elizabeth"))
+
+            expectThat(result).isSuccess().get { size }.isGreaterThan(0)
+        }
+    }
+
+    @Test
     fun `fetchLineRoutes returns live victoria geometry`() {
         runBlocking {
             val result = tubeData.fetchLineRoutes(LineId("victoria"))
@@ -40,11 +49,47 @@ class TubeDataHttpExternalTest {
     }
 
     @Test
-    fun `fetchTubePredictions returns the live tube feed`() {
+    fun `fetchLineRoutes returns live dlr geometry`() {
         runBlocking {
-            val result = tubeData.fetchTubePredictions()
+            val result = tubeData.fetchLineRoutes(LineId("dlr"))
+
+            expectThat(result).isSuccess().get { paths.size }.isGreaterThan(0)
+        }
+    }
+
+    @Test
+    fun `fetchPredictions returns the live tube feed`() {
+        runBlocking {
+            val result = tubeData.fetchPredictions(TransportModeName("tube"))
 
             expectThat(result).isSuccess()
+        }
+    }
+
+    @Test
+    fun `fetchPredictions returns the live elizabeth feed`() {
+        runBlocking {
+            val result = tubeData.fetchPredictions(TransportModeName("elizabeth-line"))
+
+            expectThat(result).isSuccess().get { size }.isGreaterThan(0)
+        }
+    }
+
+    @Test
+    fun `fetchPredictions returns the live overground feed`() {
+        runBlocking {
+            val result = tubeData.fetchPredictions(TransportModeName("overground"))
+
+            expectThat(result).isSuccess().get { size }.isGreaterThan(0)
+        }
+    }
+
+    @Test
+    fun `fetchPredictions returns the live dlr feed`() {
+        runBlocking {
+            val result = tubeData.fetchPredictions(TransportModeName("dlr"))
+
+            expectThat(result).isSuccess().get { size }.isGreaterThan(0)
         }
     }
 }

@@ -24,7 +24,7 @@ class RealTubeSnapshotAssembler(
         stationsFailed: StationFailureCount
     ): LiveTubeSnapshot {
         val trains = predictions
-            .filter(::isTubePrediction)
+            .filter(::isSupportedPrediction)
             .groupBy(::trainIdentityKey)
             .values
             .map { group -> buildTrain(tubeNetwork, group, generatedAt) }
@@ -45,7 +45,7 @@ class RealTubeSnapshotAssembler(
             stationsFailed,
             stationsFailed.value > 0,
             LiveTrainCount(trains.size),
-            tubeLineIds,
+            supportedRailLineIds,
             trains
         )
     }
@@ -85,17 +85,20 @@ class RealTubeSnapshotAssembler(
         )
     }
 
-    private fun isTubePrediction(prediction: TubePredictionRecord): Boolean =
-        prediction.modeName?.value.equals("tube", true) || prediction.lineId in tubeLineIds
+    private fun isSupportedPrediction(prediction: TubePredictionRecord): Boolean =
+        prediction.lineId in supportedRailLineIds ||
+            prediction.modeName in supportedRailModes
 
     private fun trainIdentityKey(prediction: TubePredictionRecord): String =
         prediction.vehicleId?.let { vehicleId ->
             listOf(prediction.lineId?.value.orEmpty(), vehicleId.value).joinToString("|")
         } ?: listOf(
             prediction.lineId?.value,
+            prediction.stationId?.value,
             prediction.direction?.value,
             prediction.destinationName?.value,
             prediction.currentLocation?.value,
+            prediction.towards?.value,
             prediction.expectedArrival?.toString()
         ).joinToString("|")
 

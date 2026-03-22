@@ -33,7 +33,7 @@ class RealTubeMetadataRepository(
         }
 
     private suspend fun loadTubeNetwork(): TransportResult<TubeNetwork> =
-        tubeLineIds
+        supportedRailLineIds
             .map { lineId -> tubeData.fetchLineStations(lineId) }
             .failFast()
             .map(List<List<TubeStationRecord>>::flatten)
@@ -41,7 +41,7 @@ class RealTubeMetadataRepository(
 
     private fun buildTubeNetwork(stationRecords: List<TubeStationRecord>): TransportResult<TubeNetwork> {
         if (stationRecords.isEmpty()) {
-            return Failure(TransportError.MetadataUnavailable("TfL returned no Tube stations."))
+            return Failure(TransportError.MetadataUnavailable("TfL returned no supported rail stations."))
         }
 
         val stationsById = stationRecords
@@ -74,6 +74,7 @@ fun stationNameVariants(name: StationName): Set<String> =
     setOf(
         name.value,
         name.value.removeSuffix(" Underground Station"),
+        name.value.removeSuffix(" Rail Station"),
         name.value.removeSuffix(" Station"),
         name.value.replace(Regex("\\s*\\([^)]*\\)"), "")
     ).map(::normalizeStationName).toSet()
@@ -92,5 +93,6 @@ fun normalizeStationName(name: String): String =
         .replace(Regex("\\s+"), " ")
         .trim()
         .removeSuffix(" underground station")
+        .removeSuffix(" rail station")
         .removeSuffix(" station")
         .trim()

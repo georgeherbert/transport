@@ -18,6 +18,7 @@ class TflPayloadParserHttpTest {
             """
             [
               {"id":"940GZZLUGPK","naptanId":"940GZZLUGPK","commonName":"Green Park Underground Station","lat":51.506947,"lon":-0.142787,"stopType":"NaptanMetroStation"},
+              {"id":"910GABWDXR","naptanId":"910GABWDXR","commonName":"Abbey Wood","lat":51.490719,"lon":0.121823,"stopType":"NaptanRailStation"},
               {"id":"4900ZZLUGPK1","naptanId":"4900ZZLUGPK1","commonName":"Green Park Station","lat":51.506947,"lon":-0.142787,"stopType":"NaptanMetroEntrance"}
             ]
             """.trimIndent(),
@@ -25,7 +26,7 @@ class TflPayloadParserHttpTest {
             "/Line/victoria/StopPoints"
         )
 
-        expectThat(result).isSuccess().hasSize(1)
+        expectThat(result).isSuccess().hasSize(2)
         expectThat(result).isSuccess().get { first().stationId }.isEqualTo(StationId("940GZZLUGPK"))
         expectThat(result).isSuccess().get { first().name }.isEqualTo(StationName("Green Park Underground Station"))
     }
@@ -184,6 +185,41 @@ class TflPayloadParserHttpTest {
 
         expectThat(result).isSuccess().hasSize(1)
         expectThat(result).isSuccess().get { first().secondsToNextStop }.isEqualTo(null)
+    }
+
+    @Test
+    fun `parsePredictions treats blank non tube fields as missing values`() {
+        val result = tflPayloadParser.parsePredictions(
+            """
+            [
+              {
+                "id":"-660031888",
+                "vehicleId":"",
+                "naptanId":"910GHTRWTM5",
+                "stationName":"Heathrow Terminal 5 Rail Station",
+                "lineId":"elizabeth",
+                "lineName":"Elizabeth line",
+                "platformName":"3",
+                "direction":"",
+                "destinationName":"Abbey Wood",
+                "timestamp":"2026-03-22T16:00:00Z",
+                "currentLocation":"",
+                "towards":"",
+                "expectedArrival":"2026-03-22T16:08:00Z",
+                "timeToLive":"2026-03-22T16:08:00Z",
+                "modeName":"elizabeth-line"
+              }
+            ]
+            """.trimIndent(),
+            "/Mode/elizabeth-line/Arrivals"
+        )
+
+        expectThat(result).isSuccess().hasSize(1)
+        expectThat(result).isSuccess().get { first().vehicleId }.isEqualTo(null)
+        expectThat(result).isSuccess().get { first().direction }.isEqualTo(null)
+        expectThat(result).isSuccess().get { first().currentLocation }.isEqualTo(null)
+        expectThat(result).isSuccess().get { first().towards }.isEqualTo(null)
+        expectThat(result).isSuccess().get { first().modeName }.isEqualTo(TransportModeName("elizabeth-line"))
     }
 
     @Test

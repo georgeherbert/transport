@@ -33,13 +33,13 @@ class TubeDataHttp(
             tflPayloadParser.parseLineRoute(body, "/Line/${lineId.value}/Route/Sequence/all")
         }
 
-    override suspend fun fetchTubePredictions() =
+    override suspend fun fetchPredictions(mode: TransportModeName) =
         fetchEndpoint(
-            "/Mode/tube/Arrivals",
+            "/Mode/${mode.value}/Arrivals",
             listOf(QueryParameter("count", "-1"))
         )
             .flatMap { body ->
-                tflPayloadParser.parsePredictions(body, "/Mode/tube/Arrivals")
+                tflPayloadParser.parsePredictions(body, "/Mode/${mode.value}/Arrivals")
             }
 
     private suspend fun fetchEndpoint(
@@ -74,7 +74,7 @@ class TubeDataHttp(
         val request = HttpRequest.newBuilder(buildUri(endpoint, queryParameters))
             .timeout(tflHttpClientConfig.requestTimeout)
             .header("Accept", "application/json")
-            .header("User-Agent", "transport-tube-api/1.0")
+            .header("User-Agent", "transport-rail-api/1.0")
             .GET()
             .build()
 

@@ -3,7 +3,7 @@ package transport
 class FakeTubeData(
     private val lineStationHandler: suspend (LineId) -> TransportResult<List<TubeStationRecord>>,
     private val lineRouteHandler: suspend (LineId) -> TransportResult<TubeLineRouteRecord>,
-    private val tubePredictionHandler: suspend () -> TransportResult<List<TubePredictionRecord>>
+    private val predictionHandler: suspend (TransportModeName) -> TransportResult<List<TubePredictionRecord>>
 ) : TubeData {
     override suspend fun fetchLineStations(lineId: LineId) =
         lineStationHandler(lineId)
@@ -11,6 +11,6 @@ class FakeTubeData(
     override suspend fun fetchLineRoutes(lineId: LineId) =
         lineRouteHandler(lineId)
 
-    override suspend fun fetchTubePredictions() =
-        tubePredictionHandler()
+    override suspend fun fetchPredictions(mode: TransportModeName) =
+        predictionHandler(mode)
 }

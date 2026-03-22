@@ -42,7 +42,7 @@ class ApiTest {
             val response = client.get("/")
 
             expectThat(response.status).isEqualTo(HttpStatusCode.OK)
-            expectThat(response.bodyAsText()).contains("London Tube Pulse")
+            expectThat(response.bodyAsText()).contains("London Rail Pulse")
         }
     }
 
@@ -64,12 +64,12 @@ class ApiTest {
             val response = client.get("/api")
 
             expectThat(response.status).isEqualTo(HttpStatusCode.OK)
-            expectThat(response.bodyAsText()).contains("\"service\"")
+            expectThat(response.bodyAsText()).contains("/api/rail/map")
         }
     }
 
     @Test
-    fun `api returns live snapshot payload`() {
+    fun `api returns rail snapshot payload`() {
         testApplication {
             application {
                 transportModule(
@@ -83,7 +83,7 @@ class ApiTest {
                 )
             }
 
-            val response = client.get("/api/tubes/live")
+            val response = client.get("/api/rail/live")
 
             expectThat(response.status).isEqualTo(HttpStatusCode.OK)
             expectThat(response.bodyAsText()).contains("\"trainCount\"")
@@ -115,7 +115,7 @@ class ApiTest {
     }
 
     @Test
-    fun `api returns tube line map payload`() {
+    fun `api returns rail line map payload`() {
         testApplication {
             application {
                 transportModule(
@@ -129,7 +129,7 @@ class ApiTest {
                 )
             }
 
-            val response = client.get("/api/tubes/lines")
+            val response = client.get("/api/rail/lines")
 
             expectThat(response.status).isEqualTo(HttpStatusCode.OK)
             expectThat(response.bodyAsText()).contains("\"paths\"")
@@ -137,7 +137,29 @@ class ApiTest {
     }
 
     @Test
-    fun `api returns projected tube map payload`() {
+    fun `api returns projected rail map payload`() {
+        testApplication {
+            application {
+                transportModule(
+                    FakeSnapshotService { forceRefresh ->
+                        Success(sampleSnapshot(forceRefresh))
+                    },
+                    tubeLineMapService,
+                    tubeMapService,
+                    serviceResponseMapper,
+                    transportJson()
+                )
+            }
+
+            val response = client.get("/api/rail/map")
+
+            expectThat(response.status).isEqualTo(HttpStatusCode.OK)
+            expectThat(response.bodyAsText()).contains("\"coordinate\"")
+        }
+    }
+
+    @Test
+    fun `api keeps tube routes as aliases`() {
         testApplication {
             application {
                 transportModule(

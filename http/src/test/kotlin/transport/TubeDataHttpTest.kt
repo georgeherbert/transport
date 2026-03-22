@@ -102,7 +102,7 @@ class TubeDataHttpTest {
     }
 
     @Test
-    fun `fetchTubePredictions parses the bulk arrivals payload`() {
+    fun `fetchPredictions parses the bulk arrivals payload for a mode`() {
         runBlocking {
             respond(
                 "/Mode/tube/Arrivals",
@@ -132,7 +132,7 @@ class TubeDataHttpTest {
                 """.trimIndent()
             )
 
-            val result = tubeData.fetchTubePredictions()
+            val result = tubeData.fetchPredictions(TransportModeName("tube"))
 
             expectThat(result).isSuccess().hasSize(1)
             expectThat(result).isSuccess().get { first().vehicleId }.isEqualTo(VehicleId("257"))
@@ -251,11 +251,11 @@ class TubeDataHttpTest {
     }
 
     @Test
-    fun `fetchTubePredictions requests all arrivals and includes credentials in the upstream query string`() {
+    fun `fetchPredictions requests all arrivals and includes credentials in the upstream query string`() {
         runBlocking {
             val observedQuery = AtomicReference<String?>(null)
             server.createContext(
-                "/Mode/tube/Arrivals",
+                "/Mode/elizabeth-line/Arrivals",
                 RecordingJsonHandler(observedQuery, 200, "[]")
             )
             tubeData = TubeDataHttp(
@@ -269,7 +269,7 @@ class TubeDataHttpTest {
                 TflPayloadParserHttp(transportJson())
             )
 
-            val result = tubeData.fetchTubePredictions()
+            val result = tubeData.fetchPredictions(TransportModeName("elizabeth-line"))
 
             expectThat(result).isSuccess().hasSize(0)
             expectThat(observedQuery.get()).isNotNull().contains("app_id=my+app")

@@ -63,16 +63,35 @@ value class PredictionCount(val value: Int)
 @JvmInline
 value class HeadingDegrees(val value: Double)
 
-val tubeLineIds = listOf(
-    LineId("bakerloo"),
-    LineId("central"),
-    LineId("circle"),
-    LineId("district"),
-    LineId("hammersmith-city"),
-    LineId("jubilee"),
-    LineId("metropolitan"),
-    LineId("northern"),
-    LineId("piccadilly"),
-    LineId("victoria"),
-    LineId("waterloo-city")
+data class SupportedLine(
+    val id: LineId,
+    val mode: TransportModeName
 )
+
+val supportedRailLines = listOf(
+    SupportedLine(LineId("bakerloo"), TransportModeName("tube")),
+    SupportedLine(LineId("central"), TransportModeName("tube")),
+    SupportedLine(LineId("circle"), TransportModeName("tube")),
+    SupportedLine(LineId("district"), TransportModeName("tube")),
+    SupportedLine(LineId("hammersmith-city"), TransportModeName("tube")),
+    SupportedLine(LineId("jubilee"), TransportModeName("tube")),
+    SupportedLine(LineId("metropolitan"), TransportModeName("tube")),
+    SupportedLine(LineId("northern"), TransportModeName("tube")),
+    SupportedLine(LineId("piccadilly"), TransportModeName("tube")),
+    SupportedLine(LineId("victoria"), TransportModeName("tube")),
+    SupportedLine(LineId("waterloo-city"), TransportModeName("tube")),
+    SupportedLine(LineId("dlr"), TransportModeName("dlr")),
+    SupportedLine(LineId("elizabeth"), TransportModeName("elizabeth-line")),
+    SupportedLine(LineId("liberty"), TransportModeName("overground")),
+    SupportedLine(LineId("lioness"), TransportModeName("overground")),
+    SupportedLine(LineId("mildmay"), TransportModeName("overground")),
+    SupportedLine(LineId("suffragette"), TransportModeName("overground")),
+    SupportedLine(LineId("weaver"), TransportModeName("overground")),
+    SupportedLine(LineId("windrush"), TransportModeName("overground"))
+)
+
+val supportedRailLineIds = supportedRailLines.map(SupportedLine::id)
+
+val supportedRailModes = supportedRailLines
+    .map(SupportedLine::mode)
+    .distinctBy(TransportModeName::value)

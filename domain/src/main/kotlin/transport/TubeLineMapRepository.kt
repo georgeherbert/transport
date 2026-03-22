@@ -33,14 +33,14 @@ class RealTubeLineMapRepository(
         }
 
     private suspend fun loadLineMap(): TransportResult<TubeLineMap> =
-        tubeLineIds
+        supportedRailLineIds
             .map { lineId -> tubeData.fetchLineRoutes(lineId) }
             .failFast()
             .flatMap(::toTubeLineMap)
 
     private fun toTubeLineMap(routeRecords: List<TubeLineRouteRecord>): TransportResult<TubeLineMap> {
         if (routeRecords.isEmpty()) {
-            return Failure(TransportError.MetadataUnavailable("TfL returned no Tube line routes."))
+            return Failure(TransportError.MetadataUnavailable("TfL returned no supported rail line routes."))
         }
 
         return Success(

@@ -14,10 +14,15 @@ interface ServiceResponseMapper {
 class ServiceResponseMapperHttp : ServiceResponseMapper {
     override fun apiDescription() =
         ApiDescriptionJson(
-            "london-tube-live-api",
-            "Aggregates TfL Tube arrival boards into a live train snapshot.",
+            "london-rail-live-api",
+            "Aggregates TfL rail arrival boards into a live train snapshot and projected map.",
             listOf(
                 "GET /health",
+                "GET /api/rail/map",
+                "GET /api/rail/map?refresh=true",
+                "GET /api/rail/lines",
+                "GET /api/rail/live",
+                "GET /api/rail/live?refresh=true",
                 "GET /api/tubes/map",
                 "GET /api/tubes/map?refresh=true",
                 "GET /api/tubes/lines",
@@ -26,6 +31,7 @@ class ServiceResponseMapperHttp : ServiceResponseMapper {
             ),
             listOf(
                 "Location text comes directly from TfL prediction data.",
+                "Supported modes are Tube, DLR, Elizabeth line, and London Overground.",
                 "Coordinates are derived from station metadata, TfL route geometry, and domain projection logic, not onboard GPS."
             )
         )

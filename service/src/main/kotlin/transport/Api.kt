@@ -37,36 +37,32 @@ fun Application.transportModule(
             call.respond(serviceResponseMapper.healthResponse(Instant.now()))
         }
 
+        get("/api/rail/map") {
+            val forceRefresh = call.request.queryParameters["refresh"]?.equals("true", true) == true
+            call.respondMap(forceRefresh, tubeMapService, serviceResponseMapper)
+        }
+
         get("/api/tubes/map") {
             val forceRefresh = call.request.queryParameters["refresh"]?.equals("true", true) == true
-            when (val mapResult = tubeMapService.getTubeMap(forceRefresh)) {
-                is Success -> call.respond(serviceResponseMapper.mapResponse(mapResult.value))
-                is Failure -> call.respond(
-                    httpStatus(mapResult.reason),
-                    serviceResponseMapper.errorResponse(mapResult.reason)
-                )
-            }
+            call.respondMap(forceRefresh, tubeMapService, serviceResponseMapper)
+        }
+
+        get("/api/rail/lines") {
+            call.respondLineMap(tubeLineMapService, serviceResponseMapper)
         }
 
         get("/api/tubes/lines") {
-            when (val lineMapResult = tubeLineMapService.getTubeLineMap()) {
-                is Success -> call.respond(serviceResponseMapper.lineMapResponse(lineMapResult.value))
-                is Failure -> call.respond(
-                    httpStatus(lineMapResult.reason),
-                    serviceResponseMapper.errorResponse(lineMapResult.reason)
-                )
-            }
+            call.respondLineMap(tubeLineMapService, serviceResponseMapper)
+        }
+
+        get("/api/rail/live") {
+            val forceRefresh = call.request.queryParameters["refresh"]?.equals("true", true) == true
+            call.respondSnapshot(forceRefresh, tubeSnapshotService, serviceResponseMapper)
         }
 
         get("/api/tubes/live") {
             val forceRefresh = call.request.queryParameters["refresh"]?.equals("true", true) == true
-            when (val snapshotResult = tubeSnapshotService.getLiveSnapshot(forceRefresh)) {
-                is Success -> call.respond(serviceResponseMapper.snapshotResponse(snapshotResult.value))
-                is Failure -> call.respond(
-                    httpStatus(snapshotResult.reason),
-                    serviceResponseMapper.errorResponse(snapshotResult.reason)
-                )
-            }
+            call.respondSnapshot(forceRefresh, tubeSnapshotService, serviceResponseMapper)
         }
 
         get("/") {
@@ -80,6 +76,44 @@ fun Application.transportModule(
         staticResources("/assets", "ui/assets")
     }
 }
+
+private suspend fun io.ktor.server.application.ApplicationCall.respondMap(
+    forceRefresh: Boolean,
+    tubeMapService: TubeMapService,
+    serviceResponseMapper: ServiceResponseMapper
+) =
+    when (val mapResult = tubeMapService.getTubeMap(forceRefresh)) {
+        is Success -> respond(serviceResponseMapper.mapResponse(mapResult.value))
+        is Failure -> respond(
+            httpStatus(mapResult.reason),
+            serviceResponseMapper.errorResponse(mapResult.reason)
+        )
+    }
+
+private suspend fun io.ktor.server.application.ApplicationCall.respondLineMap(
+    tubeLineMapService: TubeLineMapService,
+    serviceResponseMapper: ServiceResponseMapper
+) =
+    when (val lineMapResult = tubeLineMapService.getTubeLineMap()) {
+        is Success -> respond(serviceResponseMapper.lineMapResponse(lineMapResult.value))
+        is Failure -> respond(
+            httpStatus(lineMapResult.reason),
+            serviceResponseMapper.errorResponse(lineMapResult.reason)
+        )
+    }
+
+private suspend fun io.ktor.server.application.ApplicationCall.respondSnapshot(
+    forceRefresh: Boolean,
+    tubeSnapshotService: TubeSnapshotService,
+    serviceResponseMapper: ServiceResponseMapper
+) =
+    when (val snapshotResult = tubeSnapshotService.getLiveSnapshot(forceRefresh)) {
+        is Success -> respond(serviceResponseMapper.snapshotResponse(snapshotResult.value))
+        is Failure -> respond(
+            httpStatus(snapshotResult.reason),
+            serviceResponseMapper.errorResponse(snapshotResult.reason)
+        )
+    }
 
 fun httpStatus(error: TransportError) =
     when (error) {

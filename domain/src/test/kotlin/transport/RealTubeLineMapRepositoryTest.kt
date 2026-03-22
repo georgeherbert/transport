@@ -36,7 +36,7 @@ class RealTubeLineMapRepositoryTest {
                         )
                     )
                 },
-                tubePredictionHandler = {
+                predictionHandler = { mode ->
                     Failure(TransportError.SnapshotUnavailable("unused"))
                 }
             )
@@ -44,7 +44,7 @@ class RealTubeLineMapRepositoryTest {
 
             val result = repository.getTubeLineMap()
 
-            expectThat(result).isSuccess().get { lines }.hasSize(tubeLineIds.size)
+            expectThat(result).isSuccess().get { lines }.hasSize(supportedRailLineIds.size)
             expectThat(result).isSuccess().get { lines.first().paths.first().coordinates.first().lat }.isEqualTo(51.0)
         }
     }
@@ -68,7 +68,7 @@ class RealTubeLineMapRepositoryTest {
                         )
                     )
                 },
-                tubePredictionHandler = {
+                predictionHandler = { mode ->
                     Failure(TransportError.SnapshotUnavailable("unused"))
                 }
             )
@@ -77,7 +77,7 @@ class RealTubeLineMapRepositoryTest {
             expectThat(repository.getTubeLineMap()).isSuccess()
             expectThat(repository.getTubeLineMap()).isSuccess()
 
-            expectThat(requests.get()).isEqualTo(tubeLineIds.size)
+            expectThat(requests.get()).isEqualTo(supportedRailLineIds.size)
         }
     }
 
@@ -89,7 +89,7 @@ class RealTubeLineMapRepositoryTest {
                     Failure(TransportError.MetadataUnavailable(lineId.value))
                 },
                 lineRouteHandler = { lineId ->
-                    if (lineId == tubeLineIds.first()) {
+                    if (lineId == supportedRailLineIds.first()) {
                         Failure(TransportError.UpstreamNetworkFailure("/Line/${lineId.value}/Route/Sequence/all", "boom"))
                     } else {
                         Success(
@@ -102,7 +102,7 @@ class RealTubeLineMapRepositoryTest {
                         )
                     }
                 },
-                tubePredictionHandler = {
+                predictionHandler = { mode ->
                     Failure(TransportError.SnapshotUnavailable("unused"))
                 }
             )

@@ -17,7 +17,8 @@ class RealTubeSnapshotAssemblerTest {
             testStation("940GZZLUGPK", "Green Park Underground Station", 51.506947, -0.142787, setOf("victoria")),
             testStation("940GZZLUWSM", "Warren Street Underground Station", 51.524951, -0.138321, setOf("victoria")),
             testStation("940GZZLUKSX", "King's Cross St. Pancras Underground Station", 51.530663, -0.123194, setOf("victoria")),
-            testStation("940GZZLUEUS", "Euston Square Underground Station", 51.525604, -0.135829, setOf("metropolitan", "hammersmith-city"))
+            testStation("940GZZLUEUS", "Euston Square Underground Station", 51.525604, -0.135829, setOf("metropolitan", "hammersmith-city")),
+            testStation("910GABWDXR", "Abbey Wood", 51.490719, 0.121823, setOf("elizabeth"))
         )
     )
     private val assembler: TubeSnapshotAssembler =
@@ -155,5 +156,37 @@ class RealTubeSnapshotAssemblerTest {
 
         expectThat(snapshot.trains).hasSize(1)
         expectThat(snapshot.trains.first().secondsToNextStop).isNotNull().get { seconds }.isEqualTo(90)
+    }
+
+    @Test
+    fun `assemble includes supported rail predictions with sparse location fields`() {
+        val snapshot = assembler.assemble(
+            tubeNetwork,
+            listOf(
+                TubePredictionRecord(
+                    null,
+                    StationId("910GABWDXR"),
+                    StationName("Abbey Wood"),
+                    LineId("elizabeth"),
+                    LineName("Elizabeth line"),
+                    null,
+                    DestinationName("Heathrow Terminal 5"),
+                    Instant.parse("2026-03-22T16:00:00Z"),
+                    null,
+                    null,
+                    null,
+                    Instant.parse("2026-03-22T16:08:00Z"),
+                    TransportModeName("elizabeth-line")
+                )
+            ),
+            Instant.parse("2026-03-22T16:00:30Z"),
+            StationQueryCount(1),
+            StationFailureCount(0)
+        )
+
+        expectThat(snapshot.trains).hasSize(1)
+        expectThat(snapshot.trains.first().lineIds).contains(LineId("elizabeth"))
+        expectThat(snapshot.trains.first().currentLocation).isEqualTo(LocationDescription("Abbey Wood"))
+        expectThat(snapshot.trains.first().nextStop).isNotNull().get { id }.isEqualTo(StationId("910GABWDXR"))
     }
 }

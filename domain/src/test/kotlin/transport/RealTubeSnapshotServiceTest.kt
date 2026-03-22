@@ -32,27 +32,9 @@ class RealTubeSnapshotServiceTest {
                 lineRouteHandler = { lineId ->
                     Failure(TransportError.MetadataUnavailable(lineId.value))
                 },
-                tubePredictionHandler = {
+                predictionHandler = { mode ->
                     predictionRequests.incrementAndGet()
-                    Success(
-                        listOf(
-                            TubePredictionRecord(
-                                VehicleId("257"),
-                                StationId("940GZZLUGPK"),
-                                StationName("Green Park Underground Station"),
-                                LineId("victoria"),
-                                LineName("Victoria"),
-                                TrainDirection("outbound"),
-                                DestinationName("Walthamstow Central Underground Station"),
-                                Instant.parse("2026-03-22T00:49:20Z"),
-                                Duration.ofSeconds(90),
-                                LocationDescription("Approaching Green Park"),
-                                TowardsDescription("Walthamstow Central"),
-                                Instant.parse("2026-03-22T00:50:50Z"),
-                                TransportModeName("tube")
-                            )
-                        )
-                    )
+                    samplePredictions(mode)
                 }
             )
             val snapshotService = RealTubeSnapshotService(
@@ -68,7 +50,7 @@ class RealTubeSnapshotServiceTest {
 
             expectThat(first).isSuccess().get { cached }.isEqualTo(false)
             expectThat(second).isSuccess().get { cached }.isEqualTo(true)
-            expectThat(predictionRequests.get()).isEqualTo(1)
+            expectThat(predictionRequests.get()).isEqualTo(supportedRailModes.size)
         }
     }
 
@@ -83,29 +65,11 @@ class RealTubeSnapshotServiceTest {
                 lineRouteHandler = { lineId ->
                     Failure(TransportError.MetadataUnavailable(lineId.value))
                 },
-                tubePredictionHandler = {
-                    if (shouldFail.get()) {
-                        Failure(TransportError.UpstreamNetworkFailure("/Mode/tube/Arrivals", "boom"))
+                predictionHandler = { mode ->
+                    if (shouldFail.get() && mode == TransportModeName("tube")) {
+                        Failure(TransportError.UpstreamNetworkFailure("/Mode/${mode.value}/Arrivals", "boom"))
                     } else {
-                        Success(
-                            listOf(
-                                TubePredictionRecord(
-                                    VehicleId("257"),
-                                    StationId("940GZZLUGPK"),
-                                    StationName("Green Park Underground Station"),
-                                    LineId("victoria"),
-                                    LineName("Victoria"),
-                                    TrainDirection("outbound"),
-                                    DestinationName("Walthamstow Central Underground Station"),
-                                    Instant.parse("2026-03-22T00:49:20Z"),
-                                    Duration.ofSeconds(90),
-                                    LocationDescription("Approaching Green Park"),
-                                    TowardsDescription("Walthamstow Central"),
-                                    Instant.parse("2026-03-22T00:50:50Z"),
-                                    TransportModeName("tube")
-                                )
-                            )
-                        )
+                        samplePredictions(mode)
                     }
                 }
             )
@@ -136,8 +100,8 @@ class RealTubeSnapshotServiceTest {
                 lineRouteHandler = { lineId ->
                     Failure(TransportError.MetadataUnavailable(lineId.value))
                 },
-                tubePredictionHandler = {
-                    Failure(TransportError.UpstreamNetworkFailure("/Mode/tube/Arrivals", "boom"))
+                predictionHandler = { mode ->
+                    Failure(TransportError.UpstreamNetworkFailure("/Mode/${mode.value}/Arrivals", "boom"))
                 }
             )
             val snapshotService = RealTubeSnapshotService(
@@ -153,4 +117,29 @@ class RealTubeSnapshotServiceTest {
             expectThat(result).isFailure().isA<TransportError.SnapshotUnavailable>()
         }
     }
+
+    private fun samplePredictions(mode: TransportModeName): TransportResult<List<TubePredictionRecord>> =
+        if (mode == TransportModeName("tube")) {
+            Success(
+                listOf(
+                    TubePredictionRecord(
+                        VehicleId("257"),
+                        StationId("940GZZLUGPK"),
+                        StationName("Green Park Underground Station"),
+                        LineId("victoria"),
+                        LineName("Victoria"),
+                        TrainDirection("outbound"),
+                        DestinationName("Walthamstow Central Underground Station"),
+                        Instant.parse("2026-03-22T00:49:20Z"),
+                        Duration.ofSeconds(90),
+                        LocationDescription("Approaching Green Park"),
+                        TowardsDescription("Walthamstow Central"),
+                        Instant.parse("2026-03-22T00:50:50Z"),
+                        TransportModeName("tube")
+                    )
+                )
+            )
+        } else {
+            Success(emptyList())
+        }
 }

@@ -21,14 +21,22 @@ const linePalette = {
   bakerloo: '#9b5a20',
   central: '#d7261b',
   circle: '#f4c430',
+  dlr: '#00a4a7',
   district: '#117d37',
+  elizabeth: '#6950a1',
   'hammersmith-city': '#e67ca6',
   jubilee: '#6d7b8a',
+  liberty: '#6e7178',
+  lioness: '#f3b21a',
+  mildmay: '#3f7edb',
   metropolitan: '#7c1a63',
   northern: '#202124',
   piccadilly: '#1640b4',
+  suffragette: '#2f8f5b',
   victoria: '#0097d7',
-  'waterloo-city': '#67c6c2'
+  'waterloo-city': '#67c6c2',
+  weaver: '#8a3a2f',
+  windrush: '#d64034'
 }
 
 function App() {
@@ -41,7 +49,7 @@ function App() {
     setStatus(currentStatus => (mapSnapshot == null ? 'loading' : currentStatus === 'ready' ? 'refreshing' : currentStatus))
 
     try {
-      const endpoint = forceRefresh ? '/api/tubes/map?refresh=true' : '/api/tubes/map'
+      const endpoint = forceRefresh ? '/api/rail/map?refresh=true' : '/api/rail/map'
       const response = await fetch(endpoint, {
         headers: {
           Accept: 'application/json'
@@ -50,7 +58,7 @@ function App() {
       const payload = await response.json()
 
       if (!response.ok) {
-        throw new Error(payload.message ?? 'Unable to load the projected tube map.')
+        throw new Error(payload.message ?? 'Unable to load the projected rail map.')
       }
 
       startTransition(() => {
@@ -60,7 +68,7 @@ function App() {
       })
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : 'Unable to load the projected tube map.'
+        error instanceof Error ? error.message : 'Unable to load the projected rail map.'
 
       startTransition(() => {
         setErrorMessage(message)
@@ -91,8 +99,8 @@ function App() {
     <div className="page">
       <header className="topbar">
         <div>
-          <h1>London Tube Map</h1>
-          <p>Live Underground map projection from TfL route and arrival data.</p>
+          <h1>London Rail Map</h1>
+          <p>Live TfL rail map projection from Tube, DLR, Elizabeth line, and Overground data.</p>
         </div>
         <button className="refresh-button" type="button" onClick={() => requestMap(true)}>
           Refresh
