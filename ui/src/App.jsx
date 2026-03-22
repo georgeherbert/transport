@@ -11,6 +11,11 @@ import 'leaflet/dist/leaflet.css'
 
 const londonCenter = [51.5072, -0.1276]
 const refreshIntervalMs = 20000
+const basemapUrl = 'https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png'
+const basemapAttribution =
+  '&copy; <a href="https://stadiamaps.com/" target="_blank" rel="noreferrer">Stadia Maps</a> ' +
+  '&copy; <a href="https://openmaptiles.org/" target="_blank" rel="noreferrer">OpenMapTiles</a> ' +
+  '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>'
 
 const linePalette = {
   bakerloo: '#9b5a20',
@@ -138,8 +143,9 @@ function App() {
             className="map"
           >
             <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution={basemapAttribution}
+              maxZoom={20}
+              url={basemapUrl}
             />
 
             {visibleLinePaths.map(path => (
