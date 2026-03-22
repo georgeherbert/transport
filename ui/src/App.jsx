@@ -120,7 +120,7 @@ function App() {
       <header className="topbar">
         <div className="topbar-copy">
           <h1>London Rail and Tram Map</h1>
-          <p>Live TfL map projection from Tube, DLR, Elizabeth line, Overground, and Tram data.</p>
+          <p>Live TfL train positions projected onto imported OpenStreetMap rail alignments.</p>
         </div>
         <div className="topbar-actions">
           <span className="topbar-generated">

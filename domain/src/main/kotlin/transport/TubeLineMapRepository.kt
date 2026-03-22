@@ -13,7 +13,8 @@ interface TubeLineMapRepository {
 }
 
 class RealTubeLineMapRepository(
-    private val tubeData: TubeData
+    private val tubeData: TubeData,
+    private val tubeLineGeometrySource: TubeLineGeometrySource
 ) : TubeLineMapRepository {
     private val cachedLineMap = AtomicReference<TubeLineMap?>(null)
     private val loadLock = Mutex()
@@ -33,31 +34,54 @@ class RealTubeLineMapRepository(
         }
 
     private suspend fun loadLineMap(): TransportResult<TubeLineMap> =
-        supportedRailLineIds
-            .map { lineId -> tubeData.fetchLineRoutes(lineId) }
-            .failFast()
-            .flatMap(::toTubeLineMap)
+        tubeLineGeometrySource.getTubeLineGeometry()
+            .flatMap { lineGeometry ->
+                supportedRailLineIds
+                    .map { lineId -> tubeData.fetchLineRoutes(lineId) }
+                    .failFast()
+                    .flatMap { routeRecords ->
+                        toTubeLineMap(routeRecords, lineGeometry)
+                    }
+            }
 
-    private fun toTubeLineMap(routeRecords: List<TubeLineRouteRecord>): TransportResult<TubeLineMap> {
+    private fun toTubeLineMap(
+        routeRecords: List<TubeLineRouteRecord>,
+        lineGeometry: List<TubeLineGeometryRecord>
+    ): TransportResult<TubeLineMap> {
         if (routeRecords.isEmpty()) {
             return Failure(TransportError.MetadataUnavailable("TfL returned no supported rail line routes."))
         }
 
-        return Success(
-            TubeLineMap(
-                routeRecords.map { routeRecord ->
+        val geometryByLineId = lineGeometry.associateBy(TubeLineGeometryRecord::lineId)
+
+        return routeRecords
+            .map { routeRecord -> toTubeLine(routeRecord, geometryByLineId) }
+            .failFast()
+            .map(::TubeLineMap)
+    }
+
+    private fun toTubeLine(
+        routeRecord: TubeLineRouteRecord,
+        geometryByLineId: Map<LineId, TubeLineGeometryRecord>
+    ): TransportResult<TubeLine> =
+        geometryByLineId[routeRecord.lineId]
+            ?.let { geometryRecord ->
+                Success(
                     TubeLine(
                         routeRecord.lineId,
                         routeRecord.lineName,
-                        routeRecord.paths.map { pathRecord ->
+                        geometryRecord.paths.map { pathRecord ->
                             TubeLinePath(pathRecord.coordinates)
                         },
                         routeRecord.sequences.map { sequenceRecord ->
                             TubeLineSequence(sequenceRecord.direction, sequenceRecord.stations)
                         }
                     )
-                }
+                )
+            }
+            ?: Failure(
+                TransportError.MetadataUnavailable(
+                    "No imported rail geometry is available for ${routeRecord.lineId.value}."
+                )
             )
-        )
-    }
 }

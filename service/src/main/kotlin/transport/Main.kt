@@ -90,11 +90,13 @@ private fun createTransportServices(
         httpClient,
         TflPayloadParserHttp(json)
     )
+    val tubeLineGeometrySource: TubeLineGeometrySource =
+        ClasspathTubeLineGeometrySource(json, "/transport/osm-line-geometry.json")
     val tubeMetadataRepository = RealTubeMetadataRepository(tubeData)
-    val tubeLineMapRepository = RealTubeLineMapRepository(tubeData)
+    val tubeLineMapRepository = RealTubeLineMapRepository(tubeData, tubeLineGeometrySource)
     val tubeLocationEstimator = RealTubeLocationEstimator()
     val tubeSnapshotAssembler = RealTubeSnapshotAssembler(tubeLocationEstimator)
-    val tubePathSmoother = RealTubePathSmoother(8)
+    val tubePathSmoother: TubePathSmoother = RealIdentityTubePathSmoother()
     val tubeMapProjector = RealTubeMapProjector(tubePathSmoother)
     val tubeSnapshotService = RealTubeSnapshotService(
         tubeData,

@@ -144,6 +144,11 @@ data class TubeLineRouteRecord(
     val sequences: List<TubeLineSequenceRecord>
 )
 
+data class TubeLineGeometryRecord(
+    val lineId: LineId,
+    val paths: List<TubeLinePathRecord>
+)
+
 data class TubeLinePathRecord(
     val coordinates: List<GeoCoordinate>
 )

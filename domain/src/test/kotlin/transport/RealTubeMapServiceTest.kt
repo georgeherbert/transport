@@ -13,7 +13,7 @@ import strikt.assertions.isA
 
 class RealTubeMapServiceTest {
     private val tubeMapProjector: TubeMapProjector =
-        RealTubeMapProjector(RealTubePathSmoother(4))
+        RealTubeMapProjector(RealIdentityTubePathSmoother())
 
     @Test
     fun `getTubeMap combines snapshot and line geometry`() {

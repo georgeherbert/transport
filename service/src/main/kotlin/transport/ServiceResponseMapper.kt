@@ -32,7 +32,8 @@ class ServiceResponseMapperHttp : ServiceResponseMapper {
             listOf(
                 "Location text comes directly from TfL prediction data.",
                 "Supported modes are Tube, DLR, Elizabeth line, London Overground, and Tram.",
-                "Coordinates are derived from station metadata, TfL route geometry, and domain projection logic, not onboard GPS.",
+                "Line geometry comes from imported OpenStreetMap rail alignments.",
+                "Coordinates are derived from station metadata, imported rail geometry, and domain projection logic, not onboard GPS.",
                 "The backend polls TfL on a fixed interval and pushes fresh snapshots and upstream errors to connected UIs."
             )
         )

@@ -17,6 +17,33 @@ class RealTubeMapProjectorTest {
         RealTubeMapProjector(RealTubePathSmoother(6))
 
     @Test
+    fun `identity smoother preserves imported line geometry`() {
+        val smoother: TubePathSmoother = RealIdentityTubePathSmoother()
+        val lineMap = TubeLineMap(
+            listOf(
+                TubeLine(
+                    LineId("victoria"),
+                    LineName("Victoria"),
+                    listOf(
+                        TubeLinePath(
+                            listOf(
+                                GeoCoordinate(51.0, -0.3),
+                                GeoCoordinate(51.1, -0.2),
+                                GeoCoordinate(51.2, -0.1)
+                            )
+                        )
+                    ),
+                    emptyList()
+                )
+            )
+        )
+
+        val smoothed = smoother.smooth(lineMap)
+
+        expectThat(smoothed).isEqualTo(lineMap)
+    }
+
+    @Test
     fun `path smoother densifies the line path while preserving anchor points`() {
         val smoother: TubePathSmoother = RealTubePathSmoother(6)
         val lineMap = TubeLineMap(

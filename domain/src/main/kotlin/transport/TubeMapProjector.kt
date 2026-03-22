@@ -91,6 +91,11 @@ class RealTubeMapProjector(
             ?: train.location.fromStation?.coordinate
 }
 
+class RealIdentityTubePathSmoother : TubePathSmoother {
+    override fun smooth(lineMap: TubeLineMap) =
+        lineMap
+}
+
 class RealTubePathSmoother(
     private val samplesPerSegment: Int
 ) : TubePathSmoother {
