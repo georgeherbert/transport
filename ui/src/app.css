@@ -33,8 +33,7 @@ body {
 }
 
 .topbar,
-.map-stage,
-.list-panel {
+.map-stage {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 0.75rem;
@@ -174,71 +173,6 @@ body {
 .map {
   width: 100%;
   min-height: 76vh;
-}
-
-.list-panel {
-  padding: 0.9rem 1rem 1rem;
-}
-
-.list-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin-bottom: 0.85rem;
-}
-
-.list-header span {
-  color: var(--text-muted);
-  font-size: 0.88rem;
-}
-
-.list-panel h2 {
-  margin: 0;
-  font-size: 1rem;
-}
-
-.train-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 0.75rem;
-}
-
-.train-row {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.75rem;
-  align-items: start;
-  padding: 0.85rem 0.9rem;
-  border: 1px solid var(--border-muted);
-  border-radius: 0.75rem;
-  background: var(--surface-muted);
-}
-
-.line-dot {
-  width: 0.85rem;
-  height: 0.85rem;
-  margin-top: 0.3rem;
-  border-radius: 999px;
-  background: var(--line-color);
-}
-
-.train-row-body {
-  display: grid;
-  gap: 0.2rem;
-}
-
-.train-row-body strong {
-  font-size: 0.95rem;
-}
-
-.train-row-body span {
-  color: var(--text-muted);
-  font-size: 0.88rem;
-}
-
-.empty-state {
-  color: var(--text-muted);
 }
 
 .train-icon-shell {
@@ -403,9 +337,5 @@ body {
 
   .map {
     min-height: 58vh;
-  }
-
-  .train-list {
-    grid-template-columns: 1fr;
   }
 }

@@ -190,7 +190,6 @@ function App() {
   const lineOptions = buildLineOptions(mapSnapshot)
   const visibleTrains = buildVisibleTrains(mapSnapshot, deferredSelectedLineId)
   const plottedTrains = visibleTrains.filter(train => train.coordinate != null)
-  const listedTrains = visibleTrains.slice(0, 8)
   const selectedStationId =
     selectedMapFeature?.kind === 'station' ? selectedMapFeature.id : null
   const selectedTrainId =
@@ -297,34 +296,6 @@ function App() {
               ))}
             </MapContainer>
           </section>
-        </section>
-
-        <section className="list-panel">
-          <div className="list-header">
-            <h2>Visible trains</h2>
-            <span>{listedTrains.length} shown</span>
-          </div>
-          <div className="train-list">
-            {listedTrains.map(train => (
-              <article className="train-row" key={train.trainId}>
-                <span
-                  className="line-dot"
-                  style={{ '--line-color': colorForLine(train.lineId) }}
-                ></span>
-                <div className="train-row-body">
-                  <strong>{currentLocationLabelFor(train)}</strong>
-                  <span>{serviceLabelFor(train)}</span>
-                  {train.secondsToNextStop != null ? (
-                    <span>{secondsLabelFor(train.secondsToNextStop)}</span>
-                  ) : null}
-                </div>
-              </article>
-            ))}
-
-            {listedTrains.length === 0 ? (
-              <div className="empty-state">No trains are available for the selected line.</div>
-            ) : null}
-          </div>
         </section>
       </main>
     </div>
@@ -551,7 +522,6 @@ function buildVisibleTrains(mapSnapshot, selectedLineId) {
 
   return mapSnapshot.trains
     .filter(train => selectedLineId === 'all' || train.lineId === selectedLineId)
-    .sort((leftTrain, rightTrain) => compareArrivalPriority(leftTrain, rightTrain))
 }
 
 function buildVisibleStations(mapSnapshot, selectedLineId) {
@@ -607,22 +577,6 @@ function areStationMarkerPropsEqual(previousProps, nextProps) {
   )
 }
 
-function compareArrivalPriority(leftTrain, rightTrain) {
-  if (leftTrain.secondsToNextStop == null && rightTrain.secondsToNextStop == null) {
-    return leftTrain.lineName.localeCompare(rightTrain.lineName)
-  }
-
-  if (leftTrain.secondsToNextStop == null) {
-    return 1
-  }
-
-  if (rightTrain.secondsToNextStop == null) {
-    return -1
-  }
-
-  return leftTrain.secondsToNextStop - rightTrain.secondsToNextStop
-}
-
 function statusLabelFor(status) {
   if (status === 'loading') {
     return 'Loading'
@@ -671,16 +625,6 @@ function currentLocationLabelFor(train) {
 
 function destinationLabelFor(train) {
   return train.destinationName ?? 'Destination unavailable'
-}
-
-function serviceLabelFor(train) {
-  const destination = destinationLabelFor(train)
-
-  if (train.towards != null && train.towards !== destination) {
-    return `${train.lineName} to ${destination} via ${train.towards}`
-  }
-
-  return `${train.lineName} to ${destination}`
 }
 
 function prettifyLineId(lineId) {
