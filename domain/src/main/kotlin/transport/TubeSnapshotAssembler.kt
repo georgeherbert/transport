@@ -60,8 +60,6 @@ class RealTubeSnapshotAssembler(
         val lineIds = predictions.mapNotNull { prediction -> prediction.lineId }.distinct().sortedBy(LineId::value)
         val lineNames = predictions.mapNotNull { prediction -> prediction.lineName }.distinct().sortedBy(LineName::value)
         val location = tubeLocationEstimator.estimateLocation(
-            tubeNetwork,
-            lineIds.toSet(),
             displayRepresentative.currentLocation,
             boardStation
         )

@@ -76,16 +76,14 @@ class RealTubeMapServiceTest {
                     TowardsDescription("Walthamstow Central"),
                     LocationDescription("At Alpha"),
                     LocationEstimate(
-                        LocationType.AT_STATION,
-                        LocationDescription("At Alpha"),
+                        LocationType.STATION_BOARD,
+                        LocationDescription("Alpha Underground Station"),
                         GeoCoordinate(51.0, -0.3),
                         StationReference(
                             StationId("A"),
                             StationName("Alpha Underground Station"),
                             GeoCoordinate(51.0, -0.3)
-                        ),
-                        null,
-                        null
+                        )
                     ),
                     null,
                     Duration.ofSeconds(45),

@@ -76,7 +76,7 @@ class RealTubeMapProjectorTest {
     }
 
     @Test
-    fun `project places between-station trains on the smoothed line path`() {
+    fun `project snaps next-stop anchored trains onto the line path`() {
         val snapshot = LiveTubeSnapshot(
             transportSourceName,
             Instant.parse("2026-03-22T00:49:20Z"),
@@ -96,24 +96,22 @@ class RealTubeMapProjectorTest {
                     TrainDirection("outbound"),
                     DestinationName("Walthamstow Central Underground Station"),
                     TowardsDescription("Walthamstow Central"),
-                    LocationDescription("Between Alpha and Bravo"),
+                    LocationDescription("Bravo Underground Station"),
                     LocationEstimate(
-                        LocationType.BETWEEN_STATIONS,
-                        LocationDescription("Between Alpha and Bravo"),
-                        GeoCoordinate(51.0, -0.25),
-                        null,
-                        StationReference(
-                            StationId("A"),
-                            StationName("Alpha Underground Station"),
-                            GeoCoordinate(51.0, -0.3)
-                        ),
+                        LocationType.STATION_BOARD,
+                        LocationDescription("Bravo Underground Station"),
+                        GeoCoordinate(51.0, -0.2),
                         StationReference(
                             StationId("B"),
                             StationName("Bravo Underground Station"),
                             GeoCoordinate(51.0, -0.2)
                         )
                     ),
-                    null,
+                    StationReference(
+                        StationId("B"),
+                        StationName("Bravo Underground Station"),
+                        GeoCoordinate(51.0, -0.2)
+                    ),
                     Duration.ofSeconds(90),
                     Instant.parse("2026-03-22T00:50:50Z"),
                     Instant.parse("2026-03-22T00:49:20Z"),
@@ -167,12 +165,8 @@ class RealTubeMapProjectorTest {
         expectThat(projected.stations).hasSize(3)
         expectThat(projected.lines.first().paths.first().coordinates.size).isGreaterThan(3)
         expectThat(projected.trains).hasSize(1)
-        expectThat(projected.trains.first().coordinate).isNotNull().get { lat }.isLessThan(51.01)
-        expectThat(projected.trains.first().coordinate).isNotNull().get { lat }.isGreaterThan(50.99)
-        expectThat(projected.trains.first().coordinate).isNotNull().get { lon }.isLessThan(-0.2)
-        expectThat(projected.trains.first().coordinate).isNotNull().get { lon }.isGreaterThan(-0.3)
-        expectThat(projected.trains.first().heading).isNotNull().get { value }.isGreaterThan(80.0)
-        expectThat(projected.trains.first().heading).isNotNull().get { value }.isLessThan(100.0)
+        expectThat(projected.trains.first().coordinate).isEqualTo(GeoCoordinate(51.0, -0.2))
+        expectThat(projected.trains.first().heading).isNotNull()
     }
 
     @Test
@@ -349,18 +343,20 @@ class RealTubeMapProjectorTest {
                     TowardsDescription("Walthamstow Central"),
                     LocationDescription("At Branch Station"),
                     LocationEstimate(
-                        LocationType.AT_STATION,
-                        LocationDescription("At Branch Station"),
+                        LocationType.STATION_BOARD,
+                        LocationDescription("Branch Station Underground Station"),
                         GeoCoordinate(51.5, 0.5),
                         StationReference(
                             StationId("C"),
                             StationName("Branch Station Underground Station"),
                             GeoCoordinate(51.5, 0.5)
-                        ),
-                        null,
-                        null
+                        )
                     ),
-                    null,
+                    StationReference(
+                        StationId("C"),
+                        StationName("Branch Station Underground Station"),
+                        GeoCoordinate(51.5, 0.5)
+                    ),
                     Duration.ofSeconds(30),
                     Instant.parse("2026-03-22T00:49:50Z"),
                     Instant.parse("2026-03-22T00:49:20Z"),
@@ -440,18 +436,20 @@ class RealTubeMapProjectorTest {
                     TowardsDescription("Downstream"),
                     LocationDescription("At Alpha"),
                     LocationEstimate(
-                        LocationType.AT_STATION,
-                        LocationDescription("At Alpha"),
+                        LocationType.STATION_BOARD,
+                        LocationDescription("Alpha Underground Station"),
                         GeoCoordinate(51.5, 0.5),
                         StationReference(
                             StationId("A"),
                             StationName("Alpha Underground Station"),
                             GeoCoordinate(51.5, 0.5)
-                        ),
-                        null,
-                        null
+                        )
                     ),
-                    null,
+                    StationReference(
+                        StationId("A"),
+                        StationName("Alpha Underground Station"),
+                        GeoCoordinate(51.5, 0.5)
+                    ),
                     Duration.ofSeconds(45),
                     Instant.parse("2026-03-22T00:50:05Z"),
                     Instant.parse("2026-03-22T00:49:20Z"),

@@ -113,11 +113,6 @@ data class LiveTubeTrainJson(
 
 @Serializable
 enum class LocationTypeJson {
-    AT_STATION,
-    APPROACHING_STATION,
-    BETWEEN_STATIONS,
-    DEPARTED_STATION,
-    NEAR_STATION,
     STATION_BOARD,
     UNKNOWN
 }
@@ -127,9 +122,7 @@ data class LocationEstimateJson(
     val type: LocationTypeJson,
     val description: String,
     val coordinate: GeoCoordinateJson?,
-    val station: StationReferenceJson?,
-    val fromStation: StationReferenceJson?,
-    val toStation: StationReferenceJson?
+    val station: StationReferenceJson?
 )
 
 @Serializable

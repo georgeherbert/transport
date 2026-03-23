@@ -111,17 +111,7 @@ class RealTubeMapProjector(
     }
 
     private fun projectTrainProjection(train: LiveTubeTrain, projectedLine: ProjectedTubeLine): TrainMapProjection? {
-        val location = train.location
-        val betweenProjection = location.fromStation?.let { fromStation ->
-            location.toStation?.let { toStation ->
-                projectedLine.projectBetweenStations(fromStation, toStation)
-            }
-        }
-        if (betweenProjection != null) {
-            return betweenProjection
-        }
-
-        val stationProjection = projectedLine.projectStationMovement(train)
+        val stationProjection = projectedLine.projectStationAnchor(train)
         if (stationProjection != null) {
             return stationProjection
         }
@@ -137,8 +127,6 @@ class RealTubeMapProjector(
         train.location.coordinate
             ?: train.nextStop?.coordinate
             ?: train.location.station?.coordinate
-            ?: train.location.toStation?.coordinate
-            ?: train.location.fromStation?.coordinate
 }
 
 class RealIdentityTubePathSmoother : TubePathSmoother {
@@ -256,13 +244,6 @@ data class ProjectedTubeLine(
             .minByOrNull(LinePathProjection::distanceSquared)
             ?.coordinate
 
-    fun projectBetweenStations(
-        fromStation: StationReference,
-        toStation: StationReference
-    ): TrainMapProjection? =
-        findBetweenStationsProjection(fromStation, toStation)
-            ?.toTrainMapProjection(0.5)
-
     fun projectBetweenStationsAtProgress(
         fromStation: StationReference,
         toStation: StationReference,
@@ -292,10 +273,10 @@ data class ProjectedTubeLine(
             }
             .minByOrNull(BetweenStationsProjection::distanceSquared)
 
-    fun projectStationMovement(train: LiveTubeTrain): TrainMapProjection? {
-        val anchorStation = train.location.station ?: train.nextStop ?: return null
+    fun projectStationAnchor(train: LiveTubeTrain): TrainMapProjection? {
+        val anchorStation = train.nextStop ?: train.location.station ?: return null
         val candidateSegments = matchingSequences(train.direction)
-            .mapNotNull { sequence -> stationMovement(sequence, train.location.type, anchorStation.id) }
+            .mapNotNull { sequence -> approachingStationMovement(sequence, anchorStation.id) }
         if (candidateSegments.isEmpty()) {
             return projectStation(anchorStation.coordinate)?.let { coordinate ->
                 TrainMapProjection(coordinate, null)
@@ -320,9 +301,8 @@ data class ProjectedTubeLine(
         return if (matchingDirections.isNotEmpty()) matchingDirections else line.sequences
     }
 
-    private fun stationMovement(
+    private fun approachingStationMovement(
         sequence: TubeLineSequence,
-        locationType: LocationType,
         anchorStationId: StationId
     ): StationMovement? {
         val anchorIndex = sequence.stations.indexOfFirst { station -> station.id == anchorStationId }
@@ -334,17 +314,10 @@ data class ProjectedTubeLine(
         val previousStation = sequence.stations.getOrNull(anchorIndex - 1)
         val nextStation = sequence.stations.getOrNull(anchorIndex + 1)
 
-        return when (locationType) {
-            LocationType.APPROACHING_STATION ->
-                previousStation?.let { station -> StationMovement(station, anchorStation, anchorStation, AnchorPosition.END) }
-            LocationType.AT_STATION,
-            LocationType.DEPARTED_STATION,
-            LocationType.NEAR_STATION ->
-                nextStation?.let { station -> StationMovement(anchorStation, station, anchorStation, AnchorPosition.START) }
-            LocationType.STATION_BOARD ->
-                previousStation?.let { station -> StationMovement(station, anchorStation, anchorStation, AnchorPosition.END) }
-            LocationType.BETWEEN_STATIONS,
-            LocationType.UNKNOWN -> null
+        return previousStation?.let { station ->
+            StationMovement(station, anchorStation, anchorStation, AnchorPosition.END)
+        } ?: nextStation?.let { station ->
+            StationMovement(anchorStation, station, anchorStation, AnchorPosition.START)
         }
     }
 

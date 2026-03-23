@@ -70,7 +70,7 @@ class RealTubeSnapshotAssemblerTest {
 
         expectThat(snapshot.trains).hasSize(1)
         expectThat(snapshot.trains.first().trainId).isEqualTo(TrainId("victoria|257"))
-        expectThat(snapshot.trains.first().location.type).isEqualTo(LocationType.APPROACHING_STATION)
+        expectThat(snapshot.trains.first().location.type).isEqualTo(LocationType.STATION_BOARD)
         expectThat(snapshot.trains.first().nextStop!!.id).isEqualTo(StationId("940GZZLUWSM"))
         expectThat(snapshot.trains.first().sourcePredictions).isEqualTo(PredictionCount(2))
     }

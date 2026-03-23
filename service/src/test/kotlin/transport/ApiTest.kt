@@ -305,16 +305,14 @@ class ApiTest {
                     TowardsDescription("Walthamstow Central"),
                     LocationDescription("Approaching Green Park"),
                     LocationEstimate(
-                        LocationType.APPROACHING_STATION,
-                        LocationDescription("Approaching Green Park"),
+                        LocationType.STATION_BOARD,
+                        LocationDescription("Green Park Underground Station"),
                         GeoCoordinate(51.506947, -0.142787),
                         StationReference(
                             StationId("940GZZLUGPK"),
                             StationName("Green Park Underground Station"),
                             GeoCoordinate(51.506947, -0.142787)
-                        ),
-                        null,
-                        null
+                        )
                     ),
                     StationReference(
                         StationId("940GZZLUGPK"),

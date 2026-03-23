@@ -151,18 +151,11 @@ class ServiceResponseMapperHttp : ServiceResponseMapper {
             locationTypeJson(location.type),
             location.description.value,
             location.coordinate?.let(::geoCoordinateJson),
-            location.station?.let(::stationReferenceJson),
-            location.fromStation?.let(::stationReferenceJson),
-            location.toStation?.let(::stationReferenceJson)
+            location.station?.let(::stationReferenceJson)
         )
 
     private fun locationTypeJson(locationType: LocationType) =
         when (locationType) {
-            LocationType.AT_STATION -> LocationTypeJson.AT_STATION
-            LocationType.APPROACHING_STATION -> LocationTypeJson.APPROACHING_STATION
-            LocationType.BETWEEN_STATIONS -> LocationTypeJson.BETWEEN_STATIONS
-            LocationType.DEPARTED_STATION -> LocationTypeJson.DEPARTED_STATION
-            LocationType.NEAR_STATION -> LocationTypeJson.NEAR_STATION
             LocationType.STATION_BOARD -> LocationTypeJson.STATION_BOARD
             LocationType.UNKNOWN -> LocationTypeJson.UNKNOWN
         }

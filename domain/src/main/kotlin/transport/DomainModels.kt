@@ -94,11 +94,6 @@ data class LiveTubeTrain(
 )
 
 enum class LocationType {
-    AT_STATION,
-    APPROACHING_STATION,
-    BETWEEN_STATIONS,
-    DEPARTED_STATION,
-    NEAR_STATION,
     STATION_BOARD,
     UNKNOWN
 }
@@ -107,9 +102,7 @@ data class LocationEstimate(
     val type: LocationType,
     val description: LocationDescription,
     val coordinate: GeoCoordinate?,
-    val station: StationReference?,
-    val fromStation: StationReference?,
-    val toStation: StationReference?
+    val station: StationReference?
 )
 
 data class StationReference(

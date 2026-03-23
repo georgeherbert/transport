@@ -129,22 +129,20 @@ class ServiceResponseMapperHttpTest {
                         listOf(LineName("Victoria")),
                         TrainDirection("outbound"),
                         DestinationName("Walthamstow Central Underground Station"),
-                        TowardsDescription("Walthamstow Central"),
-                        LocationDescription("Approaching Green Park"),
-                        LocationEstimate(
-                            LocationType.APPROACHING_STATION,
-                            LocationDescription("Approaching Green Park"),
-                            GeoCoordinate(51.506947, -0.142787),
-                            StationReference(
-                                StationId("940GZZLUGPK"),
-                                StationName("Green Park Underground Station"),
-                                GeoCoordinate(51.506947, -0.142787)
-                            ),
-                            null,
-                            null
-                        ),
+                    TowardsDescription("Walthamstow Central"),
+                    LocationDescription("Approaching Green Park"),
+                    LocationEstimate(
+                        LocationType.STATION_BOARD,
+                        LocationDescription("Green Park Underground Station"),
+                        GeoCoordinate(51.506947, -0.142787),
                         StationReference(
                             StationId("940GZZLUGPK"),
+                            StationName("Green Park Underground Station"),
+                            GeoCoordinate(51.506947, -0.142787)
+                        )
+                    ),
+                    StationReference(
+                        StationId("940GZZLUGPK"),
                             StationName("Green Park Underground Station"),
                             GeoCoordinate(51.506947, -0.142787)
                         ),
@@ -159,7 +157,7 @@ class ServiceResponseMapperHttpTest {
 
         expectThat(response.lines).contains("victoria")
         expectThat(response.trains.first().trainId).isEqualTo("257")
-        expectThat(response.trains.first().location).get { type }.isEqualTo(LocationTypeJson.APPROACHING_STATION)
+        expectThat(response.trains.first().location).get { type }.isEqualTo(LocationTypeJson.STATION_BOARD)
         expectThat(response.trains.first().nextStop).isNotNull().get { id }.isEqualTo("940GZZLUGPK")
     }
 
