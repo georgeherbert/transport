@@ -247,43 +247,15 @@ body {
 }
 
 .train-marker {
-  position: relative;
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
 }
 
-.train-marker-arrow {
-  position: absolute;
-  inset: 0;
-  width: 42px;
-  height: 42px;
+.train-marker-shape {
+  display: block;
+  width: 44px;
+  height: 44px;
   overflow: visible;
-  pointer-events: none;
-}
-
-.train-marker-arrow--hidden {
-  display: none;
-}
-
-.train-icon {
-  position: absolute;
-  left: 7px;
-  top: 7px;
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  background: var(--line-color);
-  color: #ffffff;
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  border: 2px solid #ffffff;
-}
-
-.train-icon span {
-  transform: translateY(-0.02em);
 }
 
 .leaflet-popup-content-wrapper {

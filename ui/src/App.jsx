@@ -720,11 +720,59 @@ function markerLabelForLine(lineId) {
   return words.map(word => word.charAt(0)).join('').slice(0, 2).toUpperCase()
 }
 
+function markerTextColorForLine(lineId) {
+  const [red, green, blue] = rgbComponentsForHex(colorForLine(lineId))
+  const luminance = (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255
+
+  if (luminance > 0.62) {
+    return '#14213d'
+  }
+
+  return '#ffffff'
+}
+
+function rgbComponentsForHex(hexColor) {
+  const normalizedHex = hexColor.replace('#', '')
+
+  if (normalizedHex.length !== 6) {
+    return [31, 41, 51]
+  }
+
+  return [
+    Number.parseInt(normalizedHex.slice(0, 2), 16),
+    Number.parseInt(normalizedHex.slice(2, 4), 16),
+    Number.parseInt(normalizedHex.slice(4, 6), 16)
+  ]
+}
+
 function createTrainIcon(train) {
   const lineColor = colorForLine(train.lineId)
   const headingDegrees = roundedHeadingForIcon(train.headingDegrees)
-  const arrowClassName =
-    train.headingDegrees == null ? 'train-marker-arrow train-marker-arrow--hidden' : 'train-marker-arrow'
+  const markerLabel = markerLabelForLine(train.lineId)
+  const markerTextColor = markerTextColorForLine(train.lineId)
+  const shapeMarkup =
+    train.headingDegrees == null
+      ? `
+          <circle
+            cx="22"
+            cy="22"
+            r="14"
+            fill="${lineColor}"
+            stroke="#ffffff"
+            stroke-width="2.4"
+          />
+        `
+      : `
+          <g transform="rotate(${headingDegrees} 22 22)">
+            <path
+              d="M22 3 L29 10 A14 14 0 1 1 15 10 Z"
+              fill="${lineColor}"
+              stroke="#ffffff"
+              stroke-width="2.4"
+              stroke-linejoin="round"
+            />
+          </g>
+        `
   const cacheKey = iconCacheKeyForTrain(train.lineId, headingDegrees, train.headingDegrees == null)
   const cachedIcon = trainIconCache.get(cacheKey)
 
@@ -735,25 +783,26 @@ function createTrainIcon(train) {
   const icon = L.divIcon({
     className: 'train-icon-shell',
     html: `
-      <div class="train-marker" style="--line-color: ${lineColor}">
-        <svg class="${arrowClassName}" viewBox="0 0 42 42" aria-hidden="true">
-          <g transform="rotate(${headingDegrees} 21 21)">
-            <path
-              d="M21 2.5 L27 11 H15 Z"
-              fill="${lineColor}"
-              stroke="#ffffff"
-              stroke-width="2.4"
-              stroke-linejoin="round"
-            />
-          </g>
+      <div class="train-marker">
+        <svg class="train-marker-shape" viewBox="0 0 44 44" aria-hidden="true">
+          ${shapeMarkup}
+          <text
+            x="22"
+            y="24"
+            fill="${markerTextColor}"
+            font-size="9.2"
+            font-weight="700"
+            font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+            text-anchor="middle"
+            dominant-baseline="middle"
+          >
+            ${markerLabel}
+          </text>
         </svg>
-        <div class="train-icon">
-          <span>${markerLabelForLine(train.lineId)}</span>
-        </div>
       </div>
     `,
-    iconSize: [42, 42],
-    iconAnchor: [21, 21],
+    iconSize: [44, 44],
+    iconAnchor: [22, 22],
     popupAnchor: [0, -24]
   })
 
