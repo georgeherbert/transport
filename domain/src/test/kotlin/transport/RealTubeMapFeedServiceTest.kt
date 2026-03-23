@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -80,6 +81,60 @@ class RealTubeMapFeedServiceTest {
             expectThat(tubeMapFeedService.currentError()).isEqualTo(
                 TransportError.UpstreamHttpFailure("/Mode/tube/Arrivals", 503, "down")
             )
+        }
+
+    @Test
+    fun `animation ticks emit train-only updates`() =
+        runTest {
+            val generatedAt = Instant.parse("2026-03-22T20:50:00Z")
+            val clock = MutableTestClock(generatedAt)
+            val initialSnapshot = sampleTubeMapSnapshot(generatedAt, false)
+            val animatedSnapshot = initialSnapshot.copy(
+                trains = initialSnapshot.trains.map { train ->
+                    train.copy(
+                        coordinate = GeoCoordinate(51.507247, -0.141507),
+                        heading = HeadingDegrees(45.0)
+                    )
+                }
+            )
+            val tubeMapFeedService: TubeMapFeedService =
+                RealTubeMapFeedService(
+                    StubTubeMapService { forceRefresh ->
+                        Success(sampleTubeMapSnapshot(generatedAt, forceRefresh))
+                    },
+                    StubTubeMapMotionEngine(
+                        { snapshot -> snapshot },
+                        { snapshot, currentTime ->
+                            if (currentTime > snapshot.generatedAt) {
+                                animatedSnapshot
+                            } else {
+                                snapshot
+                            }
+                        }
+                    ),
+                    clock,
+                    Duration.ofSeconds(20),
+                    backgroundScope
+                )
+
+            val animatedUpdate = async {
+                tubeMapFeedService.updates().drop(1).first()
+            }
+
+            tubeMapFeedService.start()
+            clock.advanceBy(Duration.ofMillis(250))
+            advanceTimeBy(Duration.ofMillis(250).toMillis())
+            advanceUntilIdle()
+
+            val update = animatedUpdate.await()
+
+            expectThat(update)
+                .isA<TubeMapFeedUpdate.TrainPositionsUpdated>()
+                .get(TubeMapFeedUpdate.TrainPositionsUpdated::trainPositions)
+                .get(TubeMapTrainPositions::trains)
+                .get(0)
+                .get(TubeMapTrain::coordinate)
+                .isEqualTo(GeoCoordinate(51.507247, -0.141507))
         }
 
     @Test

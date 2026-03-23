@@ -1,4 +1,5 @@
 import {
+  memo,
   startTransition,
   useDeferredValue,
   useEffect,
@@ -59,6 +60,31 @@ function App() {
     })
   })
 
+  const applyTrainPositionsUpdate = useEffectEvent(trainPositions => {
+    startTransition(() => {
+      setMapSnapshot(currentSnapshot => {
+        if (currentSnapshot == null) {
+          return currentSnapshot
+        }
+
+        return {
+          ...currentSnapshot,
+          source: trainPositions.source,
+          generatedAt: trainPositions.generatedAt,
+          cached: trainPositions.cached,
+          cacheAgeSeconds: trainPositions.cacheAgeSeconds,
+          stationsQueried: trainPositions.stationsQueried,
+          stationsFailed: trainPositions.stationsFailed,
+          partial: trainPositions.partial,
+          trainCount: trainPositions.trainCount,
+          trains: trainPositions.trains
+        }
+      })
+      setErrorMessage('')
+      setStatus('live')
+    })
+  })
+
   const applyStreamDisconnect = useEffectEvent(() => {
     startTransition(() => {
       setStatus(mapSnapshot == null ? 'error' : 'stale')
@@ -95,6 +121,10 @@ function App() {
       applySnapshotUpdate(JSON.parse(event.data))
     })
 
+    eventSource.addEventListener('train_positions', event => {
+      applyTrainPositionsUpdate(JSON.parse(event.data))
+    })
+
     eventSource.addEventListener('transport_error', event => {
       const payload = JSON.parse(event.data)
       applyErrorUpdate(payload.message ?? 'Unable to load the projected rail map.')
@@ -111,8 +141,6 @@ function App() {
 
   const deferredSelectedLineId = useDeferredValue(selectedLineId)
   const lineOptions = buildLineOptions(mapSnapshot)
-  const visibleLinePaths = buildVisibleLinePaths(mapSnapshot, deferredSelectedLineId)
-  const visibleStations = buildVisibleStations(mapSnapshot, deferredSelectedLineId)
   const visibleTrains = buildVisibleTrains(mapSnapshot, deferredSelectedLineId)
   const listedTrains = visibleTrains.slice(0, 8)
 
@@ -161,72 +189,47 @@ function App() {
           </div>
 
           <section className="map-panel">
-          <MapContainer
-            center={londonCenter}
-            zoom={11}
-            minZoom={9}
-            maxZoom={15}
-            scrollWheelZoom={true}
-            className="map"
-          >
-            <TileLayer
-              attribution={basemapAttribution}
-              maxZoom={20}
-              url={basemapUrl}
-            />
-
-            {visibleLinePaths.map(path => (
-              <Polyline
-                key={path.id}
-                positions={path.coordinates.map(coordinate => [coordinate.lat, coordinate.lon])}
-                pathOptions={{
-                  color: colorForLine(path.lineId),
-                  weight: 4,
-                  opacity: 0.65
-                }}
+            <MapContainer
+              center={londonCenter}
+              zoom={11}
+              minZoom={9}
+              maxZoom={15}
+              scrollWheelZoom={true}
+              className="map"
+            >
+              <TileLayer
+                attribution={basemapAttribution}
+                maxZoom={20}
+                url={basemapUrl}
               />
-            ))}
 
-            {visibleStations.map(station => (
-              <CircleMarker
-                key={station.id}
-                center={[station.coordinate.lat, station.coordinate.lon]}
-                radius={stationRadiusFor(station, deferredSelectedLineId)}
-                pathOptions={{
-                  color: '#ffffff',
-                  weight: 1.5,
-                  fillColor: stationColorFor(station, deferredSelectedLineId),
-                  fillOpacity: 0.95
-                }}
-              >
-                <Tooltip direction="top" offset={[0, -6]} opacity={1}>
-                  {station.name}
-                </Tooltip>
-              </CircleMarker>
-            ))}
+              <StaticMapLayers
+                mapSnapshot={mapSnapshot}
+                selectedLineId={deferredSelectedLineId}
+              />
 
-            {visibleTrains.filter(train => train.coordinate != null).map(train => (
-              <Marker
-                key={train.trainId}
-                position={[train.coordinate.lat, train.coordinate.lon]}
-                icon={createTrainIcon(train)}
-              >
-                <Popup>
-                  <div className="popup-card">
-                    <strong>{train.lineLabel}</strong>
-                    <TrainDetail label="Current">{currentLocationLabelFor(train)}</TrainDetail>
-                    <TrainDetail label="Destination">{destinationLabelFor(train)}</TrainDetail>
-                    {train.towards != null ? (
-                      <TrainDetail label="Towards">{train.towards}</TrainDetail>
-                    ) : null}
-                    {train.secondsToNextStop != null ? (
-                      <TrainDetail label="Next stop">{secondsLabelFor(train.secondsToNextStop)}</TrainDetail>
-                    ) : null}
-                  </div>
-                </Popup>
-              </Marker>
-            ))}
-          </MapContainer>
+              {visibleTrains.filter(train => train.coordinate != null).map(train => (
+                <Marker
+                  key={train.trainId}
+                  position={[train.coordinate.lat, train.coordinate.lon]}
+                  icon={createTrainIcon(train)}
+                >
+                  <Popup>
+                    <div className="popup-card">
+                      <strong>{train.lineLabel}</strong>
+                      <TrainDetail label="Current">{currentLocationLabelFor(train)}</TrainDetail>
+                      <TrainDetail label="Destination">{destinationLabelFor(train)}</TrainDetail>
+                      {train.towards != null ? (
+                        <TrainDetail label="Towards">{train.towards}</TrainDetail>
+                      ) : null}
+                      {train.secondsToNextStop != null ? (
+                        <TrainDetail label="Next stop">{secondsLabelFor(train.secondsToNextStop)}</TrainDetail>
+                      ) : null}
+                    </div>
+                  </Popup>
+                </Marker>
+              ))}
+            </MapContainer>
           </section>
         </section>
 
@@ -280,6 +283,48 @@ function TrainDetail({ label, children }) {
   )
 }
 
+const StaticMapLayers = memo(
+  function StaticMapLayers({ mapSnapshot, selectedLineId }) {
+    const visibleLinePaths = buildVisibleLinePaths(mapSnapshot, selectedLineId)
+    const visibleStations = buildVisibleStations(mapSnapshot, selectedLineId)
+
+    return (
+      <>
+        {visibleLinePaths.map(path => (
+          <Polyline
+            key={path.id}
+            positions={path.coordinates.map(coordinate => [coordinate.lat, coordinate.lon])}
+            pathOptions={{
+              color: colorForLine(path.lineId),
+              weight: 4,
+              opacity: 0.65
+            }}
+          />
+        ))}
+
+        {visibleStations.map(station => (
+          <CircleMarker
+            key={station.id}
+            center={[station.coordinate.lat, station.coordinate.lon]}
+            radius={stationRadiusFor(station, selectedLineId)}
+            pathOptions={{
+              color: '#ffffff',
+              weight: 1.5,
+              fillColor: stationColorFor(station, selectedLineId),
+              fillOpacity: 0.95
+            }}
+          >
+            <Tooltip direction="top" offset={[0, -6]} opacity={1}>
+              {station.name}
+            </Tooltip>
+          </CircleMarker>
+        ))}
+      </>
+    )
+  },
+  areStaticMapLayersEqual
+)
+
 function buildLineOptions(mapSnapshot) {
   if (mapSnapshot == null) {
     return []
@@ -332,6 +377,14 @@ function buildVisibleStations(mapSnapshot, selectedLineId) {
   return mapSnapshot.stations
     .filter(station => selectedLineId === 'all' || station.lineIds.includes(selectedLineId))
     .sort((leftStation, rightStation) => leftStation.name.localeCompare(rightStation.name))
+}
+
+function areStaticMapLayersEqual(previousProps, nextProps) {
+  return (
+    previousProps.selectedLineId === nextProps.selectedLineId &&
+    previousProps.mapSnapshot?.lines === nextProps.mapSnapshot?.lines &&
+    previousProps.mapSnapshot?.stations === nextProps.mapSnapshot?.stations
+  )
 }
 
 function compareArrivalPriority(leftTrain, rightTrain) {

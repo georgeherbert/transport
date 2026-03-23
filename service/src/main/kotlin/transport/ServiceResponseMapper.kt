@@ -6,6 +6,7 @@ interface ServiceResponseMapper {
     fun apiDescription(): ApiDescriptionJson
     fun healthResponse(generatedAt: Instant): HealthJson
     fun mapResponse(mapSnapshot: TubeMapSnapshot): TubeMapSnapshotJson
+    fun trainPositionsResponse(trainPositions: TubeMapTrainPositions): TubeMapTrainPositionsJson
     fun lineMapResponse(lineMap: TubeLineMap): TubeLineMapJson
     fun snapshotResponse(snapshot: LiveTubeSnapshot): LiveTubeSnapshotJson
     fun errorResponse(error: TransportError): ApiErrorJson
@@ -54,6 +55,19 @@ class ServiceResponseMapperHttp : ServiceResponseMapper {
             mapSnapshot.lines.map(::lineJson),
             mapSnapshot.stations.map(::mapStationJson),
             mapSnapshot.trains.map(::mapTrainJson)
+        )
+
+    override fun trainPositionsResponse(trainPositions: TubeMapTrainPositions) =
+        TubeMapTrainPositionsJson(
+            trainPositions.source.value,
+            trainPositions.generatedAt.toString(),
+            trainPositions.cached,
+            trainPositions.cacheAge.seconds,
+            trainPositions.stationsQueried.value,
+            trainPositions.stationsFailed.value,
+            trainPositions.partial,
+            trainPositions.trainCount.value,
+            trainPositions.trains.map(::mapTrainJson)
         )
 
     override fun lineMapResponse(lineMap: TubeLineMap) =

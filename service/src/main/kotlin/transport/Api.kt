@@ -138,6 +138,13 @@ private suspend fun io.ktor.server.application.ApplicationCall.respondMapStream(
                     )
                     flush()
                 }
+                is TubeMapFeedUpdate.TrainPositionsUpdated -> {
+                    writeSseEvent(
+                        "train_positions",
+                        transportJson.encodeToString(serviceResponseMapper.trainPositionsResponse(update.trainPositions))
+                    )
+                    flush()
+                }
                 is TubeMapFeedUpdate.ErrorUpdated -> {
                     writeSseEvent(
                         "transport_error",

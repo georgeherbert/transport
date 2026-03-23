@@ -52,6 +52,19 @@ data class TubeMapSnapshotJson(
 )
 
 @Serializable
+data class TubeMapTrainPositionsJson(
+    val source: String,
+    val generatedAt: String,
+    val cached: Boolean,
+    val cacheAgeSeconds: Long,
+    val stationsQueried: Int,
+    val stationsFailed: Int,
+    val partial: Boolean,
+    val trainCount: Int,
+    val trains: List<TubeMapTrainJson>
+)
+
+@Serializable
 data class TubeLineMapJson(
     val lines: List<TubeLineJson>
 )

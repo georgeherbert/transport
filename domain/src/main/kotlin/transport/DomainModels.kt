@@ -32,6 +32,18 @@ data class TubeMapSnapshot(
     val trains: List<TubeMapTrain>
 )
 
+data class TubeMapTrainPositions(
+    val source: SourceName,
+    val generatedAt: Instant,
+    val cached: Boolean,
+    val cacheAge: Duration,
+    val stationsQueried: StationQueryCount,
+    val stationsFailed: StationFailureCount,
+    val partial: Boolean,
+    val trainCount: LiveTrainCount,
+    val trains: List<TubeMapTrain>
+)
+
 data class TubeLineMap(
     val lines: List<TubeLine>
 )

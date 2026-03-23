@@ -82,6 +82,48 @@ class ServiceResponseMapperHttpTest {
     }
 
     @Test
+    fun `trainPositionsResponse omits static map geometry`() {
+        val response = serviceResponseMapper.trainPositionsResponse(
+            TubeMapTrainPositions(
+                transportSourceName,
+                Instant.parse("2026-03-22T00:49:20Z"),
+                true,
+                Duration.ofSeconds(15),
+                StationQueryCount(1),
+                StationFailureCount(0),
+                false,
+                LiveTrainCount(1),
+                listOf(
+                    TubeMapTrain(
+                        TrainId("victoria|257"),
+                        VehicleId("257"),
+                        LineId("victoria"),
+                        LineName("Victoria"),
+                        TrainDirection("outbound"),
+                        DestinationName("Walthamstow Central Underground Station"),
+                        TowardsDescription("Walthamstow Central"),
+                        LocationDescription("Approaching Green Park"),
+                        StationReference(
+                            StationId("940GZZLUGPK"),
+                            StationName("Green Park Underground Station"),
+                            GeoCoordinate(51.506947, -0.142787)
+                        ),
+                        GeoCoordinate(51.506947, -0.142787),
+                        HeadingDegrees(42.0),
+                        Duration.ofSeconds(90),
+                        Instant.parse("2026-03-22T00:50:50Z"),
+                        Instant.parse("2026-03-22T00:49:20Z")
+                    )
+                )
+            )
+        )
+
+        expectThat(response.cacheAgeSeconds).isEqualTo(15)
+        expectThat(response.trains).hasSize(1)
+        expectThat(response.trains.first().lineId).isEqualTo("victoria")
+    }
+
+    @Test
     fun `lineMapResponse maps domain line geometry to serializable json`() {
         val response = serviceResponseMapper.lineMapResponse(
             TubeLineMap(

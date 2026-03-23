@@ -14,6 +14,7 @@ import java.time.Duration
 import java.time.Instant
 import kotlin.test.Test
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonObject
@@ -257,6 +258,46 @@ class ApiTest {
         }
     }
 
+    @Test
+    fun `api streams train-only position updates after the initial snapshot`() {
+        testApplication {
+            application {
+                transportModule(
+                    snapshotService,
+                    tubeLineMapService,
+                    StubTubeMapFeedService(
+                        {},
+                        { forceRefresh ->
+                            Success(sampleMap(true))
+                        },
+                        { null },
+                        flowOf(
+                            TubeMapFeedUpdate.TrainPositionsUpdated(sampleTrainPositions())
+                        )
+                    ),
+                    serviceResponseMapper,
+                    transportJson()
+                )
+            }
+
+            client.prepareGet("/api/rail/map/stream").execute { response ->
+                val channel: ByteReadChannel = response.body()
+                readSseEventLines(channel)
+                val eventLines = withTimeout(1000) {
+                    readSseEventLines(channel)
+                }
+                val payload = transportJson()
+                    .parseToJsonElement(joinSseDataLines(eventLines))
+                    .jsonObject
+
+                expectThat(response.status).isEqualTo(HttpStatusCode.OK)
+                expectThat(eventLines.joinToString("\n")).contains("event: train_positions")
+                expectThat(payload["trainCount"]?.jsonPrimitive?.int).isEqualTo(1)
+                expectThat(payload.containsKey("lines")).isEqualTo(false)
+            }
+        }
+    }
+
     private suspend fun readSseEventLines(channel: ByteReadChannel): List<String> {
         val lines = mutableListOf<String>()
 
@@ -387,5 +428,18 @@ class ApiTest {
                     Instant.parse("2026-03-22T00:49:20Z")
                 )
             )
+        )
+
+    private fun sampleTrainPositions() =
+        TubeMapTrainPositions(
+            transportSourceName,
+            Instant.parse("2026-03-22T00:49:20Z"),
+            true,
+            Duration.ofSeconds(20),
+            StationQueryCount(1),
+            StationFailureCount(0),
+            false,
+            LiveTrainCount(1),
+            sampleMap(true).trains
         )
 }

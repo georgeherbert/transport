@@ -27,6 +27,7 @@ interface TubeMapFeedService {
 
 sealed interface TubeMapFeedUpdate {
     data class SnapshotUpdated(val snapshot: TubeMapSnapshot) : TubeMapFeedUpdate
+    data class TrainPositionsUpdated(val trainPositions: TubeMapTrainPositions) : TubeMapFeedUpdate
     data class ErrorUpdated(val error: TransportError) : TubeMapFeedUpdate
 }
 
@@ -102,7 +103,7 @@ class RealTubeMapFeedService(
                     val cached = CachedTubeMapSnapshot(observedSnapshot.generatedAt, observedSnapshot)
                     cachedSnapshot.set(cached)
                     latestError.set(null)
-                    updateFlow.tryEmit(TubeMapFeedUpdate.SnapshotUpdated(cached.toSnapshot(clock, false, tubeMapMotionEngine)))
+                    updateFlow.tryEmit(TubeMapFeedUpdate.SnapshotUpdated(observedSnapshot))
                 }
                 is Failure -> {
                     latestError.set(mapResult.reason)
@@ -125,8 +126,8 @@ class RealTubeMapFeedService(
             }
 
             updateFlow.tryEmit(
-                TubeMapFeedUpdate.SnapshotUpdated(
-                    cached.toSnapshot(clock, true, tubeMapMotionEngine, currentTime)
+                TubeMapFeedUpdate.TrainPositionsUpdated(
+                    cached.toTrainPositions(true, currentTime, animatedSnapshot)
                 )
             )
         }
@@ -174,6 +175,32 @@ data class CachedTubeMapSnapshot(
             animatedSnapshot.trainCount,
             animatedSnapshot.lines,
             animatedSnapshot.stations,
+            animatedSnapshot.trains
+        )
+    }
+
+    fun toTrainPositions(
+        cached: Boolean,
+        currentTime: Instant,
+        animatedSnapshot: TubeMapSnapshot
+    ): TubeMapTrainPositions {
+        val cacheAge = if (cached) {
+            Duration.between(generatedAt, currentTime).let { duration ->
+                if (duration.isNegative) Duration.ZERO else duration
+            }
+        } else {
+            Duration.ZERO
+        }
+
+        return TubeMapTrainPositions(
+            animatedSnapshot.source,
+            animatedSnapshot.generatedAt,
+            cached,
+            cacheAge,
+            animatedSnapshot.stationsQueried,
+            animatedSnapshot.stationsFailed,
+            animatedSnapshot.partial,
+            animatedSnapshot.trainCount,
             animatedSnapshot.trains
         )
     }
