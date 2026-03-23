@@ -442,8 +442,10 @@ data class ProjectedTubeLinePath(
             travelLength * clampedProgress
         )
         val step = (travelLength / 20.0).coerceAtLeast(0.00001).coerceAtMost(travelLength / 2.0)
-        val startDistance = boundedTravelDistance(midpointDistance, travelStartDistance, travelEndDistance, -step)
-        val endDistance = boundedTravelDistance(midpointDistance, travelStartDistance, travelEndDistance, step)
+        val lowerBound = minOf(travelStartDistance, travelEndDistance)
+        val upperBound = maxOf(travelStartDistance, travelEndDistance)
+        val startDistance = travelDistanceAtOffset(midpointDistance, travelEndDistance, -step).coerceIn(lowerBound, upperBound)
+        val endDistance = travelDistanceAtOffset(midpointDistance, travelEndDistance, step).coerceIn(lowerBound, upperBound)
         val startCoordinate = coordinateAt(startDistance)
         val endCoordinate = coordinateAt(endDistance)
         if (startCoordinate == null || endCoordinate == null) {
@@ -506,17 +508,6 @@ data class ProjectedTubeLinePath(
         } else {
             travelStartDistance - offset
         }
-
-    private fun boundedTravelDistance(
-        currentDistance: Double,
-        travelStartDistance: Double,
-        travelEndDistance: Double,
-        offset: Double
-    ): Double {
-        val lowerBound = minOf(travelStartDistance, travelEndDistance)
-        val upperBound = maxOf(travelStartDistance, travelEndDistance)
-        return (currentDistance + offset).coerceIn(lowerBound, upperBound)
-    }
 }
 
 data class LinePathProjection(

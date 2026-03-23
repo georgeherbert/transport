@@ -39,6 +39,8 @@ const linePalette = {
   windrush: '#d64034'
 }
 
+const trainIconCache = new Map()
+
 function App() {
   const [mapSnapshot, setMapSnapshot] = useState(null)
   const [status, setStatus] = useState('loading')
@@ -142,6 +144,7 @@ function App() {
   const deferredSelectedLineId = useDeferredValue(selectedLineId)
   const lineOptions = buildLineOptions(mapSnapshot)
   const visibleTrains = buildVisibleTrains(mapSnapshot, deferredSelectedLineId)
+  const plottedTrains = visibleTrains.filter(train => train.coordinate != null)
   const listedTrains = visibleTrains.slice(0, 8)
 
   return (
@@ -183,7 +186,7 @@ function App() {
             <div className="status-strip">
               <StatusItem label="Status" value={statusLabelFor(status)} />
               <StatusItem label="Trains" value={mapSnapshot?.trainCount ?? '...'} />
-              <StatusItem label="Plotted" value={visibleTrains.filter(train => train.coordinate != null).length} />
+              <StatusItem label="Plotted" value={plottedTrains.length} />
               <StatusItem label="Station gaps" value={mapSnapshot?.stationsFailed ?? '...'} />
             </div>
           </div>
@@ -194,6 +197,7 @@ function App() {
               zoom={11}
               minZoom={9}
               maxZoom={15}
+              preferCanvas={true}
               scrollWheelZoom={true}
               className="map"
             >
@@ -208,26 +212,8 @@ function App() {
                 selectedLineId={deferredSelectedLineId}
               />
 
-              {visibleTrains.filter(train => train.coordinate != null).map(train => (
-                <Marker
-                  key={train.trainId}
-                  position={[train.coordinate.lat, train.coordinate.lon]}
-                  icon={createTrainIcon(train)}
-                >
-                  <Popup>
-                    <div className="popup-card">
-                      <strong>{train.lineLabel}</strong>
-                      <TrainDetail label="Current">{currentLocationLabelFor(train)}</TrainDetail>
-                      <TrainDetail label="Destination">{destinationLabelFor(train)}</TrainDetail>
-                      {train.towards != null ? (
-                        <TrainDetail label="Towards">{train.towards}</TrainDetail>
-                      ) : null}
-                      {train.secondsToNextStop != null ? (
-                        <TrainDetail label="Next stop">{secondsLabelFor(train.secondsToNextStop)}</TrainDetail>
-                      ) : null}
-                    </div>
-                  </Popup>
-                </Marker>
+              {plottedTrains.map(train => (
+                <TrainMarker key={train.trainId} train={train} />
               ))}
             </MapContainer>
           </section>
@@ -243,7 +229,7 @@ function App() {
               <article className="train-row" key={train.trainId}>
                 <span
                   className="line-dot"
-                  style={{ '--line-color': colorForLine(train.primaryLineId) }}
+                  style={{ '--line-color': colorForLine(train.lineId) }}
                 ></span>
                 <div className="train-row-body">
                   <strong>{currentLocationLabelFor(train)}</strong>
@@ -282,6 +268,32 @@ function TrainDetail({ label, children }) {
     </div>
   )
 }
+
+const TrainMarker = memo(
+  function TrainMarker({ train }) {
+    return (
+      <Marker
+        position={[train.coordinate.lat, train.coordinate.lon]}
+        icon={createTrainIcon(train)}
+      >
+        <Popup>
+          <div className="popup-card">
+            <strong>{train.lineName}</strong>
+            <TrainDetail label="Current">{currentLocationLabelFor(train)}</TrainDetail>
+            <TrainDetail label="Destination">{destinationLabelFor(train)}</TrainDetail>
+            {train.towards != null ? (
+              <TrainDetail label="Towards">{train.towards}</TrainDetail>
+            ) : null}
+            {train.secondsToNextStop != null ? (
+              <TrainDetail label="Next stop">{secondsLabelFor(train.secondsToNextStop)}</TrainDetail>
+            ) : null}
+          </div>
+        </Popup>
+      </Marker>
+    )
+  },
+  areTrainMarkerPropsEqual
+)
 
 const StaticMapLayers = memo(
   function StaticMapLayers({ mapSnapshot, selectedLineId }) {
@@ -361,11 +373,6 @@ function buildVisibleTrains(mapSnapshot, selectedLineId) {
 
   return mapSnapshot.trains
     .filter(train => selectedLineId === 'all' || train.lineId === selectedLineId)
-    .map(train => ({
-      ...train,
-      primaryLineId: train.lineId,
-      lineLabel: train.lineName
-    }))
     .sort((leftTrain, rightTrain) => compareArrivalPriority(leftTrain, rightTrain))
 }
 
@@ -387,9 +394,27 @@ function areStaticMapLayersEqual(previousProps, nextProps) {
   )
 }
 
+function areTrainMarkerPropsEqual(previousProps, nextProps) {
+  const previousTrain = previousProps.train
+  const nextTrain = nextProps.train
+
+  return (
+    previousTrain.trainId === nextTrain.trainId &&
+    previousTrain.lineId === nextTrain.lineId &&
+    previousTrain.lineName === nextTrain.lineName &&
+    previousTrain.currentLocation === nextTrain.currentLocation &&
+    previousTrain.destinationName === nextTrain.destinationName &&
+    previousTrain.towards === nextTrain.towards &&
+    previousTrain.secondsToNextStop === nextTrain.secondsToNextStop &&
+    previousTrain.coordinate?.lat === nextTrain.coordinate?.lat &&
+    previousTrain.coordinate?.lon === nextTrain.coordinate?.lon &&
+    previousTrain.headingDegrees === nextTrain.headingDegrees
+  )
+}
+
 function compareArrivalPriority(leftTrain, rightTrain) {
   if (leftTrain.secondsToNextStop == null && rightTrain.secondsToNextStop == null) {
-    return leftTrain.lineLabel.localeCompare(rightTrain.lineLabel)
+    return leftTrain.lineName.localeCompare(rightTrain.lineName)
   }
 
   if (leftTrain.secondsToNextStop == null) {
@@ -457,10 +482,10 @@ function serviceLabelFor(train) {
   const destination = destinationLabelFor(train)
 
   if (train.towards != null && train.towards !== destination) {
-    return `${train.lineLabel} to ${destination} via ${train.towards}`
+    return `${train.lineName} to ${destination} via ${train.towards}`
   }
 
-  return `${train.lineLabel} to ${destination}`
+  return `${train.lineName} to ${destination}`
 }
 
 function prettifyLineId(lineId) {
@@ -501,18 +526,24 @@ function markerLabelForLine(lineId) {
 }
 
 function createTrainIcon(train) {
-  const lineColor = colorForLine(train.primaryLineId)
-  const headingDegrees = train.headingDegrees ?? 0
+  const lineColor = colorForLine(train.lineId)
+  const headingDegrees = roundedHeadingForIcon(train.headingDegrees)
   const arrowClassName =
     train.headingDegrees == null ? 'train-marker-arrow train-marker-arrow--hidden' : 'train-marker-arrow'
+  const cacheKey = iconCacheKeyForTrain(train.lineId, headingDegrees, train.headingDegrees == null)
+  const cachedIcon = trainIconCache.get(cacheKey)
 
-  return L.divIcon({
+  if (cachedIcon != null) {
+    return cachedIcon
+  }
+
+  const icon = L.divIcon({
     className: 'train-icon-shell',
     html: `
       <div class="train-marker" style="--line-color: ${lineColor}; --heading-degrees: ${headingDegrees}deg">
         <div class="${arrowClassName}"></div>
         <div class="train-icon">
-          <span>${markerLabelForLine(train.primaryLineId)}</span>
+          <span>${markerLabelForLine(train.lineId)}</span>
         </div>
       </div>
     `,
@@ -520,6 +551,21 @@ function createTrainIcon(train) {
     iconAnchor: [20, 20],
     popupAnchor: [0, -22]
   })
+
+  trainIconCache.set(cacheKey, icon)
+  return icon
+}
+
+function iconCacheKeyForTrain(lineId, headingDegrees, headingHidden) {
+  return `${lineId}:${headingHidden ? 'hidden' : headingDegrees}`
+}
+
+function roundedHeadingForIcon(headingDegrees) {
+  if (headingDegrees == null) {
+    return 0
+  }
+
+  return Math.round(headingDegrees)
 }
 
 export default App

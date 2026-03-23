@@ -496,4 +496,21 @@ class RealTubeMapProjectorTest {
         expectThat(projected.trains.first().heading).isNotNull().get { value }.isGreaterThan(30.0)
         expectThat(projected.trains.first().heading).isNotNull().get { value }.isLessThan(35.0)
     }
+
+    @Test
+    fun `headingAtProgress respects reverse travel direction`() {
+        val projectedPath = ProjectedTubeLinePath(
+            TubeLinePath(
+                listOf(
+                    GeoCoordinate(51.5, -0.3),
+                    GeoCoordinate(51.5, -0.2)
+                )
+            )
+        )
+
+        val heading = projectedPath.headingAtProgress(projectedPath.totalLength, 0.0, 0.5)
+
+        expectThat(heading).isNotNull().get { value }.isGreaterThan(260.0)
+        expectThat(heading).isNotNull().get { value }.isLessThan(280.0)
+    }
 }
