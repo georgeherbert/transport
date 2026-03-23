@@ -16,7 +16,7 @@ class ServiceResponseMapperHttpTest {
     @Test
     fun `mapResponse maps projected tube map to serializable json`() {
         val response = serviceResponseMapper.mapResponse(
-            TubeMapSnapshot(
+            RailMapSnapshot(
                 transportSourceName,
                 Instant.parse("2026-03-22T00:49:20Z"),
                 false,
@@ -26,11 +26,11 @@ class ServiceResponseMapperHttpTest {
                 false,
                 LiveTrainCount(1),
                 listOf(
-                    TubeLine(
+                    RailLine(
                         LineId("victoria"),
                         LineName("Victoria"),
                         listOf(
-                            TubeLinePath(
+                            RailLinePath(
                                 listOf(
                                     GeoCoordinate(51.496359, -0.143102),
                                     GeoCoordinate(51.506947, -0.142787)
@@ -49,7 +49,7 @@ class ServiceResponseMapperHttpTest {
                     )
                 ),
                 listOf(
-                    TubeMapTrain(
+                    RailMapTrain(
                         TrainId("victoria|257"),
                         VehicleId("257"),
                         LineId("victoria"),
@@ -84,7 +84,7 @@ class ServiceResponseMapperHttpTest {
     @Test
     fun `trainPositionsResponse omits static map geometry`() {
         val response = serviceResponseMapper.trainPositionsResponse(
-            TubeMapTrainPositions(
+            RailMapTrainPositions(
                 transportSourceName,
                 Instant.parse("2026-03-22T00:49:20Z"),
                 true,
@@ -94,7 +94,7 @@ class ServiceResponseMapperHttpTest {
                 false,
                 LiveTrainCount(1),
                 listOf(
-                    TubeMapTrain(
+                    RailMapTrain(
                         TrainId("victoria|257"),
                         VehicleId("257"),
                         LineId("victoria"),
@@ -126,13 +126,13 @@ class ServiceResponseMapperHttpTest {
     @Test
     fun `lineMapResponse maps domain line geometry to serializable json`() {
         val response = serviceResponseMapper.lineMapResponse(
-            TubeLineMap(
+            RailLineMap(
                 listOf(
-                    TubeLine(
+                    RailLine(
                         LineId("victoria"),
                         LineName("Victoria"),
                         listOf(
-                            TubeLinePath(
+                            RailLinePath(
                                 listOf(
                                     GeoCoordinate(51.496359, -0.143102),
                                     GeoCoordinate(51.506947, -0.142787)
@@ -153,7 +153,7 @@ class ServiceResponseMapperHttpTest {
     @Test
     fun `snapshotResponse maps domain snapshot to serializable json`() {
         val response = serviceResponseMapper.snapshotResponse(
-            LiveTubeSnapshot(
+            LiveRailSnapshot(
                 transportSourceName,
                 Instant.parse("2026-03-22T00:49:20Z"),
                 false,
@@ -164,7 +164,7 @@ class ServiceResponseMapperHttpTest {
                 LiveTrainCount(1),
                 listOf(LineId("victoria")),
                 listOf(
-                    LiveTubeTrain(
+                    LiveRailTrain(
                         TrainId("257"),
                         VehicleId("257"),
                         listOf(LineId("victoria")),

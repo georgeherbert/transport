@@ -17,11 +17,11 @@ fun main() {
     val httpClient = createTflHttpClient(transportServiceConfig.requestTimeout)
     val services = createTransportServices(transportServiceConfig, json, httpClient)
     val feedScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    val tubeMapMotionEngine: TubeMapMotionEngine = RealTubeMapMotionEngine()
-    val tubeMapFeedService: TubeMapFeedService =
-        RealTubeMapFeedService(
-            services.tubeMapService,
-            tubeMapMotionEngine,
+    val railMapMotionEngine: RailMapMotionEngine = RealRailMapMotionEngine()
+    val railMapFeedService: RailMapFeedService =
+        RealRailMapFeedService(
+            services.railMapService,
+            railMapMotionEngine,
             Clock.systemUTC(),
             transportServiceConfig.cacheTtl,
             feedScope
@@ -29,7 +29,7 @@ fun main() {
 
     try {
         runBlocking {
-            tubeMapFeedService.start()
+            railMapFeedService.start()
         }
 
         embeddedServer(
@@ -38,9 +38,9 @@ fun main() {
             host = transportServiceConfig.host,
             module = {
                 transportModule(
-                    services.tubeSnapshotService,
-                    services.tubeLineMapService,
-                    tubeMapFeedService,
+                    services.railSnapshotService,
+                    services.railLineMapService,
+                    railMapFeedService,
                     serviceResponseMapper,
                     json
                 )
@@ -52,76 +52,76 @@ fun main() {
     }
 }
 
-fun createTubeSnapshotService(
+fun createRailSnapshotService(
     transportServiceConfig: TransportServiceConfig,
     json: kotlinx.serialization.json.Json
-): TubeSnapshotService =
+): RailSnapshotService =
     createTransportServices(
         transportServiceConfig,
         json,
         createTflHttpClient(transportServiceConfig.requestTimeout)
-    ).tubeSnapshotService
+    ).railSnapshotService
 
-fun createTubeLineMapService(
+fun createRailLineMapService(
     transportServiceConfig: TransportServiceConfig,
     json: kotlinx.serialization.json.Json
-): TubeLineMapService =
+): RailLineMapService =
     createTransportServices(
         transportServiceConfig,
         json,
         createTflHttpClient(transportServiceConfig.requestTimeout)
-    ).tubeLineMapService
+    ).railLineMapService
 
-fun createTubeMapService(
+fun createRailMapService(
     transportServiceConfig: TransportServiceConfig,
     json: kotlinx.serialization.json.Json
-): TubeMapService =
+): RailMapService =
     createTransportServices(
         transportServiceConfig,
         json,
         createTflHttpClient(transportServiceConfig.requestTimeout)
-    ).tubeMapService
+    ).railMapService
 
 private fun createTransportServices(
     transportServiceConfig: TransportServiceConfig,
     json: kotlinx.serialization.json.Json,
     httpClient: HttpClient
 ): TransportServices {
-    val tubeData = TubeDataHttp(
+    val railData = RailDataHttp(
         transportServiceConfig.toTflHttpClientConfig(),
         httpClient,
         TflPayloadParserHttp(json)
     )
-    val tubeLineGeometrySource: TubeLineGeometrySource =
-        ClasspathTubeLineGeometrySource(json, "/transport/osm-line-geometry.json")
-    val tubeMetadataRepository = RealTubeMetadataRepository(tubeData)
-    val tubeLineMapRepository = RealTubeLineMapRepository(tubeData, tubeLineGeometrySource)
-    val tubeLocationEstimator = RealTubeLocationEstimator()
-    val tubeSnapshotAssembler = RealTubeSnapshotAssembler(tubeLocationEstimator)
-    val tubePathSmoother: TubePathSmoother = RealIdentityTubePathSmoother()
-    val tubeMapProjector = RealTubeMapProjector(tubePathSmoother)
-    val tubeSnapshotService = RealTubeSnapshotService(
-        tubeData,
-        tubeMetadataRepository,
-        tubeSnapshotAssembler,
+    val railLineGeometrySource: RailLineGeometrySource =
+        ClasspathRailLineGeometrySource(json, "/transport/osm-line-geometry.json")
+    val railMetadataRepository = RealRailMetadataRepository(railData)
+    val railLineMapRepository = RealRailLineMapRepository(railData, railLineGeometrySource)
+    val railLocationEstimator = RealRailLocationEstimator()
+    val railSnapshotAssembler = RealRailSnapshotAssembler(railLocationEstimator)
+    val railPathSmoother: RailPathSmoother = RealIdentityRailPathSmoother()
+    val railMapProjector = RealRailMapProjector(railPathSmoother)
+    val railSnapshotService = RealRailSnapshotService(
+        railData,
+        railMetadataRepository,
+        railSnapshotAssembler,
         Clock.systemUTC(),
         transportServiceConfig.cacheTtl
     )
-    val tubeLineMapService = RealTubeLineMapService(tubeLineMapRepository)
+    val railLineMapService = RealRailLineMapService(railLineMapRepository)
 
     return TransportServices(
-        tubeSnapshotService,
-        tubeLineMapService,
-        RealTubeMapService(
-            tubeSnapshotService,
-            tubeLineMapService,
-            tubeMapProjector
+        railSnapshotService,
+        railLineMapService,
+        RealRailMapService(
+            railSnapshotService,
+            railLineMapService,
+            railMapProjector
         )
     )
 }
 
 private data class TransportServices(
-    val tubeSnapshotService: TubeSnapshotService,
-    val tubeLineMapService: TubeLineMapService,
-    val tubeMapService: TubeMapService
+    val railSnapshotService: RailSnapshotService,
+    val railLineMapService: RailLineMapService,
+    val railMapService: RailMapService
 )

@@ -23,7 +23,7 @@ data class ApiErrorJson(
 )
 
 @Serializable
-data class LiveTubeSnapshotJson(
+data class LiveRailSnapshotJson(
     val source: String,
     val generatedAt: String,
     val cached: Boolean,
@@ -33,11 +33,11 @@ data class LiveTubeSnapshotJson(
     val partial: Boolean,
     val trainCount: Int,
     val lines: List<String>,
-    val trains: List<LiveTubeTrainJson>
+    val trains: List<LiveRailTrainJson>
 )
 
 @Serializable
-data class TubeMapSnapshotJson(
+data class RailMapSnapshotJson(
     val source: String,
     val generatedAt: String,
     val cached: Boolean,
@@ -46,13 +46,13 @@ data class TubeMapSnapshotJson(
     val stationsFailed: Int,
     val partial: Boolean,
     val trainCount: Int,
-    val lines: List<TubeLineJson>,
+    val lines: List<RailLineJson>,
     val stations: List<MapStationJson>,
-    val trains: List<TubeMapTrainJson>
+    val trains: List<RailMapTrainJson>
 )
 
 @Serializable
-data class TubeMapTrainPositionsJson(
+data class RailMapTrainPositionsJson(
     val source: String,
     val generatedAt: String,
     val cached: Boolean,
@@ -61,23 +61,23 @@ data class TubeMapTrainPositionsJson(
     val stationsFailed: Int,
     val partial: Boolean,
     val trainCount: Int,
-    val trains: List<TubeMapTrainJson>
+    val trains: List<RailMapTrainJson>
 )
 
 @Serializable
-data class TubeLineMapJson(
-    val lines: List<TubeLineJson>
+data class RailLineMapJson(
+    val lines: List<RailLineJson>
 )
 
 @Serializable
-data class TubeLineJson(
+data class RailLineJson(
     val id: String,
     val name: String,
-    val paths: List<TubeLinePathJson>
+    val paths: List<RailLinePathJson>
 )
 
 @Serializable
-data class TubeLinePathJson(
+data class RailLinePathJson(
     val coordinates: List<GeoCoordinateJson>
 )
 
@@ -90,7 +90,7 @@ data class MapStationJson(
 )
 
 @Serializable
-data class TubeMapTrainJson(
+data class RailMapTrainJson(
     val trainId: String,
     val vehicleId: String?,
     val lineId: String,
@@ -107,7 +107,7 @@ data class TubeMapTrainJson(
 )
 
 @Serializable
-data class LiveTubeTrainJson(
+data class LiveRailTrainJson(
     val trainId: String,
     val vehicleId: String?,
     val lineIds: List<String>,

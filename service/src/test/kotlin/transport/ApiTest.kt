@@ -25,12 +25,12 @@ import strikt.assertions.isEqualTo
 
 class ApiTest {
     private val serviceResponseMapper: ServiceResponseMapper = ServiceResponseMapperHttp()
-    private val tubeLineMapService: TubeLineMapService =
-        StubTubeLineMapService {
+    private val railLineMapService: RailLineMapService =
+        StubRailLineMapService {
             Success(sampleLineMap())
         }
-    private val tubeMapFeedService: TubeMapFeedService =
-        StubTubeMapFeedService(
+    private val railMapFeedService: RailMapFeedService =
+        StubRailMapFeedService(
             {},
             { forceRefresh ->
                 Success(sampleMap(true))
@@ -38,8 +38,8 @@ class ApiTest {
             { null },
             emptyFlow()
         )
-    private val snapshotService: TubeSnapshotService =
-        StubTubeSnapshotService { forceRefresh ->
+    private val snapshotService: RailSnapshotService =
+        StubRailSnapshotService { forceRefresh ->
             Success(sampleSnapshot(forceRefresh))
         }
 
@@ -49,8 +49,8 @@ class ApiTest {
             application {
                 transportModule(
                     snapshotService,
-                    tubeLineMapService,
-                    tubeMapFeedService,
+                    railLineMapService,
+                    railMapFeedService,
                     serviceResponseMapper,
                     transportJson()
                 )
@@ -69,8 +69,8 @@ class ApiTest {
             application {
                 transportModule(
                     snapshotService,
-                    tubeLineMapService,
-                    tubeMapFeedService,
+                    railLineMapService,
+                    railMapFeedService,
                     serviceResponseMapper,
                     transportJson()
                 )
@@ -89,8 +89,8 @@ class ApiTest {
             application {
                 transportModule(
                     snapshotService,
-                    tubeLineMapService,
-                    tubeMapFeedService,
+                    railLineMapService,
+                    railMapFeedService,
                     serviceResponseMapper,
                     transportJson()
                 )
@@ -108,11 +108,11 @@ class ApiTest {
         testApplication {
             application {
                 transportModule(
-                    StubTubeSnapshotService { forceRefresh ->
+                    StubRailSnapshotService { forceRefresh ->
                         Failure(TransportError.SnapshotUnavailable("TfL unavailable"))
                     },
-                    tubeLineMapService,
-                    StubTubeMapFeedService(
+                    railLineMapService,
+                    StubRailMapFeedService(
                         {},
                         { forceRefresh ->
                             Failure(TransportError.SnapshotUnavailable("TfL unavailable"))
@@ -138,8 +138,8 @@ class ApiTest {
             application {
                 transportModule(
                     snapshotService,
-                    tubeLineMapService,
-                    tubeMapFeedService,
+                    railLineMapService,
+                    railMapFeedService,
                     serviceResponseMapper,
                     transportJson()
                 )
@@ -158,8 +158,8 @@ class ApiTest {
             application {
                 transportModule(
                     snapshotService,
-                    tubeLineMapService,
-                    tubeMapFeedService,
+                    railLineMapService,
+                    railMapFeedService,
                     serviceResponseMapper,
                     transportJson()
                 )
@@ -182,8 +182,8 @@ class ApiTest {
             application {
                 transportModule(
                     snapshotService,
-                    tubeLineMapService,
-                    tubeMapFeedService,
+                    railLineMapService,
+                    railMapFeedService,
                     serviceResponseMapper,
                     transportJson()
                 )
@@ -202,8 +202,8 @@ class ApiTest {
             application {
                 transportModule(
                     snapshotService,
-                    tubeLineMapService,
-                    tubeMapFeedService,
+                    railLineMapService,
+                    railMapFeedService,
                     serviceResponseMapper,
                     transportJson()
                 )
@@ -231,8 +231,8 @@ class ApiTest {
             application {
                 transportModule(
                     snapshotService,
-                    tubeLineMapService,
-                    StubTubeMapFeedService(
+                    railLineMapService,
+                    StubRailMapFeedService(
                         {},
                         { forceRefresh ->
                             Failure(TransportError.UpstreamHttpFailure("/Mode/tube/Arrivals", 503, "down"))
@@ -264,15 +264,15 @@ class ApiTest {
             application {
                 transportModule(
                     snapshotService,
-                    tubeLineMapService,
-                    StubTubeMapFeedService(
+                    railLineMapService,
+                    StubRailMapFeedService(
                         {},
                         { forceRefresh ->
                             Success(sampleMap(true))
                         },
                         { null },
                         flowOf(
-                            TubeMapFeedUpdate.TrainPositionsUpdated(sampleTrainPositions())
+                            RailMapFeedUpdate.TrainPositionsUpdated(sampleTrainPositions())
                         )
                     ),
                     serviceResponseMapper,
@@ -325,7 +325,7 @@ class ApiTest {
             .joinToString("\n") { line -> line.removePrefix("data: ") }
 
     private fun sampleSnapshot(forceRefresh: Boolean) =
-        LiveTubeSnapshot(
+        LiveRailSnapshot(
             transportSourceName,
             Instant.parse("2026-03-22T00:49:20Z"),
             forceRefresh,
@@ -336,7 +336,7 @@ class ApiTest {
             LiveTrainCount(1),
             listOf(LineId("victoria")),
             listOf(
-                LiveTubeTrain(
+                LiveRailTrain(
                     TrainId("257"),
                     VehicleId("257"),
                     listOf(LineId("victoria")),
@@ -369,13 +369,13 @@ class ApiTest {
         )
 
     private fun sampleLineMap() =
-        TubeLineMap(
+        RailLineMap(
             listOf(
-                TubeLine(
+                RailLine(
                     LineId("victoria"),
                     LineName("Victoria"),
                     listOf(
-                        TubeLinePath(
+                        RailLinePath(
                             listOf(
                                 GeoCoordinate(51.496359, -0.143102),
                                 GeoCoordinate(51.506947, -0.142787)
@@ -388,7 +388,7 @@ class ApiTest {
         )
 
     private fun sampleMap(forceRefresh: Boolean) =
-        TubeMapSnapshot(
+        RailMapSnapshot(
             transportSourceName,
             Instant.parse("2026-03-22T00:49:20Z"),
             forceRefresh,
@@ -407,7 +407,7 @@ class ApiTest {
                 )
             ),
             listOf(
-                TubeMapTrain(
+                RailMapTrain(
                     TrainId("victoria|257"),
                     VehicleId("257"),
                     LineId("victoria"),
@@ -431,7 +431,7 @@ class ApiTest {
         )
 
     private fun sampleTrainPositions() =
-        TubeMapTrainPositions(
+        RailMapTrainPositions(
             transportSourceName,
             Instant.parse("2026-03-22T00:49:20Z"),
             true,

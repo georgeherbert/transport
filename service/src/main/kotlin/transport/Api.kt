@@ -21,9 +21,9 @@ import kotlinx.serialization.encodeToString
 import kotlinx.coroutines.flow.collect
 
 fun Application.transportModule(
-    tubeSnapshotService: TubeSnapshotService,
-    tubeLineMapService: TubeLineMapService,
-    tubeMapFeedService: TubeMapFeedService,
+    railSnapshotService: RailSnapshotService,
+    railLineMapService: RailLineMapService,
+    railMapFeedService: RailMapFeedService,
     serviceResponseMapper: ServiceResponseMapper,
     transportJson: Json
 ) {
@@ -42,38 +42,38 @@ fun Application.transportModule(
 
         get("/api/rail/map") {
             val forceRefresh = call.request.queryParameters["refresh"]?.equals("true", true) == true
-            call.respondMap(forceRefresh, tubeMapFeedService, serviceResponseMapper)
+            call.respondMap(forceRefresh, railMapFeedService, serviceResponseMapper)
         }
 
         get("/api/tubes/map") {
             val forceRefresh = call.request.queryParameters["refresh"]?.equals("true", true) == true
-            call.respondMap(forceRefresh, tubeMapFeedService, serviceResponseMapper)
+            call.respondMap(forceRefresh, railMapFeedService, serviceResponseMapper)
         }
 
         get("/api/rail/map/stream") {
-            call.respondMapStream(tubeMapFeedService, serviceResponseMapper, transportJson)
+            call.respondMapStream(railMapFeedService, serviceResponseMapper, transportJson)
         }
 
         get("/api/tubes/map/stream") {
-            call.respondMapStream(tubeMapFeedService, serviceResponseMapper, transportJson)
+            call.respondMapStream(railMapFeedService, serviceResponseMapper, transportJson)
         }
 
         get("/api/rail/lines") {
-            call.respondLineMap(tubeLineMapService, serviceResponseMapper)
+            call.respondLineMap(railLineMapService, serviceResponseMapper)
         }
 
         get("/api/tubes/lines") {
-            call.respondLineMap(tubeLineMapService, serviceResponseMapper)
+            call.respondLineMap(railLineMapService, serviceResponseMapper)
         }
 
         get("/api/rail/live") {
             val forceRefresh = call.request.queryParameters["refresh"]?.equals("true", true) == true
-            call.respondSnapshot(forceRefresh, tubeSnapshotService, serviceResponseMapper)
+            call.respondSnapshot(forceRefresh, railSnapshotService, serviceResponseMapper)
         }
 
         get("/api/tubes/live") {
             val forceRefresh = call.request.queryParameters["refresh"]?.equals("true", true) == true
-            call.respondSnapshot(forceRefresh, tubeSnapshotService, serviceResponseMapper)
+            call.respondSnapshot(forceRefresh, railSnapshotService, serviceResponseMapper)
         }
 
         get("/") {
@@ -90,10 +90,10 @@ fun Application.transportModule(
 
 private suspend fun io.ktor.server.application.ApplicationCall.respondMap(
     forceRefresh: Boolean,
-    tubeMapFeedService: TubeMapFeedService,
+    railMapFeedService: RailMapFeedService,
     serviceResponseMapper: ServiceResponseMapper
 ) =
-    when (val mapResult = tubeMapFeedService.getTubeMap(forceRefresh)) {
+    when (val mapResult = railMapFeedService.getRailMap(forceRefresh)) {
         is Success -> respond(serviceResponseMapper.mapResponse(mapResult.value))
         is Failure -> respond(
             httpStatus(mapResult.reason),
@@ -102,7 +102,7 @@ private suspend fun io.ktor.server.application.ApplicationCall.respondMap(
     }
 
 private suspend fun io.ktor.server.application.ApplicationCall.respondMapStream(
-    tubeMapFeedService: TubeMapFeedService,
+    railMapFeedService: RailMapFeedService,
     serviceResponseMapper: ServiceResponseMapper,
     transportJson: Json
 ) =
@@ -110,7 +110,7 @@ private suspend fun io.ktor.server.application.ApplicationCall.respondMapStream(
         write("retry: 5000\n\n")
         flush()
 
-        when (val currentSnapshot = tubeMapFeedService.getTubeMap(false)) {
+        when (val currentSnapshot = railMapFeedService.getRailMap(false)) {
             is Success -> {
                 writeSseEvent(
                     "snapshot",
@@ -121,7 +121,7 @@ private suspend fun io.ktor.server.application.ApplicationCall.respondMapStream(
             is Failure -> Unit
         }
 
-        tubeMapFeedService.currentError()?.let { error ->
+        railMapFeedService.currentError()?.let { error ->
             writeSseEvent(
                 "transport_error",
                 transportJson.encodeToString(serviceResponseMapper.errorResponse(error))
@@ -129,23 +129,23 @@ private suspend fun io.ktor.server.application.ApplicationCall.respondMapStream(
             flush()
         }
 
-        tubeMapFeedService.updates().collect { update ->
+        railMapFeedService.updates().collect { update ->
             when (update) {
-                is TubeMapFeedUpdate.SnapshotUpdated -> {
+                is RailMapFeedUpdate.SnapshotUpdated -> {
                     writeSseEvent(
                         "snapshot",
                         transportJson.encodeToString(serviceResponseMapper.mapResponse(update.snapshot))
                     )
                     flush()
                 }
-                is TubeMapFeedUpdate.TrainPositionsUpdated -> {
+                is RailMapFeedUpdate.TrainPositionsUpdated -> {
                     writeSseEvent(
                         "train_positions",
                         transportJson.encodeToString(serviceResponseMapper.trainPositionsResponse(update.trainPositions))
                     )
                     flush()
                 }
-                is TubeMapFeedUpdate.ErrorUpdated -> {
+                is RailMapFeedUpdate.ErrorUpdated -> {
                     writeSseEvent(
                         "transport_error",
                         transportJson.encodeToString(serviceResponseMapper.errorResponse(update.error))
@@ -157,10 +157,10 @@ private suspend fun io.ktor.server.application.ApplicationCall.respondMapStream(
     }
 
 private suspend fun io.ktor.server.application.ApplicationCall.respondLineMap(
-    tubeLineMapService: TubeLineMapService,
+    railLineMapService: RailLineMapService,
     serviceResponseMapper: ServiceResponseMapper
 ) =
-    when (val lineMapResult = tubeLineMapService.getTubeLineMap()) {
+    when (val lineMapResult = railLineMapService.getRailLineMap()) {
         is Success -> respond(serviceResponseMapper.lineMapResponse(lineMapResult.value))
         is Failure -> respond(
             httpStatus(lineMapResult.reason),
@@ -170,10 +170,10 @@ private suspend fun io.ktor.server.application.ApplicationCall.respondLineMap(
 
 private suspend fun io.ktor.server.application.ApplicationCall.respondSnapshot(
     forceRefresh: Boolean,
-    tubeSnapshotService: TubeSnapshotService,
+    railSnapshotService: RailSnapshotService,
     serviceResponseMapper: ServiceResponseMapper
 ) =
-    when (val snapshotResult = tubeSnapshotService.getLiveSnapshot(forceRefresh)) {
+    when (val snapshotResult = railSnapshotService.getLiveSnapshot(forceRefresh)) {
         is Success -> respond(serviceResponseMapper.snapshotResponse(snapshotResult.value))
         is Failure -> respond(
             httpStatus(snapshotResult.reason),

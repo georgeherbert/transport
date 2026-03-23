@@ -7,12 +7,12 @@ fun testStation(
     lon: Double,
     lineIds: Set<String>
 ) =
-    TubeStation(
+    RailStation(
         StationId(id),
         StationName(name),
         GeoCoordinate(lat, lon),
         lineIds.map(::LineId).toSet()
     )
 
-fun testTubeNetwork(stations: List<TubeStation>) =
-    TubeNetwork(stations.associateBy(TubeStation::id), buildAliasIndex(stations))
+fun testRailNetwork(stations: List<RailStation>) =
+    RailNetwork(stations.associateBy(RailStation::id), buildAliasIndex(stations))

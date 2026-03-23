@@ -5,10 +5,10 @@ import java.time.Instant
 interface ServiceResponseMapper {
     fun apiDescription(): ApiDescriptionJson
     fun healthResponse(generatedAt: Instant): HealthJson
-    fun mapResponse(mapSnapshot: TubeMapSnapshot): TubeMapSnapshotJson
-    fun trainPositionsResponse(trainPositions: TubeMapTrainPositions): TubeMapTrainPositionsJson
-    fun lineMapResponse(lineMap: TubeLineMap): TubeLineMapJson
-    fun snapshotResponse(snapshot: LiveTubeSnapshot): LiveTubeSnapshotJson
+    fun mapResponse(mapSnapshot: RailMapSnapshot): RailMapSnapshotJson
+    fun trainPositionsResponse(trainPositions: RailMapTrainPositions): RailMapTrainPositionsJson
+    fun lineMapResponse(lineMap: RailLineMap): RailLineMapJson
+    fun snapshotResponse(snapshot: LiveRailSnapshot): LiveRailSnapshotJson
     fun errorResponse(error: TransportError): ApiErrorJson
 }
 
@@ -42,8 +42,8 @@ class ServiceResponseMapperHttp : ServiceResponseMapper {
     override fun healthResponse(generatedAt: Instant) =
         HealthJson("ok", generatedAt.toString())
 
-    override fun mapResponse(mapSnapshot: TubeMapSnapshot) =
-        TubeMapSnapshotJson(
+    override fun mapResponse(mapSnapshot: RailMapSnapshot) =
+        RailMapSnapshotJson(
             mapSnapshot.source.value,
             mapSnapshot.generatedAt.toString(),
             mapSnapshot.cached,
@@ -57,8 +57,8 @@ class ServiceResponseMapperHttp : ServiceResponseMapper {
             mapSnapshot.trains.map(::mapTrainJson)
         )
 
-    override fun trainPositionsResponse(trainPositions: TubeMapTrainPositions) =
-        TubeMapTrainPositionsJson(
+    override fun trainPositionsResponse(trainPositions: RailMapTrainPositions) =
+        RailMapTrainPositionsJson(
             trainPositions.source.value,
             trainPositions.generatedAt.toString(),
             trainPositions.cached,
@@ -70,13 +70,13 @@ class ServiceResponseMapperHttp : ServiceResponseMapper {
             trainPositions.trains.map(::mapTrainJson)
         )
 
-    override fun lineMapResponse(lineMap: TubeLineMap) =
-        TubeLineMapJson(
+    override fun lineMapResponse(lineMap: RailLineMap) =
+        RailLineMapJson(
             lineMap.lines.map(::lineJson)
         )
 
-    override fun snapshotResponse(snapshot: LiveTubeSnapshot) =
-        LiveTubeSnapshotJson(
+    override fun snapshotResponse(snapshot: LiveRailSnapshot) =
+        LiveRailSnapshotJson(
             snapshot.source.value,
             snapshot.generatedAt.toString(),
             snapshot.cached,
@@ -106,19 +106,19 @@ class ServiceResponseMapperHttp : ServiceResponseMapper {
                 ApiErrorJson("upstream_payload_failure", error.message)
         }
 
-    private fun lineJson(line: TubeLine) =
-        TubeLineJson(
+    private fun lineJson(line: RailLine) =
+        RailLineJson(
             line.id.value,
             line.name.value,
             line.paths.map { path ->
-                TubeLinePathJson(
+                RailLinePathJson(
                     path.coordinates.map(::geoCoordinateJson)
                 )
             }
         )
 
-    private fun mapTrainJson(train: TubeMapTrain) =
-        TubeMapTrainJson(
+    private fun mapTrainJson(train: RailMapTrain) =
+        RailMapTrainJson(
             train.trainId.value,
             train.vehicleId?.value,
             train.lineId.value,
@@ -142,8 +142,8 @@ class ServiceResponseMapperHttp : ServiceResponseMapper {
             station.lineIds.map(LineId::value)
         )
 
-    private fun trainJson(train: LiveTubeTrain) =
-        LiveTubeTrainJson(
+    private fun trainJson(train: LiveRailTrain) =
+        LiveRailTrainJson(
             train.trainId.value,
             train.vehicleId?.value,
             train.lineIds.map(LineId::value),

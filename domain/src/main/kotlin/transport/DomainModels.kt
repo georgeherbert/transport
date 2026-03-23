@@ -5,7 +5,7 @@ import java.time.Instant
 
 val transportSourceName = SourceName("TfL Unified API")
 
-data class LiveTubeSnapshot(
+data class LiveRailSnapshot(
     val source: SourceName,
     val generatedAt: Instant,
     val cached: Boolean,
@@ -15,10 +15,10 @@ data class LiveTubeSnapshot(
     val partial: Boolean,
     val trainCount: LiveTrainCount,
     val lines: List<LineId>,
-    val trains: List<LiveTubeTrain>
+    val trains: List<LiveRailTrain>
 )
 
-data class TubeMapSnapshot(
+data class RailMapSnapshot(
     val source: SourceName,
     val generatedAt: Instant,
     val cached: Boolean,
@@ -27,12 +27,12 @@ data class TubeMapSnapshot(
     val stationsFailed: StationFailureCount,
     val partial: Boolean,
     val trainCount: LiveTrainCount,
-    val lines: List<TubeLine>,
+    val lines: List<RailLine>,
     val stations: List<MapStation>,
-    val trains: List<TubeMapTrain>
+    val trains: List<RailMapTrain>
 )
 
-data class TubeMapTrainPositions(
+data class RailMapTrainPositions(
     val source: SourceName,
     val generatedAt: Instant,
     val cached: Boolean,
@@ -41,25 +41,25 @@ data class TubeMapTrainPositions(
     val stationsFailed: StationFailureCount,
     val partial: Boolean,
     val trainCount: LiveTrainCount,
-    val trains: List<TubeMapTrain>
+    val trains: List<RailMapTrain>
 )
 
-data class TubeLineMap(
-    val lines: List<TubeLine>
+data class RailLineMap(
+    val lines: List<RailLine>
 )
 
-data class TubeLine(
+data class RailLine(
     val id: LineId,
     val name: LineName,
-    val paths: List<TubeLinePath>,
-    val sequences: List<TubeLineSequence>
+    val paths: List<RailLinePath>,
+    val sequences: List<RailLineSequence>
 )
 
-data class TubeLinePath(
+data class RailLinePath(
     val coordinates: List<GeoCoordinate>
 )
 
-data class TubeLineSequence(
+data class RailLineSequence(
     val direction: TrainDirection,
     val stations: List<StationReference>
 )
@@ -71,7 +71,7 @@ data class MapStation(
     val lineIds: List<LineId>
 )
 
-data class TubeMapTrain(
+data class RailMapTrain(
     val trainId: TrainId,
     val vehicleId: VehicleId?,
     val lineId: LineId,
@@ -88,7 +88,7 @@ data class TubeMapTrain(
     val observedAt: Instant?
 )
 
-data class LiveTubeTrain(
+data class LiveRailTrain(
     val trainId: TrainId,
     val vehicleId: VehicleId?,
     val lineIds: List<LineId>,
@@ -128,14 +128,14 @@ data class GeoCoordinate(
     val lon: Double
 )
 
-data class TubeStationRecord(
+data class RailStationRecord(
     val stationId: StationId,
     val name: StationName,
     val coordinate: GeoCoordinate,
     val lineId: LineId
 )
 
-data class TubePredictionRecord(
+data class RailPredictionRecord(
     val vehicleId: VehicleId?,
     val stationId: StationId?,
     val stationName: StationName?,
@@ -151,38 +151,38 @@ data class TubePredictionRecord(
     val modeName: TransportModeName?
 )
 
-data class TubeLineRouteRecord(
+data class RailLineRouteRecord(
     val lineId: LineId,
     val lineName: LineName,
-    val paths: List<TubeLinePathRecord>,
-    val sequences: List<TubeLineSequenceRecord>
+    val paths: List<RailLinePathRecord>,
+    val sequences: List<RailLineSequenceRecord>
 )
 
-data class TubeLineGeometryRecord(
+data class RailLineGeometryRecord(
     val lineId: LineId,
-    val paths: List<TubeLinePathRecord>
+    val paths: List<RailLinePathRecord>
 )
 
-data class TubeLinePathRecord(
+data class RailLinePathRecord(
     val coordinates: List<GeoCoordinate>
 )
 
-data class TubeLineSequenceRecord(
+data class RailLineSequenceRecord(
     val direction: TrainDirection,
     val stations: List<StationReference>
 )
 
-data class TubeStation(
+data class RailStation(
     val id: StationId,
     val name: StationName,
     val coordinate: GeoCoordinate,
     val lineIds: Set<LineId>
 )
 
-data class TubeNetwork(
-    val stationsById: Map<StationId, TubeStation>,
-    val aliases: Map<String, List<TubeStation>>
+data class RailNetwork(
+    val stationsById: Map<StationId, RailStation>,
+    val aliases: Map<String, List<RailStation>>
 )
 
-fun TubeStation.toReference() =
+fun RailStation.toReference() =
     StationReference(id, name, coordinate)

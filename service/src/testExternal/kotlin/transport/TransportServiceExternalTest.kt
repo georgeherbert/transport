@@ -10,8 +10,8 @@ import strikt.assertions.isGreaterThan
 
 class TransportServiceExternalTest {
     private val subscriptionKey = requiredEnvironmentVariable("TFL_SUBSCRIPTION_KEY")
-    private val snapshotService: TubeSnapshotService =
-        createTubeSnapshotService(
+    private val snapshotService: RailSnapshotService =
+        createRailSnapshotService(
             TransportServiceConfig(
                 "127.0.0.1",
                 8080,

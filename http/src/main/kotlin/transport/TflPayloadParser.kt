@@ -13,12 +13,12 @@ import kotlinx.serialization.json.Json
 
 interface TflPayloadParser {
     fun parseModeStationsPage(body: String, endpoint: String): TransportResult<TflModeStationsPage>
-    fun parseLineRoute(body: String, endpoint: String): TransportResult<TubeLineRouteRecord>
-    fun parsePredictions(body: String, endpoint: String): TransportResult<List<TubePredictionRecord>>
+    fun parseLineRoute(body: String, endpoint: String): TransportResult<RailLineRouteRecord>
+    fun parsePredictions(body: String, endpoint: String): TransportResult<List<RailPredictionRecord>>
 }
 
 data class TflModeStationsPage(
-    val stations: List<TubeStationRecord>,
+    val stations: List<RailStationRecord>,
     val page: Int,
     val pageSize: Int,
     val total: Int
@@ -49,7 +49,7 @@ class TflPayloadParserHttp(
                 routeSequence.lineStrings
                     .map { lineString -> parseLineString(lineString, endpoint) }
                     .failFast()
-                    .map(List<List<TubeLinePathRecord>>::flatten)
+                    .map(List<List<RailLinePathRecord>>::flatten)
                     .map(::deduplicatePaths)
                     .flatMap { paths ->
                         routeSequence.stopPointSequences
@@ -57,7 +57,7 @@ class TflPayloadParserHttp(
                             .failFast()
                             .map(::deduplicateSequences)
                             .map { sequences ->
-                                TubeLineRouteRecord(
+                                RailLineRouteRecord(
                                     LineId(routeSequence.lineId),
                                     LineName(routeSequence.lineName),
                                     paths,
@@ -94,7 +94,7 @@ class TflPayloadParserHttp(
     private fun parseStopPoint(
         stopPoint: TflStopPointJson,
         endpoint: String
-    ): TransportResult<List<TubeStationRecord>> {
+    ): TransportResult<List<RailStationRecord>> {
         if (!isSupportedStationStopType(stopPoint.stopType)) {
             return Success(emptyList())
         }
@@ -106,7 +106,7 @@ class TflPayloadParserHttp(
 
         return Success(
             supportedLineIds.map { lineId ->
-                TubeStationRecord(
+                RailStationRecord(
                     StationId(stopPoint.naptanId),
                     StationName(stopPoint.commonName),
                     GeoCoordinate(stopPoint.lat, stopPoint.lon),
@@ -116,12 +116,12 @@ class TflPayloadParserHttp(
         )
     }
 
-    private fun parseArrival(arrival: TflArrivalJson, endpoint: String): TransportResult<TubePredictionRecord> =
+    private fun parseArrival(arrival: TflArrivalJson, endpoint: String): TransportResult<RailPredictionRecord> =
         parseInstant(arrival.timestamp, "timestamp", endpoint)
             .flatMap { observedAt ->
                 parseInstant(arrival.expectedArrival, "expectedArrival", endpoint)
                     .map { expectedArrival ->
-                        TubePredictionRecord(
+                        RailPredictionRecord(
                             arrival.vehicleId.toValue(::VehicleId),
                             StationId(arrival.naptanId),
                             StationName(arrival.stationName),
@@ -141,7 +141,7 @@ class TflPayloadParserHttp(
                     }
             }
 
-    private fun parseLineString(lineString: String, endpoint: String): TransportResult<List<TubeLinePathRecord>> =
+    private fun parseLineString(lineString: String, endpoint: String): TransportResult<List<RailLinePathRecord>> =
         decodeObject<List<List<List<Double>>>>(lineString, endpoint)
             .flatMap { coordinateGroups ->
                 coordinateGroups
@@ -152,7 +152,7 @@ class TflPayloadParserHttp(
     private fun parseLinePath(
         coordinates: List<List<Double>>,
         endpoint: String
-    ): TransportResult<TubeLinePathRecord> =
+    ): TransportResult<RailLinePathRecord> =
         coordinates
             .map { coordinate -> parseCoordinate(coordinate, endpoint) }
             .failFast()
@@ -160,21 +160,21 @@ class TflPayloadParserHttp(
                 if (parsedCoordinates.isEmpty()) {
                     Failure(TransportError.UpstreamPayloadFailure(endpoint, "TfL returned an empty line path."))
                 } else {
-                    Success(TubeLinePathRecord(parsedCoordinates))
+                    Success(RailLinePathRecord(parsedCoordinates))
                 }
             }
 
     private fun parseStopPointSequence(
         stopPointSequence: TflRouteStopPointSequenceJson,
         endpoint: String
-    ): TransportResult<TubeLineSequenceRecord> {
+    ): TransportResult<RailLineSequenceRecord> {
         val direction = stopPointSequence.direction
             .takeIf(String::isNotBlank)
             ?.let(::TrainDirection)
             ?: return Failure(TransportError.UpstreamPayloadFailure(endpoint, "TfL returned a route sequence without a direction."))
 
         return Success(
-            TubeLineSequenceRecord(
+            RailLineSequenceRecord(
                 direction,
                 stopPointSequence.stopPoint
                     .filter { stopPoint -> isSupportedStationStopType(stopPoint.stopType) }
@@ -190,15 +190,15 @@ class TflPayloadParserHttp(
             Success(GeoCoordinate(coordinate[1], coordinate[0]))
         }
 
-    private fun deduplicatePaths(paths: List<TubeLinePathRecord>) =
+    private fun deduplicatePaths(paths: List<RailLinePathRecord>) =
         paths.distinctBy(::pathKey)
 
-    private fun deduplicateSequences(sequences: List<TubeLineSequenceRecord>) =
+    private fun deduplicateSequences(sequences: List<RailLineSequenceRecord>) =
         sequences
             .filter { sequence -> sequence.stations.isNotEmpty() }
             .distinctBy(::sequenceKey)
 
-    private fun pathKey(path: TubeLinePathRecord): String {
+    private fun pathKey(path: RailLinePathRecord): String {
         val forward = path.coordinates.joinToString(";") { coordinate ->
             "${coordinate.lat},${coordinate.lon}"
         }
@@ -209,7 +209,7 @@ class TflPayloadParserHttp(
         return if (forward <= reverse) forward else reverse
     }
 
-    private fun sequenceKey(sequence: TubeLineSequenceRecord) =
+    private fun sequenceKey(sequence: RailLineSequenceRecord) =
         sequence.direction.value + "|" + sequence.stations.joinToString(";") { station -> station.id.value }
 
     private fun stationReference(stopPoint: TflRouteStopPointJson) =
