@@ -279,7 +279,7 @@ const TrainMarker = memo(
         <Popup>
           <div className="popup-card">
             <strong>{train.lineName}</strong>
-            <TrainDetail label="Current">{currentLocationLabelFor(train)}</TrainDetail>
+            <TrainDetail label="Current Location">{currentLocationLabelFor(train)}</TrainDetail>
             <TrainDetail label="Destination">{destinationLabelFor(train)}</TrainDetail>
             {train.towards != null ? (
               <TrainDetail label="Towards">{train.towards}</TrainDetail>

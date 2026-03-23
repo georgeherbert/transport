@@ -77,7 +77,7 @@ class RealRailMapProjectorTest {
     }
 
     @Test
-    fun `project anchors trains at the stop before the next stop when no timing is learned`() {
+    fun `project anchors trains at the next stop when no timing is learned`() {
         val snapshot = LiveRailSnapshot(
             transportSourceName,
             Instant.parse("2026-03-22T00:49:20Z"),
@@ -166,7 +166,7 @@ class RealRailMapProjectorTest {
         expectThat(projected.stations).hasSize(3)
         expectThat(projected.lines.first().paths.first().coordinates.size).isGreaterThan(3)
         expectThat(projected.trains).hasSize(1)
-        expectThat(projected.trains.first().coordinate).isEqualTo(GeoCoordinate(51.0, -0.3))
+        expectThat(projected.trains.first().coordinate).isEqualTo(GeoCoordinate(51.0, -0.2))
         expectThat(projected.trains.first().heading).isNotNull()
     }
 
@@ -257,7 +257,7 @@ class RealRailMapProjectorTest {
     }
 
     @Test
-    fun `project leaves trains unplotted when the next stop has no previous stop in the sequence`() {
+    fun `project anchors trains at the next stop when the next stop is first in the sequence`() {
         val snapshot = LiveRailSnapshot(
             transportSourceName,
             Instant.parse("2026-03-22T00:49:20Z"),
@@ -342,7 +342,97 @@ class RealRailMapProjectorTest {
 
         val projected = projector.project(snapshot, lineMap)
 
-        expectThat(projected.trains.first().coordinate).isNull()
+        expectThat(projected.trains.first().coordinate).isEqualTo(GeoCoordinate(51.0, -0.3))
+        expectThat(projected.trains.first().heading).isNotNull()
+    }
+
+    @Test
+    fun `project anchors trains at the next stop even when direction is unknown`() {
+        val snapshot = LiveRailSnapshot(
+            transportSourceName,
+            Instant.parse("2026-03-22T00:49:20Z"),
+            false,
+            Duration.ZERO,
+            StationQueryCount(1),
+            StationFailureCount(0),
+            false,
+            LiveTrainCount(1),
+            listOf(LineId("victoria")),
+            listOf(
+                LiveRailTrain(
+                    TrainId("victoria|260"),
+                    VehicleId("260"),
+                    listOf(LineId("victoria")),
+                    listOf(LineName("Victoria")),
+                    null,
+                    DestinationName("Walthamstow Central Underground Station"),
+                    TowardsDescription("Walthamstow Central"),
+                    LocationDescription("Bravo Underground Station"),
+                    LocationEstimate(
+                        LocationType.STATION_BOARD,
+                        LocationDescription("Bravo Underground Station"),
+                        GeoCoordinate(51.0, -0.2),
+                        StationReference(
+                            StationId("B"),
+                            StationName("Bravo Underground Station"),
+                            GeoCoordinate(51.0, -0.2)
+                        )
+                    ),
+                    StationReference(
+                        StationId("B"),
+                        StationName("Bravo Underground Station"),
+                        GeoCoordinate(51.0, -0.2)
+                    ),
+                    Duration.ofSeconds(90),
+                    Instant.parse("2026-03-22T00:50:50Z"),
+                    Instant.parse("2026-03-22T00:49:20Z"),
+                    PredictionCount(1)
+                )
+            )
+        )
+        val lineMap = RailLineMap(
+            listOf(
+                RailLine(
+                    LineId("victoria"),
+                    LineName("Victoria"),
+                    listOf(
+                        RailLinePath(
+                            listOf(
+                                GeoCoordinate(51.0, -0.3),
+                                GeoCoordinate(51.0, -0.2),
+                                GeoCoordinate(51.1, -0.1)
+                            )
+                        )
+                    ),
+                    listOf(
+                        RailLineSequence(
+                            TrainDirection("outbound"),
+                            listOf(
+                                StationReference(
+                                    StationId("A"),
+                                    StationName("Alpha Underground Station"),
+                                    GeoCoordinate(51.0, -0.3)
+                                ),
+                                StationReference(
+                                    StationId("B"),
+                                    StationName("Bravo Underground Station"),
+                                    GeoCoordinate(51.0, -0.2)
+                                ),
+                                StationReference(
+                                    StationId("C"),
+                                    StationName("Charlie Underground Station"),
+                                    GeoCoordinate(51.1, -0.1)
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+
+        val projected = projector.project(snapshot, lineMap)
+
+        expectThat(projected.trains.first().coordinate).isEqualTo(GeoCoordinate(51.0, -0.2))
         expectThat(projected.trains.first().heading).isNull()
     }
 
@@ -585,7 +675,7 @@ class RealRailMapProjectorTest {
 
         val projected = projector.project(snapshot, lineMap)
 
-        expectThat(projected.trains.first().coordinate).isEqualTo(GeoCoordinate(51.5, 0.5))
+        expectThat(projected.trains.first().coordinate).isEqualTo(GeoCoordinate(51.6, 0.6))
         expectThat(projected.trains.first().heading).isNotNull().get { value }.isGreaterThan(30.0)
         expectThat(projected.trains.first().heading).isNotNull().get { value }.isLessThan(60.0)
     }
@@ -670,7 +760,7 @@ class RealRailMapProjectorTest {
 
         val projected = projector.project(snapshot, lineMap)
 
-        expectThat(projected.trains.first().coordinate).isEqualTo(GeoCoordinate(51.5, 0.5))
+        expectThat(projected.trains.first().coordinate).isEqualTo(GeoCoordinate(51.6, 0.6))
         expectThat(projected.trains.first().heading).isNotNull().get { value }.isGreaterThan(30.0)
         expectThat(projected.trains.first().heading).isNotNull().get { value }.isLessThan(35.0)
     }

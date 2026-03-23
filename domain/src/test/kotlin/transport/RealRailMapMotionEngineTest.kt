@@ -123,19 +123,19 @@ class RealRailMapMotionEngineTest {
             TowardsDescription("Delta"),
             LocationDescription("Structured next stop $nextStopId"),
             stationReference(nextStopId, stopLongitude(nextStopId)),
-            coordinateBeforeNextStop(nextStopId),
+            coordinateAtNextStop(nextStopId),
             HeadingDegrees(90.0),
             null,
             generatedAt.plusSeconds(60),
             generatedAt
         )
 
-    private fun coordinateBeforeNextStop(nextStopId: String) =
+    private fun coordinateAtNextStop(nextStopId: String) =
         when (nextStopId) {
-            "A" -> null
-            "B" -> GeoCoordinate(51.0, -0.4)
-            "C" -> GeoCoordinate(51.0, -0.3)
-            "D" -> GeoCoordinate(51.0, -0.2)
+            "A" -> GeoCoordinate(51.0, -0.4)
+            "B" -> GeoCoordinate(51.0, -0.3)
+            "C" -> GeoCoordinate(51.0, -0.2)
+            "D" -> GeoCoordinate(51.0, -0.1)
             else -> error("Unsupported stop id $nextStopId")
         }
 
