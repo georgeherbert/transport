@@ -582,9 +582,10 @@ class RealRailMapProjectorTest {
 
         val projected = RealRailMapProjector(RealIdentityRailPathSmoother()).project(snapshot, lineMap)
 
-        expectThat(projected.stations).hasSize(6)
+        expectThat(projected.stations).hasSize(5)
         expectThat(projected.stations.first().name.value).isEqualTo("Alpha Underground Station")
         expectThat(projected.stations.first().coordinate.lat).isEqualTo(51.0)
+        expectThat(projected.stations.map { station -> station.name.value }).not().contains("Delta DLR Station")
     }
 
     @Test

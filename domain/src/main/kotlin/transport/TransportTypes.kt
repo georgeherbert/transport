@@ -82,7 +82,6 @@ val supportedRailLines = listOf(
     SupportedLine(LineId("piccadilly"), tubeMode),
     SupportedLine(LineId("victoria"), tubeMode),
     SupportedLine(LineId("waterloo-city"), tubeMode),
-    SupportedLine(LineId("dlr"), TransportModeName("dlr")),
     SupportedLine(LineId("elizabeth"), TransportModeName("elizabeth-line")),
     SupportedLine(LineId("liberty"), TransportModeName("overground")),
     SupportedLine(LineId("lioness"), TransportModeName("overground")),

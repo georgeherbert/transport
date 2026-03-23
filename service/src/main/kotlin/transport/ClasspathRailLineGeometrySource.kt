@@ -41,7 +41,9 @@ class ClasspathRailLineGeometrySource(
             Success(json.decodeFromString<OsmLineGeometryCollectionJson>(payload))
                 .map(OsmLineGeometryCollectionJson::lines)
                 .map { lines ->
-                    lines.map(::toLineGeometryRecord)
+                    lines
+                        .map(::toLineGeometryRecord)
+                        .filter { line -> line.lineId in supportedRailLineIds }
                 }
         } catch (exception: SerializationException) {
             Failure(

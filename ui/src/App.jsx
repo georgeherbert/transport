@@ -21,7 +21,6 @@ const linePalette = {
   bakerloo: '#9b5a20',
   central: '#d7261b',
   circle: '#f4c430',
-  dlr: '#00a4a7',
   district: '#117d37',
   elizabeth: '#6950a1',
   'hammersmith-city': '#e67ca6',
