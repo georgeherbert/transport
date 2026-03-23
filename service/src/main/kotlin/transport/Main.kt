@@ -23,7 +23,7 @@ fun main() {
             services.railMapService,
             railMapMotionEngine,
             Clock.systemUTC(),
-            transportServiceConfig.cacheTtl,
+            transportServiceConfig.railMapPollInterval,
             feedScope
         )
 

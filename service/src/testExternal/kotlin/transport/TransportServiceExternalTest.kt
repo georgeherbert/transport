@@ -16,6 +16,7 @@ class TransportServiceExternalTest {
                 "127.0.0.1",
                 8080,
                 Duration.ofSeconds(20),
+                Duration.ofSeconds(5),
                 Duration.ofSeconds(20),
                 "https://api.tfl.gov.uk",
                 subscriptionKey

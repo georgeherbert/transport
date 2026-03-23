@@ -244,6 +244,8 @@ body {
 .train-icon-shell {
   background: transparent;
   border: 0;
+  transition: transform 220ms linear;
+  will-change: transform;
 }
 
 .train-marker {

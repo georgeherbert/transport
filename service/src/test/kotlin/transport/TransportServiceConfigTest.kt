@@ -18,6 +18,19 @@ class TransportServiceConfigTest {
         )
 
         expectThat(config.tflSubscriptionKey).isEqualTo("preferred-key")
+        expectThat(config.railMapPollInterval.seconds).isEqualTo(5)
+    }
+
+    @Test
+    fun `loadTransportServiceConfig reads the rail map poll interval environment variable`() {
+        val config = loadTransportServiceConfig(
+            mapOf(
+                "TFL_SUBSCRIPTION_KEY" to "preferred-key",
+                "RAIL_MAP_POLL_INTERVAL_SECONDS" to "8"
+            )
+        )
+
+        expectThat(config.railMapPollInterval.seconds).isEqualTo(8)
     }
 
     @Test

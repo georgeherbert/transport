@@ -6,6 +6,7 @@ data class TransportServiceConfig(
     val host: String,
     val port: Int,
     val cacheTtl: Duration,
+    val railMapPollInterval: Duration,
     val requestTimeout: Duration,
     val tflBaseUrl: String,
     val tflSubscriptionKey: String
@@ -16,6 +17,7 @@ fun loadTransportServiceConfig(environment: Map<String, String>) =
         environment.nonBlankOrDefault("HOST", "0.0.0.0"),
         environment.intOrDefault("PORT", 8080),
         Duration.ofSeconds(environment.longOrDefault("TUBE_CACHE_TTL_SECONDS", 20L)),
+        Duration.ofSeconds(environment.longOrDefault("RAIL_MAP_POLL_INTERVAL_SECONDS", 5L)),
         Duration.ofSeconds(environment.longOrDefault("TFL_REQUEST_TIMEOUT_SECONDS", 10L)),
         environment.nonBlankOrDefault("TFL_BASE_URL", "https://api.tfl.gov.uk"),
         environment.requiredNonBlank("TFL_SUBSCRIPTION_KEY")
