@@ -41,6 +41,14 @@ class ServiceResponseMapperHttpTest {
                     )
                 ),
                 listOf(
+                    TubeMapStation(
+                        StationId("940GZZLUGPK"),
+                        StationName("Green Park Underground Station"),
+                        GeoCoordinate(51.506947, -0.142787),
+                        listOf(LineId("victoria"))
+                    )
+                ),
+                listOf(
                     TubeMapTrain(
                         TrainId("victoria|257"),
                         VehicleId("257"),
@@ -66,6 +74,8 @@ class ServiceResponseMapperHttpTest {
         )
 
         expectThat(response.lines).hasSize(1)
+        expectThat(response.tubeStations).hasSize(1)
+        expectThat(response.tubeStations.first().name).isEqualTo("Green Park Underground Station")
         expectThat(response.trains.first().lineId).isEqualTo("victoria")
         expectThat(response.trains.first().coordinate).isNotNull().get { lat }.isEqualTo(51.506947)
         expectThat(response.trains.first().headingDegrees).isEqualTo(42.0)

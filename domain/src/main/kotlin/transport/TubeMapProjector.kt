@@ -20,7 +20,11 @@ class RealTubeMapProjector(
 ) : TubeMapProjector {
     override fun project(snapshot: LiveTubeSnapshot, lineMap: TubeLineMap): TubeMapSnapshot {
         val smoothedLineMap = tubePathSmoother.smooth(lineMap)
-        val projectedLines = smoothedLineMap.lines.map(::ProjectedTubeLine)
+        val projectedLines = smoothedLineMap.lines.associate { line ->
+            line.id to ProjectedTubeLine(line)
+        }
+        val projectedLineList = projectedLines.values.toList()
+        val projectedTubeStations = projectTubeStations(smoothedLineMap, projectedLines)
 
         return TubeMapSnapshot(
             snapshot.source,
@@ -32,9 +36,54 @@ class RealTubeMapProjector(
             snapshot.partial,
             snapshot.trainCount,
             smoothedLineMap.lines,
-            snapshot.trains.mapNotNull { train -> projectTrain(train, projectedLines) }
+            projectedTubeStations,
+            snapshot.trains.mapNotNull { train -> projectTrain(train, projectedLineList) }
         )
     }
+
+    private fun projectTubeStations(
+        lineMap: TubeLineMap,
+        projectedLines: Map<LineId, ProjectedTubeLine>
+    ): List<TubeMapStation> =
+        lineMap.lines
+            .filter { line -> line.id in supportedTubeLineIdSet }
+            .flatMap { line ->
+                val projectedLine = projectedLines[line.id] ?: return@flatMap emptyList()
+                line.sequences
+                    .flatMap(TubeLineSequence::stations)
+                    .distinctBy(StationReference::id)
+                    .map { station ->
+                        ProjectedTubeStationCandidate(
+                            station.id,
+                            station.name,
+                            station.coordinate,
+                            projectedLine.projectStation(station.coordinate) ?: station.coordinate,
+                            line.id
+                        )
+                    }
+            }
+            .groupBy(ProjectedTubeStationCandidate::id)
+            .values
+            .map { candidates ->
+                val firstCandidate = candidates.first()
+                val projectedCoordinate = candidates
+                    .minByOrNull { candidate ->
+                        squaredDistance(candidate.projectedCoordinate, candidate.sourceCoordinate)
+                    }
+                    ?.projectedCoordinate
+                    ?: firstCandidate.projectedCoordinate
+
+                TubeMapStation(
+                    firstCandidate.id,
+                    firstCandidate.name,
+                    projectedCoordinate,
+                    candidates
+                        .map(ProjectedTubeStationCandidate::lineId)
+                        .distinctBy(LineId::value)
+                        .sortedBy(LineId::value)
+                )
+            }
+            .sortedBy { station -> station.name.value }
 
     private fun projectTrain(train: LiveTubeTrain, projectedLines: List<ProjectedTubeLine>): TubeMapTrain? {
         val lineId = train.lineIds.firstOrNull() ?: return null
@@ -96,6 +145,14 @@ class RealIdentityTubePathSmoother : TubePathSmoother {
     override fun smooth(lineMap: TubeLineMap) =
         lineMap
 }
+
+data class ProjectedTubeStationCandidate(
+    val id: StationId,
+    val name: StationName,
+    val sourceCoordinate: GeoCoordinate,
+    val projectedCoordinate: GeoCoordinate,
+    val lineId: LineId
+)
 
 class RealTubePathSmoother(
     private val samplesPerSegment: Int

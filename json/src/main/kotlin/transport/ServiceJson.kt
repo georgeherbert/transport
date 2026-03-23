@@ -47,6 +47,7 @@ data class TubeMapSnapshotJson(
     val partial: Boolean,
     val trainCount: Int,
     val lines: List<TubeLineJson>,
+    val tubeStations: List<TubeMapStationJson>,
     val trains: List<TubeMapTrainJson>
 )
 
@@ -65,6 +66,14 @@ data class TubeLineJson(
 @Serializable
 data class TubeLinePathJson(
     val coordinates: List<GeoCoordinateJson>
+)
+
+@Serializable
+data class TubeMapStationJson(
+    val id: String,
+    val name: String,
+    val coordinate: GeoCoordinateJson,
+    val lineIds: List<String>
 )
 
 @Serializable

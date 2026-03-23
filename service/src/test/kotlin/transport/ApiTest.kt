@@ -165,11 +165,13 @@ class ApiTest {
             }
 
             val response = client.get("/api/rail/map")
-            val payload = transportJson().parseToJsonElement(response.bodyAsText()).jsonObject
+            val body = response.bodyAsText()
+            val payload = transportJson().parseToJsonElement(body).jsonObject
 
             expectThat(response.status).isEqualTo(HttpStatusCode.OK)
             expectThat(payload["cached"]?.jsonPrimitive?.content).isEqualTo("true")
             expectThat(payload["trainCount"]?.jsonPrimitive?.int).isEqualTo(1)
+            expectThat(body).contains("\"tubeStations\"")
         }
     }
 
@@ -357,6 +359,14 @@ class ApiTest {
             false,
             LiveTrainCount(1),
             sampleLineMap().lines,
+            listOf(
+                TubeMapStation(
+                    StationId("940GZZLUGPK"),
+                    StationName("Green Park Underground Station"),
+                    GeoCoordinate(51.506947, -0.142787),
+                    listOf(LineId("victoria"))
+                )
+            ),
             listOf(
                 TubeMapTrain(
                     TrainId("victoria|257"),

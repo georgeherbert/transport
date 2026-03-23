@@ -164,6 +164,7 @@ class RealTubeMapProjectorTest {
         val projected = projector.project(snapshot, lineMap)
 
         expectThat(projected.lines).hasSize(1)
+        expectThat(projected.tubeStations).hasSize(3)
         expectThat(projected.lines.first().paths.first().coordinates.size).isGreaterThan(3)
         expectThat(projected.trains).hasSize(1)
         expectThat(projected.trains.first().coordinate).isNotNull().get { lat }.isLessThan(51.01)
@@ -172,6 +173,85 @@ class RealTubeMapProjectorTest {
         expectThat(projected.trains.first().coordinate).isNotNull().get { lon }.isGreaterThan(-0.3)
         expectThat(projected.trains.first().heading).isNotNull().get { value }.isGreaterThan(80.0)
         expectThat(projected.trains.first().heading).isNotNull().get { value }.isLessThan(100.0)
+    }
+
+    @Test
+    fun `project includes projected tube stations and excludes non tube lines`() {
+        val snapshot = LiveTubeSnapshot(
+            transportSourceName,
+            Instant.parse("2026-03-22T00:49:20Z"),
+            false,
+            Duration.ZERO,
+            StationQueryCount(1),
+            StationFailureCount(0),
+            false,
+            LiveTrainCount(0),
+            emptyList(),
+            emptyList()
+        )
+        val lineMap = TubeLineMap(
+            listOf(
+                TubeLine(
+                    LineId("victoria"),
+                    LineName("Victoria"),
+                    listOf(
+                        TubeLinePath(
+                            listOf(
+                                GeoCoordinate(51.0, -0.3),
+                                GeoCoordinate(51.0, -0.2)
+                            )
+                        )
+                    ),
+                    listOf(
+                        TubeLineSequence(
+                            TrainDirection("outbound"),
+                            listOf(
+                                StationReference(
+                                    StationId("A"),
+                                    StationName("Alpha Underground Station"),
+                                    GeoCoordinate(51.01, -0.3)
+                                ),
+                                StationReference(
+                                    StationId("B"),
+                                    StationName("Bravo Underground Station"),
+                                    GeoCoordinate(51.01, -0.2)
+                                )
+                            )
+                        )
+                    )
+                ),
+                TubeLine(
+                    LineId("mildmay"),
+                    LineName("Mildmay"),
+                    listOf(
+                        TubeLinePath(
+                            listOf(
+                                GeoCoordinate(51.4, 0.1),
+                                GeoCoordinate(51.5, 0.2)
+                            )
+                        )
+                    ),
+                    listOf(
+                        TubeLineSequence(
+                            TrainDirection("outbound"),
+                            listOf(
+                                StationReference(
+                                    StationId("C"),
+                                    StationName("Charlie"),
+                                    GeoCoordinate(51.45, 0.15)
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+
+        val projected = RealTubeMapProjector(RealIdentityTubePathSmoother()).project(snapshot, lineMap)
+
+        expectThat(projected.tubeStations).hasSize(2)
+        expectThat(projected.tubeStations.first().name.value).isEqualTo("Alpha Underground Station")
+        expectThat(projected.tubeStations.first().coordinate.lat).isEqualTo(51.0)
     }
 
     @Test

@@ -83,6 +83,26 @@ class RealTubeMapMotionEngineTest {
                 )
             ),
             listOf(
+                TubeMapStation(
+                    StationId("B"),
+                    StationName("B Underground Station"),
+                    GeoCoordinate(51.0, -0.3),
+                    listOf(LineId("victoria"))
+                ),
+                TubeMapStation(
+                    StationId("C"),
+                    StationName("C Underground Station"),
+                    GeoCoordinate(51.0, -0.2),
+                    listOf(LineId("victoria"))
+                ),
+                TubeMapStation(
+                    StationId("D"),
+                    StationName("D Underground Station"),
+                    GeoCoordinate(51.0, -0.1),
+                    listOf(LineId("victoria"))
+                )
+            ),
+            listOf(
                 movingTrain("train-1", trainOneNextStopId, generatedAt),
                 movingTrain("train-2", trainTwoNextStopId, generatedAt)
             )

@@ -6,7 +6,7 @@ import {
   useState
 } from 'react'
 import L from 'leaflet'
-import { MapContainer, Marker, Polyline, Popup, TileLayer } from 'react-leaflet'
+import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 
 const londonCenter = [51.5072, -0.1276]
@@ -112,6 +112,7 @@ function App() {
   const deferredSelectedLineId = useDeferredValue(selectedLineId)
   const lineOptions = buildLineOptions(mapSnapshot)
   const visibleLinePaths = buildVisibleLinePaths(mapSnapshot, deferredSelectedLineId)
+  const visibleTubeStations = buildVisibleTubeStations(mapSnapshot, deferredSelectedLineId)
   const visibleTrains = buildVisibleTrains(mapSnapshot, deferredSelectedLineId)
   const listedTrains = visibleTrains.slice(0, 8)
 
@@ -184,6 +185,24 @@ function App() {
                   opacity: 0.65
                 }}
               />
+            ))}
+
+            {visibleTubeStations.map(station => (
+              <CircleMarker
+                key={station.id}
+                center={[station.coordinate.lat, station.coordinate.lon]}
+                radius={stationRadiusFor(station, deferredSelectedLineId)}
+                pathOptions={{
+                  color: '#ffffff',
+                  weight: 1.5,
+                  fillColor: stationColorFor(station, deferredSelectedLineId),
+                  fillOpacity: 0.95
+                }}
+              >
+                <Tooltip direction="top" offset={[0, -6]} opacity={1}>
+                  {station.name}
+                </Tooltip>
+              </CircleMarker>
             ))}
 
             {visibleTrains.filter(train => train.coordinate != null).map(train => (
@@ -305,6 +324,16 @@ function buildVisibleTrains(mapSnapshot, selectedLineId) {
     .sort((leftTrain, rightTrain) => compareArrivalPriority(leftTrain, rightTrain))
 }
 
+function buildVisibleTubeStations(mapSnapshot, selectedLineId) {
+  if (mapSnapshot == null) {
+    return []
+  }
+
+  return mapSnapshot.tubeStations
+    .filter(station => selectedLineId === 'all' || station.lineIds.includes(selectedLineId))
+    .sort((leftStation, rightStation) => leftStation.name.localeCompare(rightStation.name))
+}
+
 function compareArrivalPriority(leftTrain, rightTrain) {
   if (leftTrain.secondsToNextStop == null && rightTrain.secondsToNextStop == null) {
     return leftTrain.lineLabel.localeCompare(rightTrain.lineLabel)
@@ -390,6 +419,22 @@ function prettifyLineId(lineId) {
 
 function colorForLine(lineId) {
   return linePalette[lineId] ?? '#1f6feb'
+}
+
+function stationColorFor(station, selectedLineId) {
+  if (selectedLineId !== 'all' && station.lineIds.includes(selectedLineId)) {
+    return colorForLine(selectedLineId)
+  }
+
+  return colorForLine(station.lineIds[0])
+}
+
+function stationRadiusFor(station, selectedLineId) {
+  if (selectedLineId !== 'all' && station.lineIds.includes(selectedLineId)) {
+    return 4.5
+  }
+
+  return station.lineIds.length > 1 ? 4.5 : 4
 }
 
 function markerLabelForLine(lineId) {

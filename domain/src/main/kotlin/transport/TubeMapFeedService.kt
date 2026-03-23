@@ -133,7 +133,7 @@ class RealTubeMapFeedService(
     }
 
     private companion object {
-        val animationInterval: Duration = Duration.ofSeconds(1)
+        val animationInterval: Duration = Duration.ofMillis(250)
     }
 }
 
@@ -173,6 +173,7 @@ data class CachedTubeMapSnapshot(
             animatedSnapshot.partial,
             animatedSnapshot.trainCount,
             animatedSnapshot.lines,
+            animatedSnapshot.tubeStations,
             animatedSnapshot.trains
         )
     }

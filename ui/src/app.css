@@ -251,6 +251,8 @@ body {
 .train-icon-shell {
   background: transparent;
   border: 0;
+  transition: transform 220ms linear;
+  will-change: transform;
 }
 
 .train-marker {
@@ -317,6 +319,19 @@ body {
   display: grid;
   gap: 0.35rem;
   min-width: 12rem;
+}
+
+.leaflet-tooltip {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.35rem 0.55rem;
+  color: #ffffff;
+  background: rgba(15, 23, 42, 0.92);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.18);
+}
+
+.leaflet-tooltip-top::before {
+  border-top-color: rgba(15, 23, 42, 0.92);
 }
 
 @media (max-width: 900px) {

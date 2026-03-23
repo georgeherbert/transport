@@ -52,6 +52,7 @@ class ServiceResponseMapperHttp : ServiceResponseMapper {
             mapSnapshot.partial,
             mapSnapshot.trainCount.value,
             mapSnapshot.lines.map(::lineJson),
+            mapSnapshot.tubeStations.map(::tubeMapStationJson),
             mapSnapshot.trains.map(::mapTrainJson)
         )
 
@@ -117,6 +118,14 @@ class ServiceResponseMapperHttp : ServiceResponseMapper {
             train.secondsToNextStop?.seconds?.toInt(),
             train.expectedArrival?.toString(),
             train.observedAt?.toString()
+        )
+
+    private fun tubeMapStationJson(station: TubeMapStation) =
+        TubeMapStationJson(
+            station.id.value,
+            station.name.value,
+            geoCoordinateJson(station.coordinate),
+            station.lineIds.map(LineId::value)
         )
 
     private fun trainJson(train: LiveTubeTrain) =

@@ -38,6 +38,7 @@ class RealTubeMapMotionEngine : TubeMapMotionEngine {
             snapshot.partial,
             snapshot.trainCount,
             snapshot.lines,
+            snapshot.tubeStations,
             snapshot.trains.map { train ->
                 advanceTrain(train, projectedLines[train.lineId], currentTime)
             }

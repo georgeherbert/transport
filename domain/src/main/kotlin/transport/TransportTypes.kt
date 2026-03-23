@@ -68,18 +68,20 @@ data class SupportedLine(
     val mode: TransportModeName
 )
 
+val tubeMode = TransportModeName("tube")
+
 val supportedRailLines = listOf(
-    SupportedLine(LineId("bakerloo"), TransportModeName("tube")),
-    SupportedLine(LineId("central"), TransportModeName("tube")),
-    SupportedLine(LineId("circle"), TransportModeName("tube")),
-    SupportedLine(LineId("district"), TransportModeName("tube")),
-    SupportedLine(LineId("hammersmith-city"), TransportModeName("tube")),
-    SupportedLine(LineId("jubilee"), TransportModeName("tube")),
-    SupportedLine(LineId("metropolitan"), TransportModeName("tube")),
-    SupportedLine(LineId("northern"), TransportModeName("tube")),
-    SupportedLine(LineId("piccadilly"), TransportModeName("tube")),
-    SupportedLine(LineId("victoria"), TransportModeName("tube")),
-    SupportedLine(LineId("waterloo-city"), TransportModeName("tube")),
+    SupportedLine(LineId("bakerloo"), tubeMode),
+    SupportedLine(LineId("central"), tubeMode),
+    SupportedLine(LineId("circle"), tubeMode),
+    SupportedLine(LineId("district"), tubeMode),
+    SupportedLine(LineId("hammersmith-city"), tubeMode),
+    SupportedLine(LineId("jubilee"), tubeMode),
+    SupportedLine(LineId("metropolitan"), tubeMode),
+    SupportedLine(LineId("northern"), tubeMode),
+    SupportedLine(LineId("piccadilly"), tubeMode),
+    SupportedLine(LineId("victoria"), tubeMode),
+    SupportedLine(LineId("waterloo-city"), tubeMode),
     SupportedLine(LineId("dlr"), TransportModeName("dlr")),
     SupportedLine(LineId("elizabeth"), TransportModeName("elizabeth-line")),
     SupportedLine(LineId("liberty"), TransportModeName("overground")),
@@ -92,6 +94,10 @@ val supportedRailLines = listOf(
 )
 
 val supportedRailLineIds = supportedRailLines.map(SupportedLine::id)
+val supportedTubeLineIds = supportedRailLines
+    .filter { line -> line.mode == tubeMode }
+    .map(SupportedLine::id)
+val supportedTubeLineIdSet = supportedTubeLineIds.toSet()
 
 val supportedRailModes = supportedRailLines
     .map(SupportedLine::mode)
