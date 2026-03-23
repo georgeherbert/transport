@@ -4,10 +4,11 @@ import {
   useDeferredValue,
   useEffect,
   useEffectEvent,
+  useRef,
   useState
 } from 'react'
 import L from 'leaflet'
-import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip } from 'react-leaflet'
+import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 
 const londonCenter = [51.5072, -0.1276]
@@ -46,8 +47,24 @@ function App() {
   const [status, setStatus] = useState('loading')
   const [errorMessage, setErrorMessage] = useState('')
   const [selectedLineId, setSelectedLineId] = useState('all')
+  const [selectedMapFeature, setSelectedMapFeature] = useState(null)
+  const pendingTrainPositionsRef = useRef(null)
+  const trainPositionsAnimationFrameRef = useRef(null)
+
+  const clearQueuedTrainPositions = useEffectEvent(() => {
+    pendingTrainPositionsRef.current = null
+
+    if (trainPositionsAnimationFrameRef.current == null) {
+      return
+    }
+
+    window.cancelAnimationFrame(trainPositionsAnimationFrameRef.current)
+    trainPositionsAnimationFrameRef.current = null
+  })
 
   const applySnapshotUpdate = useEffectEvent(snapshot => {
+    clearQueuedTrainPositions()
+
     startTransition(() => {
       setMapSnapshot(snapshot)
       setErrorMessage('')
@@ -56,13 +73,22 @@ function App() {
   })
 
   const applyErrorUpdate = useEffectEvent(message => {
+    clearQueuedTrainPositions()
+
     startTransition(() => {
       setErrorMessage(message)
       setStatus(mapSnapshot == null ? 'error' : 'stale')
     })
   })
 
-  const applyTrainPositionsUpdate = useEffectEvent(trainPositions => {
+  const flushQueuedTrainPositions = useEffectEvent(() => {
+    const trainPositions = pendingTrainPositionsRef.current
+    pendingTrainPositionsRef.current = null
+
+    if (trainPositions == null) {
+      return
+    }
+
     startTransition(() => {
       setMapSnapshot(currentSnapshot => {
         if (currentSnapshot == null) {
@@ -84,6 +110,19 @@ function App() {
       })
       setErrorMessage('')
       setStatus('live')
+    })
+  })
+
+  const queueTrainPositionsUpdate = useEffectEvent(trainPositions => {
+    pendingTrainPositionsRef.current = trainPositions
+
+    if (trainPositionsAnimationFrameRef.current != null) {
+      return
+    }
+
+    trainPositionsAnimationFrameRef.current = window.requestAnimationFrame(() => {
+      trainPositionsAnimationFrameRef.current = null
+      flushQueuedTrainPositions()
     })
   })
 
@@ -124,7 +163,7 @@ function App() {
     })
 
     eventSource.addEventListener('train_positions', event => {
-      applyTrainPositionsUpdate(JSON.parse(event.data))
+      queueTrainPositionsUpdate(JSON.parse(event.data))
     })
 
     eventSource.addEventListener('transport_error', event => {
@@ -137,15 +176,25 @@ function App() {
     }
 
     return () => {
+      clearQueuedTrainPositions()
       eventSource.close()
     }
   }, [])
 
   const deferredSelectedLineId = useDeferredValue(selectedLineId)
+
+  useEffect(() => {
+    setSelectedMapFeature(null)
+  }, [deferredSelectedLineId])
+
   const lineOptions = buildLineOptions(mapSnapshot)
   const visibleTrains = buildVisibleTrains(mapSnapshot, deferredSelectedLineId)
   const plottedTrains = visibleTrains.filter(train => train.coordinate != null)
   const listedTrains = visibleTrains.slice(0, 8)
+  const selectedStationId =
+    selectedMapFeature?.kind === 'station' ? selectedMapFeature.id : null
+  const selectedTrainId =
+    selectedMapFeature?.kind === 'train' ? selectedMapFeature.id : null
 
   return (
     <div className="page">
@@ -210,10 +259,41 @@ function App() {
               <StaticMapLayers
                 mapSnapshot={mapSnapshot}
                 selectedLineId={deferredSelectedLineId}
+                selectedStationId={selectedStationId}
+                onSelectStation={stationId =>
+                  setSelectedMapFeature({
+                    kind: 'station',
+                    id: stationId
+                  })
+                }
+                onDeselectStation={stationId =>
+                  setSelectedMapFeature(currentFeature =>
+                    currentFeature?.kind === 'station' && currentFeature.id === stationId
+                      ? null
+                      : currentFeature
+                  )
+                }
               />
 
               {plottedTrains.map(train => (
-                <TrainMarker key={train.trainId} train={train} />
+                <TrainMarker
+                  key={train.trainId}
+                  train={train}
+                  isSelected={selectedTrainId === train.trainId}
+                  onSelect={() =>
+                    setSelectedMapFeature({
+                      kind: 'train',
+                      id: train.trainId
+                    })
+                  }
+                  onDeselect={() =>
+                    setSelectedMapFeature(currentFeature =>
+                      currentFeature?.kind === 'train' && currentFeature.id === train.trainId
+                        ? null
+                        : currentFeature
+                    )
+                  }
+                />
               ))}
             </MapContainer>
           </section>
@@ -260,43 +340,148 @@ function StatusItem({ label, value }) {
   )
 }
 
-function TrainDetail({ label, children }) {
+function PopupCard({ title, accentColor, kicker, children }) {
   return (
-    <div className="train-detail">
-      <span className="train-detail-label">{label}</span>
-      <span>{children}</span>
+    <div className="map-popup">
+      <div className="map-popup-header">
+        <span
+          className="map-popup-accent"
+          style={{ '--accent-color': accentColor }}
+        ></span>
+        <div className="map-popup-heading">
+          {kicker != null ? <span className="map-popup-kicker">{kicker}</span> : null}
+          <strong className="map-popup-title">{title}</strong>
+        </div>
+      </div>
+      <div className="map-popup-body">{children}</div>
+    </div>
+  )
+}
+
+function PopupRow({ label, value }) {
+  return (
+    <div className="map-popup-row">
+      <span className="map-popup-label">{label}</span>
+      <span className="map-popup-value">{value}</span>
+    </div>
+  )
+}
+
+function LineBadges({ lineIds }) {
+  return (
+    <div className="map-popup-badges">
+      {lineIds.map(lineId => (
+        <span className="map-popup-badge" key={lineId}>
+          <span
+            className="map-popup-badge-swatch"
+            style={{ '--accent-color': colorForLine(lineId) }}
+          ></span>
+          {prettifyLineId(lineId)}
+        </span>
+      ))}
     </div>
   )
 }
 
 const TrainMarker = memo(
-  function TrainMarker({ train }) {
+  function TrainMarker({ train, isSelected, onSelect, onDeselect }) {
+    const markerRef = useRef(null)
+
+    useEffect(() => {
+      if (!isSelected) {
+        return
+      }
+
+      markerRef.current?.openPopup()
+    }, [isSelected])
+
     return (
       <Marker
+        ref={markerRef}
         position={[train.coordinate.lat, train.coordinate.lon]}
         icon={createTrainIcon(train)}
+        eventHandlers={{
+          click: onSelect,
+          popupclose: onDeselect
+        }}
       >
-        <Popup>
-          <div className="popup-card">
-            <strong>{train.lineName}</strong>
-            <TrainDetail label="Current Location">{currentLocationLabelFor(train)}</TrainDetail>
-            <TrainDetail label="Destination">{destinationLabelFor(train)}</TrainDetail>
-            {train.towards != null ? (
-              <TrainDetail label="Towards">{train.towards}</TrainDetail>
-            ) : null}
-            {train.secondsToNextStop != null ? (
-              <TrainDetail label="Next stop">{secondsLabelFor(train.secondsToNextStop)}</TrainDetail>
-            ) : null}
-          </div>
-        </Popup>
+        {isSelected ? (
+          <Popup>
+            <PopupCard
+              title={train.lineName}
+              accentColor={colorForLine(train.lineId)}
+              kicker="Train"
+            >
+              <PopupRow label="Current Location" value={currentLocationLabelFor(train)} />
+              <PopupRow label="Destination" value={destinationLabelFor(train)} />
+              {train.towards != null ? (
+                <PopupRow label="Towards" value={train.towards} />
+              ) : null}
+              {train.secondsToNextStop != null ? (
+                <PopupRow label="Next stop" value={secondsLabelFor(train.secondsToNextStop)} />
+              ) : null}
+            </PopupCard>
+          </Popup>
+        ) : null}
       </Marker>
     )
   },
   areTrainMarkerPropsEqual
 )
 
+const StationMarker = memo(
+  function StationMarker({ station, selectedLineId, isSelected, onSelect, onDeselect }) {
+    const fillColor = stationColorFor(station, selectedLineId)
+    const markerRef = useRef(null)
+
+    useEffect(() => {
+      if (!isSelected) {
+        return
+      }
+
+      markerRef.current?.openPopup()
+    }, [isSelected])
+
+    return (
+      <CircleMarker
+        ref={markerRef}
+        center={[station.coordinate.lat, station.coordinate.lon]}
+        radius={stationRadiusFor(station, selectedLineId)}
+        pathOptions={{
+          color: '#ffffff',
+          weight: 2,
+          fillColor,
+          fillOpacity: 1
+        }}
+        eventHandlers={{
+          click: onSelect,
+          popupclose: onDeselect
+        }}
+      >
+        {isSelected ? (
+          <Popup>
+            <PopupCard title={station.name} accentColor={fillColor} kicker="Station">
+              <div className="map-popup-section">
+                <span className="map-popup-label">Lines</span>
+                <LineBadges lineIds={station.lineIds} />
+              </div>
+            </PopupCard>
+          </Popup>
+        ) : null}
+      </CircleMarker>
+    )
+  },
+  areStationMarkerPropsEqual
+)
+
 const StaticMapLayers = memo(
-  function StaticMapLayers({ mapSnapshot, selectedLineId }) {
+  function StaticMapLayers({
+    mapSnapshot,
+    selectedLineId,
+    selectedStationId,
+    onSelectStation,
+    onDeselectStation
+  }) {
     const visibleLinePaths = buildVisibleLinePaths(mapSnapshot, selectedLineId)
     const visibleStations = buildVisibleStations(mapSnapshot, selectedLineId)
 
@@ -315,21 +500,14 @@ const StaticMapLayers = memo(
         ))}
 
         {visibleStations.map(station => (
-          <CircleMarker
+          <StationMarker
             key={station.id}
-            center={[station.coordinate.lat, station.coordinate.lon]}
-            radius={stationRadiusFor(station, selectedLineId)}
-            pathOptions={{
-              color: '#ffffff',
-              weight: 1.5,
-              fillColor: stationColorFor(station, selectedLineId),
-              fillOpacity: 0.95
-            }}
-          >
-            <Tooltip direction="top" offset={[0, -6]} opacity={1}>
-              {station.name}
-            </Tooltip>
-          </CircleMarker>
+            station={station}
+            selectedLineId={selectedLineId}
+            isSelected={selectedStationId === station.id}
+            onSelect={() => onSelectStation(station.id)}
+            onDeselect={() => onDeselectStation(station.id)}
+          />
         ))}
       </>
     )
@@ -389,6 +567,7 @@ function buildVisibleStations(mapSnapshot, selectedLineId) {
 function areStaticMapLayersEqual(previousProps, nextProps) {
   return (
     previousProps.selectedLineId === nextProps.selectedLineId &&
+    previousProps.selectedStationId === nextProps.selectedStationId &&
     previousProps.mapSnapshot?.lines === nextProps.mapSnapshot?.lines &&
     previousProps.mapSnapshot?.stations === nextProps.mapSnapshot?.stations
   )
@@ -399,6 +578,7 @@ function areTrainMarkerPropsEqual(previousProps, nextProps) {
   const nextTrain = nextProps.train
 
   return (
+    previousProps.isSelected === nextProps.isSelected &&
     previousTrain.trainId === nextTrain.trainId &&
     previousTrain.lineId === nextTrain.lineId &&
     previousTrain.lineName === nextTrain.lineName &&
@@ -409,6 +589,21 @@ function areTrainMarkerPropsEqual(previousProps, nextProps) {
     previousTrain.coordinate?.lat === nextTrain.coordinate?.lat &&
     previousTrain.coordinate?.lon === nextTrain.coordinate?.lon &&
     previousTrain.headingDegrees === nextTrain.headingDegrees
+  )
+}
+
+function areStationMarkerPropsEqual(previousProps, nextProps) {
+  const previousStation = previousProps.station
+  const nextStation = nextProps.station
+
+  return (
+    previousProps.selectedLineId === nextProps.selectedLineId &&
+    previousProps.isSelected === nextProps.isSelected &&
+    previousStation.id === nextStation.id &&
+    previousStation.name === nextStation.name &&
+    previousStation.coordinate.lat === nextStation.coordinate.lat &&
+    previousStation.coordinate.lon === nextStation.coordinate.lon &&
+    previousStation.lineIds.join('|') === nextStation.lineIds.join('|')
   )
 }
 
@@ -540,16 +735,26 @@ function createTrainIcon(train) {
   const icon = L.divIcon({
     className: 'train-icon-shell',
     html: `
-      <div class="train-marker" style="--line-color: ${lineColor}; --heading-degrees: ${headingDegrees}deg">
-        <div class="${arrowClassName}"></div>
+      <div class="train-marker" style="--line-color: ${lineColor}">
+        <svg class="${arrowClassName}" viewBox="0 0 42 42" aria-hidden="true">
+          <g transform="rotate(${headingDegrees} 21 21)">
+            <path
+              d="M21 2.5 L27 11 H15 Z"
+              fill="${lineColor}"
+              stroke="#ffffff"
+              stroke-width="2.4"
+              stroke-linejoin="round"
+            />
+          </g>
+        </svg>
         <div class="train-icon">
           <span>${markerLabelForLine(train.lineId)}</span>
         </div>
       </div>
     `,
-    iconSize: [40, 40],
-    iconAnchor: [20, 20],
-    popupAnchor: [0, -22]
+    iconSize: [42, 42],
+    iconAnchor: [21, 21],
+    popupAnchor: [0, -24]
   })
 
   trainIconCache.set(cacheKey, icon)
