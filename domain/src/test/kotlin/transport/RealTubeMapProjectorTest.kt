@@ -321,7 +321,7 @@ class RealTubeMapProjectorTest {
 
         val projected = RealTubeMapProjector(RealIdentityTubePathSmoother()).project(snapshot, lineMap)
 
-        expectThat(projected.stations).hasSize(5)
+        expectThat(projected.stations).hasSize(6)
         expectThat(projected.stations.first().name.value).isEqualTo("Alpha Underground Station")
         expectThat(projected.stations.first().coordinate.lat).isEqualTo(51.0)
     }

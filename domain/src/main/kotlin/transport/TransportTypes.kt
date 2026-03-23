@@ -98,11 +98,7 @@ val supportedTubeLineIds = supportedRailLines
     .filter { line -> line.mode == tubeMode }
     .map(SupportedLine::id)
 val supportedTubeLineIdSet = supportedTubeLineIds.toSet()
-val supportedMapStationLineIds = supportedTubeLineIds + listOf(
-    LineId("dlr"),
-    LineId("elizabeth"),
-    LineId("tram")
-)
+val supportedMapStationLineIds = supportedRailLineIds
 val supportedMapStationLineIdSet = supportedMapStationLineIds.toSet()
 
 val supportedRailModes = supportedRailLines
