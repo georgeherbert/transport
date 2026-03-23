@@ -171,7 +171,7 @@ class ApiTest {
             expectThat(response.status).isEqualTo(HttpStatusCode.OK)
             expectThat(payload["cached"]?.jsonPrimitive?.content).isEqualTo("true")
             expectThat(payload["trainCount"]?.jsonPrimitive?.int).isEqualTo(1)
-            expectThat(body).contains("\"tubeStations\"")
+            expectThat(body).contains("\"stations\"")
         }
     }
 
@@ -360,7 +360,7 @@ class ApiTest {
             LiveTrainCount(1),
             sampleLineMap().lines,
             listOf(
-                TubeMapStation(
+                MapStation(
                     StationId("940GZZLUGPK"),
                     StationName("Green Park Underground Station"),
                     GeoCoordinate(51.506947, -0.142787),

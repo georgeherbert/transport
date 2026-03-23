@@ -112,7 +112,7 @@ function App() {
   const deferredSelectedLineId = useDeferredValue(selectedLineId)
   const lineOptions = buildLineOptions(mapSnapshot)
   const visibleLinePaths = buildVisibleLinePaths(mapSnapshot, deferredSelectedLineId)
-  const visibleTubeStations = buildVisibleTubeStations(mapSnapshot, deferredSelectedLineId)
+  const visibleStations = buildVisibleStations(mapSnapshot, deferredSelectedLineId)
   const visibleTrains = buildVisibleTrains(mapSnapshot, deferredSelectedLineId)
   const listedTrains = visibleTrains.slice(0, 8)
 
@@ -187,7 +187,7 @@ function App() {
               />
             ))}
 
-            {visibleTubeStations.map(station => (
+            {visibleStations.map(station => (
               <CircleMarker
                 key={station.id}
                 center={[station.coordinate.lat, station.coordinate.lon]}
@@ -324,12 +324,12 @@ function buildVisibleTrains(mapSnapshot, selectedLineId) {
     .sort((leftTrain, rightTrain) => compareArrivalPriority(leftTrain, rightTrain))
 }
 
-function buildVisibleTubeStations(mapSnapshot, selectedLineId) {
+function buildVisibleStations(mapSnapshot, selectedLineId) {
   if (mapSnapshot == null) {
     return []
   }
 
-  return mapSnapshot.tubeStations
+  return mapSnapshot.stations
     .filter(station => selectedLineId === 'all' || station.lineIds.includes(selectedLineId))
     .sort((leftStation, rightStation) => leftStation.name.localeCompare(rightStation.name))
 }

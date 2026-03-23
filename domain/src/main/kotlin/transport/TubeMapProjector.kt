@@ -24,7 +24,7 @@ class RealTubeMapProjector(
             line.id to ProjectedTubeLine(line)
         }
         val projectedLineList = projectedLines.values.toList()
-        val projectedTubeStations = projectTubeStations(smoothedLineMap, projectedLines)
+        val projectedStations = projectStations(smoothedLineMap, projectedLines)
 
         return TubeMapSnapshot(
             snapshot.source,
@@ -36,24 +36,24 @@ class RealTubeMapProjector(
             snapshot.partial,
             snapshot.trainCount,
             smoothedLineMap.lines,
-            projectedTubeStations,
+            projectedStations,
             snapshot.trains.mapNotNull { train -> projectTrain(train, projectedLineList) }
         )
     }
 
-    private fun projectTubeStations(
+    private fun projectStations(
         lineMap: TubeLineMap,
         projectedLines: Map<LineId, ProjectedTubeLine>
-    ): List<TubeMapStation> =
+    ): List<MapStation> =
         lineMap.lines
-            .filter { line -> line.id in supportedTubeLineIdSet }
+            .filter { line -> line.id in supportedMapStationLineIdSet }
             .flatMap { line ->
                 val projectedLine = projectedLines[line.id] ?: return@flatMap emptyList()
                 line.sequences
                     .flatMap(TubeLineSequence::stations)
                     .distinctBy(StationReference::id)
                     .map { station ->
-                        ProjectedTubeStationCandidate(
+                        ProjectedStationCandidate(
                             station.id,
                             station.name,
                             station.coordinate,
@@ -62,7 +62,7 @@ class RealTubeMapProjector(
                         )
                     }
             }
-            .groupBy(ProjectedTubeStationCandidate::id)
+            .groupBy(ProjectedStationCandidate::id)
             .values
             .map { candidates ->
                 val firstCandidate = candidates.first()
@@ -73,12 +73,12 @@ class RealTubeMapProjector(
                     ?.projectedCoordinate
                     ?: firstCandidate.projectedCoordinate
 
-                TubeMapStation(
+                MapStation(
                     firstCandidate.id,
                     firstCandidate.name,
                     projectedCoordinate,
                     candidates
-                        .map(ProjectedTubeStationCandidate::lineId)
+                        .map(ProjectedStationCandidate::lineId)
                         .distinctBy(LineId::value)
                         .sortedBy(LineId::value)
                 )
@@ -146,7 +146,7 @@ class RealIdentityTubePathSmoother : TubePathSmoother {
         lineMap
 }
 
-data class ProjectedTubeStationCandidate(
+data class ProjectedStationCandidate(
     val id: StationId,
     val name: StationName,
     val sourceCoordinate: GeoCoordinate,

@@ -138,7 +138,7 @@ class RealTubeMapFeedServiceTest {
                 )
             ),
             listOf(
-                TubeMapStation(
+                MapStation(
                     StationId("940GZZLUGPK"),
                     StationName("Green Park Underground Station"),
                     GeoCoordinate(51.506947, -0.142787),

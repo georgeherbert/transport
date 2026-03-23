@@ -28,7 +28,7 @@ data class TubeMapSnapshot(
     val partial: Boolean,
     val trainCount: LiveTrainCount,
     val lines: List<TubeLine>,
-    val tubeStations: List<TubeMapStation>,
+    val stations: List<MapStation>,
     val trains: List<TubeMapTrain>
 )
 
@@ -52,7 +52,7 @@ data class TubeLineSequence(
     val stations: List<StationReference>
 )
 
-data class TubeMapStation(
+data class MapStation(
     val id: StationId,
     val name: StationName,
     val coordinate: GeoCoordinate,

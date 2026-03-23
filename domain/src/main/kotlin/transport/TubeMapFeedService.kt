@@ -173,7 +173,7 @@ data class CachedTubeMapSnapshot(
             animatedSnapshot.partial,
             animatedSnapshot.trainCount,
             animatedSnapshot.lines,
-            animatedSnapshot.tubeStations,
+            animatedSnapshot.stations,
             animatedSnapshot.trains
         )
     }

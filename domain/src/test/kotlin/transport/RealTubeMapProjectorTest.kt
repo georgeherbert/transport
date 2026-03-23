@@ -164,7 +164,7 @@ class RealTubeMapProjectorTest {
         val projected = projector.project(snapshot, lineMap)
 
         expectThat(projected.lines).hasSize(1)
-        expectThat(projected.tubeStations).hasSize(3)
+        expectThat(projected.stations).hasSize(3)
         expectThat(projected.lines.first().paths.first().coordinates.size).isGreaterThan(3)
         expectThat(projected.trains).hasSize(1)
         expectThat(projected.trains.first().coordinate).isNotNull().get { lat }.isLessThan(51.01)
@@ -176,7 +176,7 @@ class RealTubeMapProjectorTest {
     }
 
     @Test
-    fun `project includes projected tube stations and excludes non tube lines`() {
+    fun `project includes configured map stations and excludes unsupported lines`() {
         val snapshot = LiveTubeSnapshot(
             transportSourceName,
             Instant.parse("2026-03-22T00:49:20Z"),
@@ -243,15 +243,87 @@ class RealTubeMapProjectorTest {
                             )
                         )
                     )
+                ),
+                TubeLine(
+                    LineId("dlr"),
+                    LineName("DLR"),
+                    listOf(
+                        TubeLinePath(
+                            listOf(
+                                GeoCoordinate(51.5, -0.1),
+                                GeoCoordinate(51.6, 0.0)
+                            )
+                        )
+                    ),
+                    listOf(
+                        TubeLineSequence(
+                            TrainDirection("outbound"),
+                            listOf(
+                                StationReference(
+                                    StationId("D"),
+                                    StationName("Delta DLR Station"),
+                                    GeoCoordinate(51.55, -0.05)
+                                )
+                            )
+                        )
+                    )
+                ),
+                TubeLine(
+                    LineId("elizabeth"),
+                    LineName("Elizabeth line"),
+                    listOf(
+                        TubeLinePath(
+                            listOf(
+                                GeoCoordinate(51.5, -0.3),
+                                GeoCoordinate(51.5, -0.2)
+                            )
+                        )
+                    ),
+                    listOf(
+                        TubeLineSequence(
+                            TrainDirection("outbound"),
+                            listOf(
+                                StationReference(
+                                    StationId("E"),
+                                    StationName("Echo Elizabeth Line Station"),
+                                    GeoCoordinate(51.51, -0.25)
+                                )
+                            )
+                        )
+                    )
+                ),
+                TubeLine(
+                    LineId("tram"),
+                    LineName("Tram"),
+                    listOf(
+                        TubeLinePath(
+                            listOf(
+                                GeoCoordinate(51.35, -0.1),
+                                GeoCoordinate(51.36, -0.05)
+                            )
+                        )
+                    ),
+                    listOf(
+                        TubeLineSequence(
+                            TrainDirection("outbound"),
+                            listOf(
+                                StationReference(
+                                    StationId("F"),
+                                    StationName("Foxtrot Tram Stop"),
+                                    GeoCoordinate(51.355, -0.075)
+                                )
+                            )
+                        )
+                    )
                 )
             )
         )
 
         val projected = RealTubeMapProjector(RealIdentityTubePathSmoother()).project(snapshot, lineMap)
 
-        expectThat(projected.tubeStations).hasSize(2)
-        expectThat(projected.tubeStations.first().name.value).isEqualTo("Alpha Underground Station")
-        expectThat(projected.tubeStations.first().coordinate.lat).isEqualTo(51.0)
+        expectThat(projected.stations).hasSize(5)
+        expectThat(projected.stations.first().name.value).isEqualTo("Alpha Underground Station")
+        expectThat(projected.stations.first().coordinate.lat).isEqualTo(51.0)
     }
 
     @Test

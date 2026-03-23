@@ -52,7 +52,7 @@ class ServiceResponseMapperHttp : ServiceResponseMapper {
             mapSnapshot.partial,
             mapSnapshot.trainCount.value,
             mapSnapshot.lines.map(::lineJson),
-            mapSnapshot.tubeStations.map(::tubeMapStationJson),
+            mapSnapshot.stations.map(::mapStationJson),
             mapSnapshot.trains.map(::mapTrainJson)
         )
 
@@ -120,8 +120,8 @@ class ServiceResponseMapperHttp : ServiceResponseMapper {
             train.observedAt?.toString()
         )
 
-    private fun tubeMapStationJson(station: TubeMapStation) =
-        TubeMapStationJson(
+    private fun mapStationJson(station: MapStation) =
+        MapStationJson(
             station.id.value,
             station.name.value,
             geoCoordinateJson(station.coordinate),
