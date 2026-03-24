@@ -2,7 +2,7 @@
 
 `transport` is a Kotlin service and React UI for viewing live London rail services on a projected map.
 
-It pulls TfL arrival-board data, assembles it into a rail snapshot, projects trains onto imported rail geometry, and serves both a JSON API and a browser UI from the same service.
+It pulls TfL arrival-board data, assembles it into a rail snapshot, projects trains onto imported rail geometry, and serves the browser UI plus the minimal HTTP routes that UI needs.
 
 Supported modes:
 - Tube
@@ -36,7 +36,7 @@ The service reads configuration from environment variables:
 | --- | --- | --- |
 | `HOST` | `0.0.0.0` | Ktor bind host |
 | `PORT` | `8080` | Ktor bind port |
-| `TUBE_CACHE_TTL_SECONDS` | `20` | Snapshot cache TTL. The name is legacy, but it applies to the rail snapshot service. |
+| `RAIL_SNAPSHOT_CACHE_TTL_SECONDS` | `20` | Snapshot cache TTL |
 | `RAIL_MAP_POLL_INTERVAL_SECONDS` | `5` | Upstream refresh interval for the live rail map feed |
 | `TFL_REQUEST_TIMEOUT_SECONDS` | `10` | TfL HTTP request timeout |
 | `TFL_BASE_URL` | `https://api.tfl.gov.uk` | TfL API base URL |
@@ -63,23 +63,20 @@ npm ci
 npm run dev
 ```
 
-The Vite dev server runs on `http://127.0.0.1:5173` and proxies `/api` and `/health` to the backend on port `8080`.
+The Vite dev server runs on `http://127.0.0.1:5173` and proxies `/api/rail/*` to the backend on port `8080`.
 
 ## API
 
-Primary routes:
+Frontend HTTP routes:
 
-- `GET /health`
-- `GET /api`
-- `GET /api/rail/live`
-- `GET /api/rail/live?refresh=true`
-- `GET /api/rail/lines`
+- `GET /`
 - `GET /api/rail/map`
 - `GET /api/rail/map/stream`
+- `GET /assets/*`
 
-Legacy `/api/tubes/*` aliases are still available for compatibility.
+The browser does one initial fetch of `GET /api/rail/map` and then consumes `GET /api/rail/map/stream` over Server-Sent Events.
 
-The browser UI does one initial fetch and then consumes the live map stream over Server-Sent Events.
+There are no extra inspection or compatibility API routes.
 
 ## Movement Model
 
