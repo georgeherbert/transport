@@ -34,6 +34,18 @@ class TransportServiceConfigTest {
     }
 
     @Test
+    fun `loadTransportServiceConfig reads the rail snapshot cache ttl environment variable`() {
+        val config = loadTransportServiceConfig(
+            mapOf(
+                "TFL_SUBSCRIPTION_KEY" to "preferred-key",
+                "RAIL_SNAPSHOT_CACHE_TTL_SECONDS" to "12"
+            )
+        )
+
+        expectThat(config.railSnapshotCacheTtl.seconds).isEqualTo(12)
+    }
+
+    @Test
     fun `loadTransportServiceConfig fails when the subscription key is unset`() {
         expectCatching {
             loadTransportServiceConfig(emptyMap())

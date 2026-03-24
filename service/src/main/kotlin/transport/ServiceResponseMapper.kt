@@ -1,47 +1,12 @@
 package transport
 
-import java.time.Instant
-
 interface ServiceResponseMapper {
-    fun apiDescription(): ApiDescriptionJson
-    fun healthResponse(generatedAt: Instant): HealthJson
     fun mapResponse(mapSnapshot: RailMapSnapshot): RailMapSnapshotJson
     fun trainPositionsResponse(trainPositions: RailMapTrainPositions): RailMapTrainPositionsJson
-    fun lineMapResponse(lineMap: RailLineMap): RailLineMapJson
-    fun snapshotResponse(snapshot: LiveRailSnapshot): LiveRailSnapshotJson
     fun errorResponse(error: TransportError): ApiErrorJson
 }
 
 class ServiceResponseMapperHttp : ServiceResponseMapper {
-    override fun apiDescription() =
-        ApiDescriptionJson(
-            "london-rail-live-api",
-            "Aggregates TfL rail and tram arrival boards into a live train snapshot and projected map.",
-            listOf(
-                "GET /health",
-                "GET /api/rail/map",
-                "GET /api/rail/map/stream",
-                "GET /api/rail/lines",
-                "GET /api/rail/live",
-                "GET /api/rail/live?refresh=true",
-                "GET /api/tubes/map",
-                "GET /api/tubes/map/stream",
-                "GET /api/tubes/lines",
-                "GET /api/tubes/live",
-                "GET /api/tubes/live?refresh=true"
-            ),
-            listOf(
-                "Location text comes directly from TfL prediction data.",
-                "Supported modes are Tube, Elizabeth line, London Overground, and Tram.",
-                "Line geometry comes from imported OpenStreetMap rail alignments.",
-                "Coordinates are derived from station metadata, imported rail geometry, and domain projection logic, not onboard GPS.",
-                "The backend polls TfL on a fixed interval and pushes fresh snapshots and upstream errors to connected UIs."
-            )
-        )
-
-    override fun healthResponse(generatedAt: Instant) =
-        HealthJson("ok", generatedAt.toString())
-
     override fun mapResponse(mapSnapshot: RailMapSnapshot) =
         RailMapSnapshotJson(
             mapSnapshot.source.value,
@@ -68,25 +33,6 @@ class ServiceResponseMapperHttp : ServiceResponseMapper {
             trainPositions.partial,
             trainPositions.trainCount.value,
             trainPositions.trains.map(::mapTrainJson)
-        )
-
-    override fun lineMapResponse(lineMap: RailLineMap) =
-        RailLineMapJson(
-            lineMap.lines.map(::lineJson)
-        )
-
-    override fun snapshotResponse(snapshot: LiveRailSnapshot) =
-        LiveRailSnapshotJson(
-            snapshot.source.value,
-            snapshot.generatedAt.toString(),
-            snapshot.cached,
-            snapshot.cacheAge.seconds,
-            snapshot.stationsQueried.value,
-            snapshot.stationsFailed.value,
-            snapshot.partial,
-            snapshot.trainCount.value,
-            snapshot.lines.map(LineId::value),
-            snapshot.trains.map { train -> trainJson(train) }
         )
 
     override fun errorResponse(error: TransportError) =
@@ -140,45 +86,6 @@ class ServiceResponseMapperHttp : ServiceResponseMapper {
             station.name.value,
             geoCoordinateJson(station.coordinate),
             station.lineIds.map(LineId::value)
-        )
-
-    private fun trainJson(train: LiveRailTrain) =
-        LiveRailTrainJson(
-            train.trainId.value,
-            train.vehicleId?.value,
-            train.lineIds.map(LineId::value),
-            train.lineNames.map(LineName::value),
-            train.direction?.value,
-            train.destinationName?.value,
-            train.towards?.value,
-            train.currentLocation.value,
-            locationJson(train.location),
-            train.nextStop?.let(::stationReferenceJson),
-            train.secondsToNextStop?.seconds?.toInt(),
-            train.expectedArrival?.toString(),
-            train.observedAt?.toString(),
-            train.sourcePredictions.value
-        )
-
-    private fun locationJson(location: LocationEstimate) =
-        LocationEstimateJson(
-            locationTypeJson(location.type),
-            location.description.value,
-            location.coordinate?.let(::geoCoordinateJson),
-            location.station?.let(::stationReferenceJson)
-        )
-
-    private fun locationTypeJson(locationType: LocationType) =
-        when (locationType) {
-            LocationType.STATION_BOARD -> LocationTypeJson.STATION_BOARD
-            LocationType.UNKNOWN -> LocationTypeJson.UNKNOWN
-        }
-
-    private fun stationReferenceJson(stationReference: StationReference) =
-        StationReferenceJson(
-            stationReference.id.value,
-            stationReference.name.value,
-            geoCoordinateJson(stationReference.coordinate)
         )
 
     private fun geoCoordinateJson(geoCoordinate: GeoCoordinate) =

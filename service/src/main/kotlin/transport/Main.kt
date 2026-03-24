@@ -38,8 +38,6 @@ fun main() {
             host = transportServiceConfig.host,
             module = {
                 transportModule(
-                    services.railSnapshotService,
-                    services.railLineMapService,
                     railMapFeedService,
                     serviceResponseMapper,
                     json
@@ -61,26 +59,6 @@ fun createRailSnapshotService(
         json,
         createTflHttpClient(transportServiceConfig.requestTimeout)
     ).railSnapshotService
-
-fun createRailLineMapService(
-    transportServiceConfig: TransportServiceConfig,
-    json: kotlinx.serialization.json.Json
-): RailLineMapService =
-    createTransportServices(
-        transportServiceConfig,
-        json,
-        createTflHttpClient(transportServiceConfig.requestTimeout)
-    ).railLineMapService
-
-fun createRailMapService(
-    transportServiceConfig: TransportServiceConfig,
-    json: kotlinx.serialization.json.Json
-): RailMapService =
-    createTransportServices(
-        transportServiceConfig,
-        json,
-        createTflHttpClient(transportServiceConfig.requestTimeout)
-    ).railMapService
 
 private fun createTransportServices(
     transportServiceConfig: TransportServiceConfig,
@@ -105,7 +83,7 @@ private fun createTransportServices(
         railMetadataRepository,
         railSnapshotAssembler,
         Clock.systemUTC(),
-        transportServiceConfig.cacheTtl
+        transportServiceConfig.railSnapshotCacheTtl
     )
     val railLineMapService = RealRailLineMapService(railLineMapRepository)
 

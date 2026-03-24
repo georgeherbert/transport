@@ -25,10 +25,6 @@ import strikt.assertions.isEqualTo
 
 class ApiTest {
     private val serviceResponseMapper: ServiceResponseMapper = ServiceResponseMapperHttp()
-    private val railLineMapService: RailLineMapService =
-        StubRailLineMapService {
-            Success(sampleLineMap())
-        }
     private val railMapFeedService: RailMapFeedService =
         StubRailMapFeedService(
             {},
@@ -38,18 +34,12 @@ class ApiTest {
             { null },
             emptyFlow()
         )
-    private val snapshotService: RailSnapshotService =
-        StubRailSnapshotService { forceRefresh ->
-            Success(sampleSnapshot(forceRefresh))
-        }
 
     @Test
     fun `root serves the react app shell`() {
         testApplication {
             application {
                 transportModule(
-                    snapshotService,
-                    railLineMapService,
                     railMapFeedService,
                     serviceResponseMapper,
                     transportJson()
@@ -64,42 +54,27 @@ class ApiTest {
     }
 
     @Test
-    fun `api description is available on api root`() {
+    fun `api only exposes frontend routes`() {
         testApplication {
             application {
                 transportModule(
-                    snapshotService,
-                    railLineMapService,
                     railMapFeedService,
                     serviceResponseMapper,
                     transportJson()
                 )
             }
 
-            val response = client.get("/api")
+            val apiRootResponse = client.get("/api")
+            val healthResponse = client.get("/health")
+            val liveResponse = client.get("/api/rail/live")
+            val linesResponse = client.get("/api/rail/lines")
+            val tubeAliasResponse = client.get("/api/tubes/map")
 
-            expectThat(response.status).isEqualTo(HttpStatusCode.OK)
-            expectThat(response.bodyAsText()).contains("/api/rail/map")
-        }
-    }
-
-    @Test
-    fun `api returns rail snapshot payload`() {
-        testApplication {
-            application {
-                transportModule(
-                    snapshotService,
-                    railLineMapService,
-                    railMapFeedService,
-                    serviceResponseMapper,
-                    transportJson()
-                )
-            }
-
-            val response = client.get("/api/rail/live")
-
-            expectThat(response.status).isEqualTo(HttpStatusCode.OK)
-            expectThat(response.bodyAsText()).contains("\"trainCount\"")
+            expectThat(apiRootResponse.status).isEqualTo(HttpStatusCode.NotFound)
+            expectThat(healthResponse.status).isEqualTo(HttpStatusCode.NotFound)
+            expectThat(liveResponse.status).isEqualTo(HttpStatusCode.NotFound)
+            expectThat(linesResponse.status).isEqualTo(HttpStatusCode.NotFound)
+            expectThat(tubeAliasResponse.status).isEqualTo(HttpStatusCode.NotFound)
         }
     }
 
@@ -108,10 +83,6 @@ class ApiTest {
         testApplication {
             application {
                 transportModule(
-                    StubRailSnapshotService { forceRefresh ->
-                        Failure(TransportError.SnapshotUnavailable("TfL unavailable"))
-                    },
-                    railLineMapService,
                     StubRailMapFeedService(
                         {},
                         { forceRefresh ->
@@ -125,30 +96,10 @@ class ApiTest {
                 )
             }
 
-            val response = client.get("/api/tubes/live")
+            val response = client.get("/api/rail/map")
 
             expectThat(response.status).isEqualTo(HttpStatusCode.ServiceUnavailable)
             expectThat(response.bodyAsText()).contains("snapshot_unavailable")
-        }
-    }
-
-    @Test
-    fun `api returns rail line map payload`() {
-        testApplication {
-            application {
-                transportModule(
-                    snapshotService,
-                    railLineMapService,
-                    railMapFeedService,
-                    serviceResponseMapper,
-                    transportJson()
-                )
-            }
-
-            val response = client.get("/api/rail/lines")
-
-            expectThat(response.status).isEqualTo(HttpStatusCode.OK)
-            expectThat(response.bodyAsText()).contains("\"paths\"")
         }
     }
 
@@ -157,8 +108,6 @@ class ApiTest {
         testApplication {
             application {
                 transportModule(
-                    snapshotService,
-                    railLineMapService,
                     railMapFeedService,
                     serviceResponseMapper,
                     transportJson()
@@ -177,32 +126,10 @@ class ApiTest {
     }
 
     @Test
-    fun `api keeps tube routes as aliases`() {
-        testApplication {
-            application {
-                transportModule(
-                    snapshotService,
-                    railLineMapService,
-                    railMapFeedService,
-                    serviceResponseMapper,
-                    transportJson()
-                )
-            }
-
-            val response = client.get("/api/tubes/map")
-
-            expectThat(response.status).isEqualTo(HttpStatusCode.OK)
-            expectThat(response.bodyAsText()).contains("\"coordinate\"")
-        }
-    }
-
-    @Test
     fun `api streams the current cached rail map snapshot`() {
         testApplication {
             application {
                 transportModule(
-                    snapshotService,
-                    railLineMapService,
                     railMapFeedService,
                     serviceResponseMapper,
                     transportJson()
@@ -230,8 +157,6 @@ class ApiTest {
         testApplication {
             application {
                 transportModule(
-                    snapshotService,
-                    railLineMapService,
                     StubRailMapFeedService(
                         {},
                         { forceRefresh ->
@@ -263,8 +188,6 @@ class ApiTest {
         testApplication {
             application {
                 transportModule(
-                    snapshotService,
-                    railLineMapService,
                     StubRailMapFeedService(
                         {},
                         { forceRefresh ->
@@ -324,8 +247,8 @@ class ApiTest {
             .filter { line -> line.startsWith("data: ") }
             .joinToString("\n") { line -> line.removePrefix("data: ") }
 
-    private fun sampleSnapshot(forceRefresh: Boolean) =
-        LiveRailSnapshot(
+    private fun sampleMap(forceRefresh: Boolean) =
+        RailMapSnapshot(
             transportSourceName,
             Instant.parse("2026-03-22T00:49:20Z"),
             forceRefresh,
@@ -334,42 +257,6 @@ class ApiTest {
             StationFailureCount(0),
             false,
             LiveTrainCount(1),
-            listOf(LineId("victoria")),
-            listOf(
-                LiveRailTrain(
-                    TrainId("257"),
-                    VehicleId("257"),
-                    listOf(LineId("victoria")),
-                    listOf(LineName("Victoria")),
-                    TrainDirection("outbound"),
-                    DestinationName("Walthamstow Central Underground Station"),
-                    TowardsDescription("Walthamstow Central"),
-                    LocationDescription("Approaching Green Park"),
-                    LocationEstimate(
-                        LocationType.STATION_BOARD,
-                        LocationDescription("Green Park Underground Station"),
-                        GeoCoordinate(51.506947, -0.142787),
-                        StationReference(
-                            StationId("940GZZLUGPK"),
-                            StationName("Green Park Underground Station"),
-                            GeoCoordinate(51.506947, -0.142787)
-                        )
-                    ),
-                    StationReference(
-                        StationId("940GZZLUGPK"),
-                        StationName("Green Park Underground Station"),
-                        GeoCoordinate(51.506947, -0.142787)
-                    ),
-                    Duration.ofSeconds(90),
-                    Instant.parse("2026-03-22T00:50:50Z"),
-                    Instant.parse("2026-03-22T00:49:20Z"),
-                    PredictionCount(1)
-                )
-            )
-        )
-
-    private fun sampleLineMap() =
-        RailLineMap(
             listOf(
                 RailLine(
                     LineId("victoria"),
@@ -384,20 +271,7 @@ class ApiTest {
                     ),
                     emptyList()
                 )
-            )
-        )
-
-    private fun sampleMap(forceRefresh: Boolean) =
-        RailMapSnapshot(
-            transportSourceName,
-            Instant.parse("2026-03-22T00:49:20Z"),
-            forceRefresh,
-            Duration.ZERO,
-            StationQueryCount(1),
-            StationFailureCount(0),
-            false,
-            LiveTrainCount(1),
-            sampleLineMap().lines,
+            ),
             listOf(
                 MapStation(
                     StationId("940GZZLUGPK"),
