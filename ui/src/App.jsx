@@ -198,7 +198,7 @@ function App() {
     <div className="page">
       <header className="topbar">
         <div className="topbar-copy">
-          <h1>London Rail and Tram Map</h1>
+          <h1>London Rail Network Live</h1>
           <p>Live TfL train positions projected onto imported OpenStreetMap rail alignments.</p>
         </div>
         <div className="topbar-actions">

@@ -49,7 +49,7 @@ class ApiTest {
             val response = client.get("/")
 
             expectThat(response.status).isEqualTo(HttpStatusCode.OK)
-            expectThat(response.bodyAsText()).contains("London Rail and Tram Pulse")
+            expectThat(response.bodyAsText()).contains("London Rail Network Live")
         }
     }
 
