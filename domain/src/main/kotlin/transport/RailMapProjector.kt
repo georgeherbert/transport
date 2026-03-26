@@ -18,28 +18,29 @@ interface RailPathSmoother {
 class RealRailMapProjector(
     private val railPathSmoother: RailPathSmoother
 ) : RailMapProjector {
-    override fun project(snapshot: LiveRailSnapshot, lineMap: RailLineMap): RailMapSnapshot {
-        val smoothedLineMap = railPathSmoother.smooth(lineMap)
-        val projectedLines = smoothedLineMap.lines.associate { line ->
-            line.id to ProjectedRailLine(line)
-        }
-        val projectedLineList = projectedLines.values.toList()
-        val projectedStations = projectStations(smoothedLineMap, projectedLines)
+    override fun project(snapshot: LiveRailSnapshot, lineMap: RailLineMap) =
+        run {
+            val smoothedLineMap = railPathSmoother.smooth(lineMap)
+            val projectedLines = smoothedLineMap.lines.associate { line ->
+                line.id to ProjectedRailLine(line)
+            }
+            val projectedLineList = projectedLines.values.toList()
+            val projectedStations = projectStations(smoothedLineMap, projectedLines)
 
-        return RailMapSnapshot(
-            snapshot.source,
-            snapshot.generatedAt,
-            snapshot.cached,
-            snapshot.cacheAge,
-            snapshot.stationsQueried,
-            snapshot.stationsFailed,
-            snapshot.partial,
-            snapshot.trainCount,
-            smoothedLineMap.lines,
-            projectedStations,
-            snapshot.trains.mapNotNull { train -> projectTrain(train, projectedLineList) }
-        )
-    }
+            RailMapSnapshot(
+                snapshot.source,
+                snapshot.generatedAt,
+                snapshot.cached,
+                snapshot.cacheAge,
+                snapshot.stationsQueried,
+                snapshot.stationsFailed,
+                snapshot.partial,
+                snapshot.trainCount,
+                smoothedLineMap.lines,
+                projectedStations,
+                snapshot.trains.mapNotNull { train -> projectTrain(train, projectedLineList) }
+            )
+        }
 
     private fun projectStations(
         lineMap: RailLineMap,

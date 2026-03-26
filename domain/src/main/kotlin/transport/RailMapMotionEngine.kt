@@ -12,38 +12,40 @@ class RealRailMapMotionEngine : RailMapMotionEngine {
     private val segmentDurations = linkedMapOf<SegmentKey, SegmentDurationSamples>()
     private val trainStates = linkedMapOf<TrainId, TrainMotionState>()
 
-    override fun observe(snapshot: RailMapSnapshot): RailMapSnapshot {
-        val lineIndex = snapshot.lines.associateBy(RailLine::id)
-        val activeTrainIds = snapshot.trains.map(RailMapTrain::trainId).toSet()
+    override fun observe(snapshot: RailMapSnapshot) =
+        run {
+            val lineIndex = snapshot.lines.associateBy(RailLine::id)
+            val activeTrainIds = snapshot.trains.map(RailMapTrain::trainId).toSet()
 
-        snapshot.trains.forEach { train ->
-            observeTrain(train, lineIndex[train.lineId], snapshot.generatedAt)
+            snapshot.trains.forEach { train ->
+                observeTrain(train, lineIndex[train.lineId], snapshot.generatedAt)
+            }
+
+            trainStates.keys.retainAll(activeTrainIds)
+
+            advance(snapshot, snapshot.generatedAt)
         }
 
-        trainStates.keys.retainAll(activeTrainIds)
+    override fun advance(snapshot: RailMapSnapshot, currentTime: Instant) =
+        run {
+            val projectedLines = snapshot.lines.associateBy(RailLine::id) { line -> ProjectedRailLine(line) }
 
-        return advance(snapshot, snapshot.generatedAt)
-    }
-
-    override fun advance(snapshot: RailMapSnapshot, currentTime: Instant): RailMapSnapshot {
-        val projectedLines = snapshot.lines.associateBy(RailLine::id) { line -> ProjectedRailLine(line) }
-
-        return RailMapSnapshot(
-            snapshot.source,
-            snapshot.generatedAt,
-            snapshot.cached,
-            snapshot.cacheAge,
-            snapshot.stationsQueried,
-            snapshot.stationsFailed,
-            snapshot.partial,
-            snapshot.trainCount,
-            snapshot.lines,
-            snapshot.stations,
-            snapshot.trains.map { train ->
-                advanceTrain(train, projectedLines[train.lineId], currentTime)
-            }
-        )
-    }
+            RailMapSnapshot(
+                snapshot.source,
+                snapshot.generatedAt,
+                snapshot.cached,
+                snapshot.cacheAge,
+                snapshot.stationsQueried,
+                snapshot.stationsFailed,
+                snapshot.partial,
+                snapshot.trainCount,
+                snapshot.lines,
+                snapshot.stations,
+                snapshot.trains.map { train ->
+                    advanceTrain(train, projectedLines[train.lineId], currentTime)
+                }
+            )
+        }
 
     private fun observeTrain(
         train: RailMapTrain,

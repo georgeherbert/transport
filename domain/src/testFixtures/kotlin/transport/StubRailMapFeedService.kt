@@ -14,9 +14,9 @@ class StubRailMapFeedService(
     override suspend fun getRailMap(forceRefresh: Boolean) =
         onGetRailMap(forceRefresh)
 
-    override fun currentError(): TransportError? =
+    override fun currentError() =
         onCurrentError()
 
-    override fun updates(): Flow<RailMapFeedUpdate> =
+    override fun updates() =
         flow
 }

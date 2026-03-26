@@ -69,22 +69,23 @@ class RealRailMapFeedService(
         }
     }
 
-    override suspend fun getRailMap(forceRefresh: Boolean): TransportResult<RailMapSnapshot> {
-        if (forceRefresh) {
-            refreshIfDue()
+    override suspend fun getRailMap(forceRefresh: Boolean) =
+        run {
+            if (forceRefresh) {
+                refreshIfDue()
+            }
+
+            cachedSnapshot.get()?.let { cached ->
+                Success(cached.toSnapshot(clock, true, railMapMotionEngine))
+            } ?: latestError.get()?.let { error ->
+                Failure(error)
+            } ?: Failure(TransportError.SnapshotUnavailable("No cached rail map is available yet."))
         }
 
-        return cachedSnapshot.get()?.let { cached ->
-            Success(cached.toSnapshot(clock, true, railMapMotionEngine))
-        } ?: latestError.get()?.let { error ->
-            Failure(error)
-        } ?: Failure(TransportError.SnapshotUnavailable("No cached rail map is available yet."))
-    }
-
-    override fun currentError(): TransportError? =
+    override fun currentError() =
         latestError.get()
 
-    override fun updates(): Flow<RailMapFeedUpdate> =
+    override fun updates() =
         updateFlow.asSharedFlow()
 
     private suspend fun refreshIfDue() {

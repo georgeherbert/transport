@@ -8,8 +8,6 @@ import java.net.InetSocketAddress
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
-import kotlin.test.AfterTest
-import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlinx.coroutines.runBlocking
 import strikt.api.expectThat
@@ -21,35 +19,9 @@ import strikt.assertions.isEqualTo
 import strikt.assertions.isNotNull
 
 class RailDataHttpTest {
-    private lateinit var server: HttpServer
-    private lateinit var httpClient: HttpClient
-    private lateinit var railData: RailData
-
-    @BeforeTest
-    fun setUp() {
-        server = HttpServer.create(InetSocketAddress(0), 0)
-        server.start()
-        httpClient = createTflHttpClient(Duration.ofSeconds(5))
-        railData = RailDataHttp(
-            TflHttpClientConfig(
-                "http://127.0.0.1:${server.address.port}",
-                Duration.ofSeconds(5),
-                "test-key"
-            ),
-            httpClient,
-            TflPayloadParserHttp(transportJson())
-        )
-    }
-
-    @AfterTest
-    fun tearDown() {
-        httpClient.close()
-        server.stop(0)
-    }
-
     @Test
-    fun `fetchModeStations filters non station stop points and expands line memberships`() {
-        runBlocking {
+    fun `fetchModeStations filters non station stop points and expands line memberships`() =
+        withRailDataTestContext {
             respond(
                 "/StopPoint/Mode/tube",
                 200,
@@ -91,11 +63,10 @@ class RailDataHttpTest {
             expectThat(result).isSuccess().get { first().stationId }.isEqualTo(StationId("940GZZLUGPK"))
             expectThat(result).isSuccess().get { first().lineId }.isEqualTo(LineId("victoria"))
         }
-    }
 
     @Test
-    fun `fetchLineRoutes parses the route sequence payload`() {
-        runBlocking {
+    fun `fetchLineRoutes parses the route sequence payload`() =
+        withRailDataTestContext {
             respond(
                 "/Line/victoria/Route/Sequence/all",
                 200,
@@ -125,11 +96,10 @@ class RailDataHttpTest {
             expectThat(result).isSuccess().get { paths }.hasSize(1)
             expectThat(result).isSuccess().get { paths.first().coordinates.first() }.isEqualTo(GeoCoordinate(51.582965, -0.019885))
         }
-    }
 
     @Test
-    fun `fetchPredictions parses the bulk arrivals payload for a mode`() {
-        runBlocking {
+    fun `fetchPredictions parses the bulk arrivals payload for a mode`() =
+        withRailDataTestContext {
             respond(
                 "/Mode/tube/Arrivals",
                 200,
@@ -164,11 +134,10 @@ class RailDataHttpTest {
             expectThat(result).isSuccess().get { first().vehicleId }.isEqualTo(VehicleId("257"))
             expectThat(result).isSuccess().get { first().currentLocation }.isEqualTo(LocationDescription("Approaching Green Park"))
         }
-    }
 
     @Test
-    fun `fetchLineRoutes requests regular service geometry`() {
-        runBlocking {
+    fun `fetchLineRoutes requests regular service geometry`() =
+        withRailDataTestContext {
             val observedQuery = AtomicReference<String?>(null)
             server.createContext(
                 "/Line/victoria/Route/Sequence/all",
@@ -191,11 +160,10 @@ class RailDataHttpTest {
             expectThat(result).isSuccess().get { paths }.hasSize(0)
             expectThat(observedQuery.get()).isNotNull().contains("serviceTypes=Regular")
         }
-    }
 
     @Test
-    fun `fetchLineRoutes retries once when TfL rate limits the request`() {
-        runBlocking {
+    fun `fetchLineRoutes retries once when TfL rate limits the request`() =
+        withRailDataTestContext {
             val attempts = AtomicInteger(0)
             server.createContext(
                 "/Line/victoria/Route/Sequence/all"
@@ -237,11 +205,10 @@ class RailDataHttpTest {
             expectThat(result).isSuccess().get { lineId }.isEqualTo(LineId("victoria"))
             expectThat(attempts.get()).isEqualTo(2)
         }
-    }
 
     @Test
-    fun `fetchModeStations requests additional pages when TfL indicates more stop points are available`() {
-        runBlocking {
+    fun `fetchModeStations requests additional pages when TfL indicates more stop points are available`() =
+        withRailDataTestContext {
             val requests = AtomicInteger(0)
             server.createContext("/StopPoint/Mode/tube") { exchange ->
                 val requestNumber = requests.incrementAndGet()
@@ -301,11 +268,10 @@ class RailDataHttpTest {
             expectThat(result).isSuccess().hasSize(2)
             expectThat(requests.get()).isEqualTo(2)
         }
-    }
 
     @Test
-    fun `fetchModeStations returns upstream http failure`() {
-        runBlocking {
+    fun `fetchModeStations returns upstream http failure`() =
+        withRailDataTestContext {
             respond("/StopPoint/Mode/tube", 503, """{"message":"down"}""")
 
             val result = railData.fetchModeStations(TransportModeName("tube"))
@@ -316,60 +282,102 @@ class RailDataHttpTest {
                 .get(TransportError.UpstreamHttpFailure::statusCode)
                 .isEqualTo(503)
         }
-    }
 
     @Test
-    fun `fetchModeStations returns upstream network failure when the socket cannot be reached`() {
-        runBlocking {
-            httpClient.close()
-            httpClient = createTflHttpClient(Duration.ofMillis(250))
-            railData = RailDataHttp(
-                TflHttpClientConfig(
+    fun `fetchModeStations returns upstream network failure when the socket cannot be reached`() =
+        withRailDataTestContext {
+            val unreachableHttpClient = createTflHttpClient(Duration.ofMillis(250))
+            try {
+                val unreachableRailData = createRailData(
                     "http://127.0.0.1:1",
                     Duration.ofMillis(250),
-                    "test-key"
-                ),
-                httpClient,
-                TflPayloadParserHttp(transportJson())
-            )
+                    "test-key",
+                    unreachableHttpClient
+                )
 
-            val result = railData.fetchModeStations(TransportModeName("tube"))
+                val result = unreachableRailData.fetchModeStations(TransportModeName("tube"))
 
-            expectThat(result)
-                .isFailure()
-                .isA<TransportError.UpstreamNetworkFailure>()
+                expectThat(result)
+                    .isFailure()
+                    .isA<TransportError.UpstreamNetworkFailure>()
+            } finally {
+                unreachableHttpClient.close()
+            }
         }
-    }
 
     @Test
-    fun `fetchPredictions requests all arrivals and includes credentials in the upstream query string`() {
-        runBlocking {
+    fun `fetchPredictions requests all arrivals and includes credentials in the upstream query string`() =
+        withRailDataTestContext {
             val observedQuery = AtomicReference<String?>(null)
             server.createContext(
                 "/Mode/elizabeth-line/Arrivals",
                 RecordingJsonHandler(observedQuery, 200, "[]")
             )
-            httpClient.close()
-            httpClient = createTflHttpClient(Duration.ofSeconds(5))
-            railData = RailDataHttp(
-                TflHttpClientConfig(
+            val credentialedHttpClient = createTflHttpClient(Duration.ofSeconds(5))
+            try {
+                val credentialedRailData = createRailData(
                     "http://127.0.0.1:${server.address.port}",
                     Duration.ofSeconds(5),
-                    "secret/key"
-                ),
-                httpClient,
-                TflPayloadParserHttp(transportJson())
+                    "secret/key",
+                    credentialedHttpClient
+                )
+
+                val result = credentialedRailData.fetchPredictions(TransportModeName("elizabeth-line"))
+
+                expectThat(result).isSuccess().hasSize(0)
+                expectThat(observedQuery.get()).isNotNull().contains("app_key=secret/key")
+                expectThat(observedQuery.get()).isNotNull().contains("count=-1")
+            } finally {
+                credentialedHttpClient.close()
+            }
+        }
+
+    private fun withRailDataTestContext(block: suspend TestRailDataContext.() -> Unit) {
+        runBlocking {
+            val server = HttpServer.create(InetSocketAddress(0), 0)
+            val httpClient = createTflHttpClient(Duration.ofSeconds(5))
+            server.start()
+            val testRailDataContext = TestRailDataContext(
+                server,
+                createRailData(
+                    "http://127.0.0.1:${server.address.port}",
+                    Duration.ofSeconds(5),
+                    "test-key",
+                    httpClient
+                )
             )
 
-            val result = railData.fetchPredictions(TransportModeName("elizabeth-line"))
-
-            expectThat(result).isSuccess().hasSize(0)
-            expectThat(observedQuery.get()).isNotNull().contains("app_key=secret/key")
-            expectThat(observedQuery.get()).isNotNull().contains("count=-1")
+            try {
+                testRailDataContext.block()
+            } finally {
+                httpClient.close()
+                server.stop(0)
+            }
         }
     }
 
-    private fun respond(path: String, status: Int, body: String) {
+    private fun createRailData(
+        baseUrl: String,
+        requestTimeout: Duration,
+        subscriptionKey: String,
+        httpClient: HttpClient
+    ): RailData =
+        RailDataHttp(
+            TflHttpClientConfig(
+                baseUrl,
+                requestTimeout,
+                subscriptionKey
+            ),
+            httpClient,
+            TflPayloadParserHttp(transportJson())
+        )
+}
+
+private class TestRailDataContext(
+    val server: HttpServer,
+    val railData: RailData
+) {
+    fun respond(path: String, status: Int, body: String) {
         server.createContext(path, StaticJsonHandler(status, body))
     }
 }

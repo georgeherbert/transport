@@ -2,10 +2,8 @@ package transport
 
 import dev.forkhandles.result4k.Failure
 import dev.forkhandles.result4k.Success
-import java.time.Clock
 import java.time.Duration
 import java.time.Instant
-import java.time.ZoneId
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -25,7 +23,7 @@ class RealRailMapFeedServiceTest {
     @Test
     fun `start polls immediately and serves the cached snapshot`() =
         runTest {
-            val clock = MutableTestClock(Instant.parse("2026-03-22T20:50:00Z"))
+            val clock = FakeClock(Instant.parse("2026-03-22T20:50:00Z"))
             val callCount = AtomicInteger(0)
             val railMapFeedService: RailMapFeedService =
                 RealRailMapFeedService(
@@ -50,7 +48,7 @@ class RealRailMapFeedServiceTest {
     @Test
     fun `failed poll emits an error update and preserves the last cached snapshot`() =
         runTest {
-            val clock = MutableTestClock(Instant.parse("2026-03-22T20:50:00Z"))
+            val clock = FakeClock(Instant.parse("2026-03-22T20:50:00Z"))
             val callCount = AtomicInteger(0)
             val railMapFeedService: RailMapFeedService =
                 RealRailMapFeedService(
@@ -87,7 +85,7 @@ class RealRailMapFeedServiceTest {
     fun `animation ticks emit train-only updates`() =
         runTest {
             val generatedAt = Instant.parse("2026-03-22T20:50:00Z")
-            val clock = MutableTestClock(generatedAt)
+            val clock = FakeClock(generatedAt)
             val initialSnapshot = sampleRailMapSnapshot(generatedAt, false)
             val animatedSnapshot = initialSnapshot.copy(
                 trains = initialSnapshot.trains.map { train ->
@@ -140,7 +138,7 @@ class RealRailMapFeedServiceTest {
     @Test
     fun `force refresh requests are throttled to the poll interval`() =
         runTest {
-            val clock = MutableTestClock(Instant.parse("2026-03-22T20:50:00Z"))
+            val clock = FakeClock(Instant.parse("2026-03-22T20:50:00Z"))
             val callCount = AtomicInteger(0)
             val railMapFeedService: RailMapFeedService =
                 RealRailMapFeedService(
@@ -223,24 +221,4 @@ class RealRailMapFeedServiceTest {
                 )
             )
         )
-
-}
-
-private class MutableTestClock(
-    initialInstant: Instant
-) : Clock() {
-    private var instantValue = initialInstant
-
-    override fun instant(): Instant =
-        instantValue
-
-    override fun getZone(): ZoneId =
-        ZoneId.of("UTC")
-
-    override fun withZone(zone: ZoneId): Clock =
-        this
-
-    fun advanceBy(duration: Duration) {
-        instantValue = instantValue.plus(duration)
-    }
 }

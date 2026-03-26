@@ -65,22 +65,23 @@ class RailDataHttp(
     private suspend fun fetchEndpoint(
         endpoint: String,
         queryParameters: List<QueryParameter>
+    ) =
+        fetchEndpointAttempt(endpoint, queryParameters, 1, 3)
+
+    private suspend fun fetchEndpointAttempt(
+        endpoint: String,
+        queryParameters: List<QueryParameter>,
+        attempt: Int,
+        maxAttempts: Int
     ): TransportResult<String> {
-        val maxAttempts = 3
-        var attempt = 1
+        val result = sendRequest(endpoint, queryParameters)
 
-        while (attempt <= maxAttempts) {
-            val result = sendRequest(endpoint, queryParameters)
-
-            if (!shouldRetry(result, attempt, maxAttempts)) {
-                return result
-            }
-
-            delay(retryDelayMillis(attempt))
-            attempt += 1
+        if (!shouldRetry(result, attempt, maxAttempts)) {
+            return result
         }
 
-        return sendRequest(endpoint, queryParameters)
+        delay(retryDelayMillis(attempt))
+        return fetchEndpointAttempt(endpoint, queryParameters, attempt + 1, maxAttempts)
     }
 
     private suspend fun sendRequest(
