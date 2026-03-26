@@ -15,26 +15,26 @@ class RealRailMapProjector(
     private val railPathSmoother: RailPathSmoother,
     private val railLineProjectionFactory: RailLineProjectionFactory
 ) : RailMapProjector {
-    override fun project(snapshot: LiveRailSnapshot, lineMap: RailLineMap): RailMapSnapshot {
-        val smoothedLineMap = railPathSmoother.smooth(lineMap)
-        val projectedLines = smoothedLineMap.lines.associate { line ->
-            line.id to railLineProjectionFactory.create(line)
-        }
+    override fun project(snapshot: LiveRailSnapshot, lineMap: RailLineMap) =
+        railPathSmoother.smooth(lineMap).let { smoothedLineMap ->
+            val projectedLines = smoothedLineMap.lines.associate { line ->
+                line.id to railLineProjectionFactory.create(line)
+            }
 
-        return RailMapSnapshot(
-            snapshot.source,
-            snapshot.generatedAt,
-            snapshot.cached,
-            snapshot.cacheAge,
-            snapshot.stationsQueried,
-            snapshot.stationsFailed,
-            snapshot.partial,
-            snapshot.trainCount,
-            smoothedLineMap.lines,
-            projectStations(smoothedLineMap, projectedLines),
-            snapshot.trains.mapNotNull { train -> projectTrain(train, projectedLines) }
-        )
-    }
+            RailMapSnapshot(
+                snapshot.source,
+                snapshot.generatedAt,
+                snapshot.cached,
+                snapshot.cacheAge,
+                snapshot.stationsQueried,
+                snapshot.stationsFailed,
+                snapshot.partial,
+                snapshot.trainCount,
+                smoothedLineMap.lines,
+                projectStations(smoothedLineMap, projectedLines),
+                snapshot.trains.mapNotNull { train -> projectTrain(train, projectedLines) }
+            )
+        }
 
     private fun projectStations(
         lineMap: RailLineMap,
@@ -43,19 +43,20 @@ class RealRailMapProjector(
         lineMap.lines
             .filter { line -> line.id in supportedMapStationLineIdSet }
             .flatMap { line ->
-                val projectedLine = projectedLines[line.id] ?: return@flatMap emptyList()
-                line.sequences
-                    .flatMap(RailLineSequence::stations)
-                    .distinctBy(StationReference::id)
-                    .map { station ->
-                        ProjectedStationCandidate(
-                            station.id,
-                            station.name,
-                            station.coordinate,
-                            projectedLine.projectStation(station.coordinate) ?: station.coordinate,
-                            line.id
-                        )
-                    }
+                projectedLines[line.id]?.let { projectedLine ->
+                    line.sequences
+                        .flatMap(RailLineSequence::stations)
+                        .distinctBy(StationReference::id)
+                        .map { station ->
+                            ProjectedStationCandidate(
+                                station.id,
+                                station.name,
+                                station.coordinate,
+                                projectedLine.projectStation(station.coordinate) ?: station.coordinate,
+                                line.id
+                            )
+                        }
+                } ?: emptyList()
             }
             .groupBy(ProjectedStationCandidate::id)
             .values
@@ -83,28 +84,28 @@ class RealRailMapProjector(
     private fun projectTrain(
         train: LiveRailTrain,
         projectedLines: Map<LineId, RailLineProjection>
-    ): RailMapTrain? {
-        val lineId = train.lineIds.firstOrNull() ?: return null
-        val lineName = train.lineNames.firstOrNull() ?: LineName(lineId.value)
-        val projection = projectedLines[lineId]?.projectNextStopAnchor(train)
+    ) =
+        train.lineIds.firstOrNull()?.let { lineId ->
+            val lineName = train.lineNames.firstOrNull() ?: LineName(lineId.value)
+            val projection = projectedLines[lineId]?.projectNextStopAnchor(train)
 
-        return RailMapTrain(
-            train.trainId,
-            train.vehicleId,
-            lineId,
-            lineName,
-            train.direction,
-            train.destinationName,
-            train.towards,
-            train.currentLocation,
-            train.nextStop,
-            projection?.coordinate,
-            projection?.heading,
-            train.secondsToNextStop,
-            train.expectedArrival,
-            train.observedAt
-        )
-    }
+            RailMapTrain(
+                train.trainId,
+                train.vehicleId,
+                lineId,
+                lineName,
+                train.direction,
+                train.destinationName,
+                train.towards,
+                train.currentLocation,
+                train.nextStop,
+                projection?.coordinate,
+                projection?.heading,
+                train.secondsToNextStop,
+                train.expectedArrival,
+                train.observedAt
+            )
+        }
 }
 
 class RealIdentityRailPathSmoother : RailPathSmoother {
@@ -129,30 +130,29 @@ class RealRailPathSmoother(
             }
         )
 
-    private fun smoothCoordinates(coordinates: List<GeoCoordinate>): List<GeoCoordinate> {
+    private fun smoothCoordinates(coordinates: List<GeoCoordinate>): List<GeoCoordinate> =
         if (coordinates.size < 3) {
-            return coordinates
-        }
+            coordinates
+        } else {
+            val smoothed = mutableListOf<GeoCoordinate>()
+            smoothed += coordinates.first()
 
-        val smoothed = mutableListOf<GeoCoordinate>()
-        smoothed += coordinates.first()
+            for (index in 0 until coordinates.lastIndex) {
+                val previousPoint = coordinates.getOrElse(index - 1) { coordinates[index] }
+                val currentPoint = coordinates[index]
+                val nextPoint = coordinates[index + 1]
+                val followingPoint = coordinates.getOrElse(index + 2) { coordinates[index + 1] }
 
-        for (index in 0 until coordinates.lastIndex) {
-            val previousPoint = coordinates.getOrElse(index - 1) { coordinates[index] }
-            val currentPoint = coordinates[index]
-            val nextPoint = coordinates[index + 1]
-            val followingPoint = coordinates.getOrElse(index + 2) { coordinates[index + 1] }
+                for (step in 1 until samplesPerSegment) {
+                    val t = step.toDouble() / samplesPerSegment.toDouble()
+                    smoothed += catmullRomPoint(previousPoint, currentPoint, nextPoint, followingPoint, t)
+                }
 
-            for (step in 1 until samplesPerSegment) {
-                val t = step.toDouble() / samplesPerSegment.toDouble()
-                smoothed += catmullRomPoint(previousPoint, currentPoint, nextPoint, followingPoint, t)
+                smoothed += nextPoint
             }
 
-            smoothed += nextPoint
+            smoothed
         }
-
-        return smoothed
-    }
 
     private fun catmullRomPoint(
         previousPoint: GeoCoordinate,
@@ -160,21 +160,21 @@ class RealRailPathSmoother(
         nextPoint: GeoCoordinate,
         followingPoint: GeoCoordinate,
         t: Double
-    ): GeoCoordinate {
-        val startParameter = 0.0
-        val currentPointParameter = nextParameter(startParameter, previousPoint, currentPoint)
-        val nextPointParameter = nextParameter(currentPointParameter, currentPoint, nextPoint)
-        val followingPointParameter = nextParameter(nextPointParameter, nextPoint, followingPoint)
-        val pointParameter = currentPointParameter + ((nextPointParameter - currentPointParameter) * t)
+    ): GeoCoordinate =
+        0.0.let { startParameter ->
+            val currentPointParameter = nextParameter(startParameter, previousPoint, currentPoint)
+            val nextPointParameter = nextParameter(currentPointParameter, currentPoint, nextPoint)
+            val followingPointParameter = nextParameter(nextPointParameter, nextPoint, followingPoint)
+            val pointParameter = currentPointParameter + ((nextPointParameter - currentPointParameter) * t)
 
-        val firstInterpolation = interpolateByParameter(previousPoint, currentPoint, startParameter, currentPointParameter, pointParameter)
-        val secondInterpolation = interpolateByParameter(currentPoint, nextPoint, currentPointParameter, nextPointParameter, pointParameter)
-        val thirdInterpolation = interpolateByParameter(nextPoint, followingPoint, nextPointParameter, followingPointParameter, pointParameter)
-        val fourthInterpolation = interpolateByParameter(firstInterpolation, secondInterpolation, startParameter, nextPointParameter, pointParameter)
-        val fifthInterpolation = interpolateByParameter(secondInterpolation, thirdInterpolation, currentPointParameter, followingPointParameter, pointParameter)
+            val firstInterpolation = interpolateByParameter(previousPoint, currentPoint, startParameter, currentPointParameter, pointParameter)
+            val secondInterpolation = interpolateByParameter(currentPoint, nextPoint, currentPointParameter, nextPointParameter, pointParameter)
+            val thirdInterpolation = interpolateByParameter(nextPoint, followingPoint, nextPointParameter, followingPointParameter, pointParameter)
+            val fourthInterpolation = interpolateByParameter(firstInterpolation, secondInterpolation, startParameter, nextPointParameter, pointParameter)
+            val fifthInterpolation = interpolateByParameter(secondInterpolation, thirdInterpolation, currentPointParameter, followingPointParameter, pointParameter)
 
-        return interpolateByParameter(fourthInterpolation, fifthInterpolation, currentPointParameter, nextPointParameter, pointParameter)
-    }
+            interpolateByParameter(fourthInterpolation, fifthInterpolation, currentPointParameter, nextPointParameter, pointParameter)
+        }
 
     private fun nextParameter(
         currentParameter: Double,
@@ -189,14 +189,13 @@ class RealRailPathSmoother(
         startParameter: Double,
         endParameter: Double,
         currentParameter: Double
-    ): GeoCoordinate {
+    ): GeoCoordinate =
         if (abs(endParameter - startParameter) < 0.0000001) {
-            return endCoordinate
+            endCoordinate
+        } else {
+            val fraction = (currentParameter - startParameter) / (endParameter - startParameter)
+            interpolate(startCoordinate, endCoordinate, fraction)
         }
-
-        val fraction = (currentParameter - startParameter) / (endParameter - startParameter)
-        return interpolate(startCoordinate, endCoordinate, fraction)
-    }
 }
 
 private data class ProjectedStationCandidate(

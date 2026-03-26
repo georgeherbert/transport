@@ -37,12 +37,12 @@ class RealRailSnapshotService(
         refreshLock.withLock {
             val latestSnapshot = cachedSnapshot.get()
             if (!forceRefresh && latestSnapshot != null && !latestSnapshot.isExpired(clock, cacheTtl)) {
-                return@withLock Success(latestSnapshot.toSnapshot(clock, true))
-            }
-
-            when (val networkResult = railMetadataRepository.getRailNetwork()) {
-                is Success -> refreshFromNetwork(networkResult.value, latestSnapshot)
-                is Failure -> latestSnapshot?.let { cached -> Success(cached.toSnapshot(clock, true)) } ?: Failure(networkResult.reason)
+                Success(latestSnapshot.toSnapshot(clock, true))
+            } else {
+                when (val networkResult = railMetadataRepository.getRailNetwork()) {
+                    is Success -> refreshFromNetwork(networkResult.value, latestSnapshot)
+                    is Failure -> latestSnapshot?.let { cached -> Success(cached.toSnapshot(clock, true)) } ?: Failure(networkResult.reason)
+                }
             }
         }
 
@@ -67,25 +67,25 @@ class RealRailSnapshotService(
             is Failure -> latestSnapshot?.let { cached -> Success(cached.toSnapshot(clock, true)) } ?: Failure(predictionBatchResult.reason)
         }
 
-    private suspend fun fetchPredictionBatch(railNetwork: RailNetwork): TransportResult<PredictionBatch> {
-        val bulkPredictionResult = supportedRailModes
+    private suspend fun fetchPredictionBatch(railNetwork: RailNetwork): TransportResult<PredictionBatch> =
+        supportedRailModes
             .map { mode -> railData.fetchPredictions(mode) }
             .failFast()
             .map(List<List<RailPredictionRecord>>::flatten)
-
-        return when (bulkPredictionResult) {
-            is Success ->
-                Success(
-                    PredictionBatch(
-                        bulkPredictionResult.value,
-                        StationQueryCount(railNetwork.stationsById.size),
-                        StationFailureCount(0)
-                    )
-                )
-            is Failure ->
-                Failure(TransportError.SnapshotUnavailable(describeTransportError(bulkPredictionResult.reason)))
-        }
-    }
+            .let { bulkPredictionResult ->
+                when (bulkPredictionResult) {
+                    is Success ->
+                        Success(
+                            PredictionBatch(
+                                bulkPredictionResult.value,
+                                StationQueryCount(railNetwork.stationsById.size),
+                                StationFailureCount(0)
+                            )
+                        )
+                    is Failure ->
+                        Failure(TransportError.SnapshotUnavailable(describeTransportError(bulkPredictionResult.reason)))
+                }
+            }
 }
 
 data class PredictionBatch(
@@ -101,26 +101,25 @@ data class CachedLiveRailSnapshot(
     fun isExpired(clock: Clock, ttl: Duration): Boolean =
         Duration.between(generatedAt, Instant.now(clock)) > ttl
 
-    fun toSnapshot(clock: Clock, cached: Boolean): LiveRailSnapshot {
-        val cacheAge = if (cached) {
+    fun toSnapshot(clock: Clock, cached: Boolean): LiveRailSnapshot =
+        if (cached) {
             Duration.between(generatedAt, Instant.now(clock)).let { duration ->
                 if (duration.isNegative) Duration.ZERO else duration
             }
         } else {
             Duration.ZERO
+        }.let { cacheAge ->
+            LiveRailSnapshot(
+                snapshot.source,
+                snapshot.generatedAt,
+                cached,
+                cacheAge,
+                snapshot.stationsQueried,
+                snapshot.stationsFailed,
+                snapshot.partial,
+                snapshot.trainCount,
+                snapshot.lines,
+                snapshot.trains
+            )
         }
-
-        return LiveRailSnapshot(
-            snapshot.source,
-            snapshot.generatedAt,
-            cached,
-            cacheAge,
-            snapshot.stationsQueried,
-            snapshot.stationsFailed,
-            snapshot.partial,
-            snapshot.trainCount,
-            snapshot.lines,
-            snapshot.trains
-        )
-    }
 }

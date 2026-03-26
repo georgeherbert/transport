@@ -221,26 +221,29 @@ class ApiTest {
         }
     }
 
-    private suspend fun readSseEventLines(channel: ByteReadChannel): List<String> {
-        val lines = mutableListOf<String>()
+    private suspend fun readSseEventLines(channel: ByteReadChannel): List<String> =
+        mutableListOf<String>().let { lines ->
+            var eventLines: List<String>? = null
 
-        while (true) {
-            val line = checkNotNull(channel.readLine()) {
-                "Unexpected end of SSE stream."
-            }
-            if (line.startsWith("retry: ")) {
-                continue
+            while (eventLines == null) {
+                val line = checkNotNull(channel.readLine()) {
+                    "Unexpected end of SSE stream."
+                }
+                if (line.startsWith("retry: ")) {
+                    continue
+                }
+
+                if (line.isBlank() && lines.isNotEmpty()) {
+                    eventLines = lines.toList()
+                }
+
+                if (line.isNotBlank()) {
+                    lines.add(line)
+                }
             }
 
-            if (line.isBlank() && lines.isNotEmpty()) {
-                return lines
-            }
-
-            if (line.isNotBlank()) {
-                lines.add(line)
-            }
+            checkNotNull(eventLines)
         }
-    }
 
     private fun joinSseDataLines(lines: List<String>) =
         lines

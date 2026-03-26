@@ -75,46 +75,43 @@ class TflPayloadParserHttp(
                     .failFast()
             }
 
-    private inline fun <reified T> decodeList(body: String, endpoint: String): TransportResult<List<T>> {
-        return try {
+    private inline fun <reified T> decodeList(body: String, endpoint: String): TransportResult<List<T>> =
+        try {
             Success(json.decodeFromString<List<T>>(body))
         } catch (exception: SerializationException) {
             Failure(TransportError.UpstreamPayloadFailure(endpoint, exception.message ?: "Invalid JSON payload"))
         }
-    }
 
-    private inline fun <reified T> decodeObject(body: String, endpoint: String): TransportResult<T> {
-        return try {
+    private inline fun <reified T> decodeObject(body: String, endpoint: String): TransportResult<T> =
+        try {
             Success(json.decodeFromString<T>(body))
         } catch (exception: SerializationException) {
             Failure(TransportError.UpstreamPayloadFailure(endpoint, exception.message ?: "Invalid JSON payload"))
         }
-    }
 
     private fun parseStopPoint(
         stopPoint: TflStopPointJson,
         endpoint: String
-    ): TransportResult<List<RailStationRecord>> {
+    ): TransportResult<List<RailStationRecord>> =
         if (!isSupportedStationStopType(stopPoint.stopType)) {
-            return Success(emptyList())
+            Success(emptyList())
+        } else {
+            val supportedLineIds = stopPoint.lines
+                .map(TflIdentifierJson::id)
+                .map(::LineId)
+                .filter(::isSupportedLineId)
+
+            Success(
+                supportedLineIds.map { lineId ->
+                    RailStationRecord(
+                        StationId(stopPoint.naptanId),
+                        StationName(stopPoint.commonName),
+                        GeoCoordinate(stopPoint.lat, stopPoint.lon),
+                        lineId
+                    )
+                }
+            )
         }
-
-        val supportedLineIds = stopPoint.lines
-            .map(TflIdentifierJson::id)
-            .map(::LineId)
-            .filter(::isSupportedLineId)
-
-        return Success(
-            supportedLineIds.map { lineId ->
-                RailStationRecord(
-                    StationId(stopPoint.naptanId),
-                    StationName(stopPoint.commonName),
-                    GeoCoordinate(stopPoint.lat, stopPoint.lon),
-                    lineId
-                )
-            }
-        )
-    }
 
     private fun parseArrival(arrival: TflArrivalJson, endpoint: String): TransportResult<RailPredictionRecord> =
         parseInstant(arrival.timestamp, "timestamp", endpoint)
@@ -167,21 +164,21 @@ class TflPayloadParserHttp(
     private fun parseStopPointSequence(
         stopPointSequence: TflRouteStopPointSequenceJson,
         endpoint: String
-    ): TransportResult<RailLineSequenceRecord> {
-        val direction = stopPointSequence.direction
+    ): TransportResult<RailLineSequenceRecord> =
+        stopPointSequence.direction
             .takeIf(String::isNotBlank)
             ?.let(::TrainDirection)
-            ?: return Failure(TransportError.UpstreamPayloadFailure(endpoint, "TfL returned a route sequence without a direction."))
-
-        return Success(
-            RailLineSequenceRecord(
-                direction,
-                stopPointSequence.stopPoint
-                    .filter { stopPoint -> isSupportedStationStopType(stopPoint.stopType) }
-                    .map(::stationReference)
-            )
-        )
-    }
+            ?.let { direction ->
+                Success(
+                    RailLineSequenceRecord(
+                        direction,
+                        stopPointSequence.stopPoint
+                            .filter { stopPoint -> isSupportedStationStopType(stopPoint.stopType) }
+                            .map(::stationReference)
+                    )
+                )
+            }
+            ?: Failure(TransportError.UpstreamPayloadFailure(endpoint, "TfL returned a route sequence without a direction."))
 
     private fun parseCoordinate(coordinate: List<Double>, endpoint: String): TransportResult<GeoCoordinate> =
         if (coordinate.size < 2) {
@@ -198,16 +195,16 @@ class TflPayloadParserHttp(
             .filter { sequence -> sequence.stations.isNotEmpty() }
             .distinctBy(::sequenceKey)
 
-    private fun pathKey(path: RailLinePathRecord): String {
-        val forward = path.coordinates.joinToString(";") { coordinate ->
+    private fun pathKey(path: RailLinePathRecord): String =
+        path.coordinates.joinToString(";") { coordinate ->
             "${coordinate.lat},${coordinate.lon}"
+        }.let { forward ->
+            path.coordinates.asReversed().joinToString(";") { coordinate ->
+                "${coordinate.lat},${coordinate.lon}"
+            }.let { reverse ->
+                if (forward <= reverse) forward else reverse
+            }
         }
-        val reverse = path.coordinates.asReversed().joinToString(";") { coordinate ->
-            "${coordinate.lat},${coordinate.lon}"
-        }
-
-        return if (forward <= reverse) forward else reverse
-    }
 
     private fun sequenceKey(sequence: RailLineSequenceRecord) =
         sequence.direction.value + "|" + sequence.stations.joinToString(";") { station -> station.id.value }

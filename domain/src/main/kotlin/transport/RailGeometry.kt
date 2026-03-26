@@ -13,19 +13,21 @@ fun squaredDistance(left: GeoCoordinate, right: GeoCoordinate): Double =
 fun distance(left: GeoCoordinate, right: GeoCoordinate): Double =
     sqrt(squaredDistance(left, right))
 
-fun bearingBetween(startCoordinate: GeoCoordinate, endCoordinate: GeoCoordinate): HeadingDegrees? {
-    val startProjected = projectToMercator(startCoordinate)
-    val endProjected = projectToMercator(endCoordinate)
-    val xDelta = endProjected.x - startProjected.x
-    val yDelta = endProjected.y - startProjected.y
-    if (abs(xDelta) < 0.0000001 && abs(yDelta) < 0.0000001) {
-        return null
-    }
+fun bearingBetween(startCoordinate: GeoCoordinate, endCoordinate: GeoCoordinate): HeadingDegrees? =
+    projectToMercator(startCoordinate).let { startProjected ->
+        projectToMercator(endCoordinate).let { endProjected ->
+            val xDelta = endProjected.x - startProjected.x
+            val yDelta = endProjected.y - startProjected.y
 
-    val rawDegrees = Math.toDegrees(atan2(xDelta, yDelta))
-    val normalizedDegrees = (rawDegrees + 360.0) % 360.0
-    return HeadingDegrees(normalizedDegrees)
-}
+            if (abs(xDelta) < 0.0000001 && abs(yDelta) < 0.0000001) {
+                null
+            } else {
+                val rawDegrees = Math.toDegrees(atan2(xDelta, yDelta))
+                val normalizedDegrees = (rawDegrees + 360.0) % 360.0
+                HeadingDegrees(normalizedDegrees)
+            }
+        }
+    }
 
 fun interpolate(startCoordinate: GeoCoordinate, endCoordinate: GeoCoordinate, fraction: Double) =
     GeoCoordinate(

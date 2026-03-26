@@ -65,40 +65,40 @@ private fun createTransportServices(
     transportServiceConfig: TransportServiceConfig,
     json: kotlinx.serialization.json.Json,
     httpClient: HttpClient
-): TransportServices {
-    val railData = RailDataHttp(
+): TransportServices =
+    RailDataHttp(
         transportServiceConfig.toTflHttpClientConfig(),
         httpClient,
         TflPayloadParserHttp(json)
-    )
-    val railLineGeometrySource: RailLineGeometrySource =
-        ClasspathRailLineGeometrySource(json, "/transport/osm-line-geometry.json")
-    val railMetadataRepository = RealRailMetadataRepository(railData)
-    val railLineMapRepository = RealRailLineMapRepository(railData, railLineGeometrySource)
-    val railLocationEstimator = RealRailLocationEstimator()
-    val railSnapshotAssembler = RealRailSnapshotAssembler(railLocationEstimator)
-    val railPathSmoother: RailPathSmoother = RealIdentityRailPathSmoother()
-    val railLineProjectionFactory: RailLineProjectionFactory = RealRailLineProjectionFactory()
-    val railMapProjector = RealRailMapProjector(railPathSmoother, railLineProjectionFactory)
-    val railSnapshotService = RealRailSnapshotService(
-        railData,
-        railMetadataRepository,
-        railSnapshotAssembler,
-        Clock.systemUTC(),
-        transportServiceConfig.railSnapshotCacheTtl
-    )
-    val railLineMapService = RealRailLineMapService(railLineMapRepository)
+    ).let { railData ->
+        val railLineGeometrySource: RailLineGeometrySource =
+            ClasspathRailLineGeometrySource(json, "/transport/osm-line-geometry.json")
+        val railMetadataRepository = RealRailMetadataRepository(railData)
+        val railLineMapRepository = RealRailLineMapRepository(railData, railLineGeometrySource)
+        val railLocationEstimator = RealRailLocationEstimator()
+        val railSnapshotAssembler = RealRailSnapshotAssembler(railLocationEstimator)
+        val railPathSmoother: RailPathSmoother = RealIdentityRailPathSmoother()
+        val railLineProjectionFactory: RailLineProjectionFactory = RealRailLineProjectionFactory()
+        val railMapProjector = RealRailMapProjector(railPathSmoother, railLineProjectionFactory)
+        val railSnapshotService = RealRailSnapshotService(
+            railData,
+            railMetadataRepository,
+            railSnapshotAssembler,
+            Clock.systemUTC(),
+            transportServiceConfig.railSnapshotCacheTtl
+        )
+        val railLineMapService = RealRailLineMapService(railLineMapRepository)
 
-    return TransportServices(
-        railSnapshotService,
-        railLineMapService,
-        RealRailMapService(
+        TransportServices(
             railSnapshotService,
             railLineMapService,
-            railMapProjector
+            RealRailMapService(
+                railSnapshotService,
+                railLineMapService,
+                railMapProjector
+            )
         )
-    )
-}
+    }
 
 private data class TransportServices(
     val railSnapshotService: RailSnapshotService,

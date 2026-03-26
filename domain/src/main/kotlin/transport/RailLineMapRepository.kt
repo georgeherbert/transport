@@ -47,18 +47,17 @@ class RealRailLineMapRepository(
     private fun toRailLineMap(
         routeRecords: List<RailLineRouteRecord>,
         lineGeometry: List<RailLineGeometryRecord>
-    ): TransportResult<RailLineMap> {
+    ): TransportResult<RailLineMap> =
         if (routeRecords.isEmpty()) {
-            return Failure(TransportError.MetadataUnavailable("TfL returned no supported rail line routes."))
+            Failure(TransportError.MetadataUnavailable("TfL returned no supported rail line routes."))
+        } else {
+            val geometryByLineId = lineGeometry.associateBy(RailLineGeometryRecord::lineId)
+
+            routeRecords
+                .map { routeRecord -> toRailLine(routeRecord, geometryByLineId) }
+                .failFast()
+                .map(::RailLineMap)
         }
-
-        val geometryByLineId = lineGeometry.associateBy(RailLineGeometryRecord::lineId)
-
-        return routeRecords
-            .map { routeRecord -> toRailLine(routeRecord, geometryByLineId) }
-            .failFast()
-            .map(::RailLineMap)
-    }
 
     private fun toRailLine(
         routeRecord: RailLineRouteRecord,

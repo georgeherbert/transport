@@ -39,36 +39,34 @@ class RealRailMetadataRepository(
             .map(List<List<RailStationRecord>>::flatten)
             .flatMap(::buildRailNetwork)
 
-    private fun buildRailNetwork(stationRecords: List<RailStationRecord>): TransportResult<RailNetwork> {
+    private fun buildRailNetwork(stationRecords: List<RailStationRecord>): TransportResult<RailNetwork> =
         if (stationRecords.isEmpty()) {
-            return Failure(TransportError.MetadataUnavailable("TfL returned no supported rail stations."))
-        }
+            Failure(TransportError.MetadataUnavailable("TfL returned no supported rail stations."))
+        } else {
+            val stationsById = stationRecords
+                .groupBy(RailStationRecord::stationId)
+                .mapValues { entry ->
+                    val firstRecord = entry.value.first()
+                    RailStation(
+                        firstRecord.stationId,
+                        firstRecord.name,
+                        firstRecord.coordinate,
+                        entry.value.map(RailStationRecord::lineId).toSet()
+                    )
+                }
 
-        val stationsById = stationRecords
-            .groupBy(RailStationRecord::stationId)
-            .mapValues { entry ->
-                val firstRecord = entry.value.first()
-                RailStation(
-                    firstRecord.stationId,
-                    firstRecord.name,
-                    firstRecord.coordinate,
-                    entry.value.map(RailStationRecord::lineId).toSet()
-                )
+            Success(RailNetwork(stationsById, buildAliasIndex(stationsById.values)))
+        }
+}
+
+fun buildAliasIndex(stations: Collection<RailStation>): Map<String, List<RailStation>> =
+    linkedMapOf<String, MutableList<RailStation>>().apply {
+        for (station in stations) {
+            for (alias in stationNameVariants(station.name)) {
+                getOrPut(alias) { mutableListOf() } += station
             }
-
-        return Success(RailNetwork(stationsById, buildAliasIndex(stationsById.values)))
-    }
-}
-
-fun buildAliasIndex(stations: Collection<RailStation>): Map<String, List<RailStation>> {
-    val aliases = linkedMapOf<String, MutableList<RailStation>>()
-    for (station in stations) {
-        for (alias in stationNameVariants(station.name)) {
-            aliases.getOrPut(alias) { mutableListOf() } += station
         }
-    }
-    return aliases.mapValues { entry -> entry.value.toList() }
-}
+    }.mapValues { entry -> entry.value.toList() }
 
 fun stationNameVariants(name: StationName): Set<String> =
     setOf(

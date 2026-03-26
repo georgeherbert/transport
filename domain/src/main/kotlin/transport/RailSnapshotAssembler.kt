@@ -22,8 +22,8 @@ class RealRailSnapshotAssembler(
         generatedAt: Instant,
         stationsQueried: StationQueryCount,
         stationsFailed: StationFailureCount
-    ): LiveRailSnapshot {
-        val trains = predictions
+    ): LiveRailSnapshot =
+        predictions
             .filter(::isSupportedPrediction)
             .groupBy(::trainIdentityKey)
             .values
@@ -35,53 +35,54 @@ class RealRailSnapshotAssembler(
                     { train -> train.trainId.value }
                 )
             )
-
-        return LiveRailSnapshot(
-            transportSourceName,
-            generatedAt,
-            false,
-            Duration.ZERO,
-            stationsQueried,
-            stationsFailed,
-            stationsFailed.value > 0,
-            LiveTrainCount(trains.size),
-            supportedRailLineIds,
-            trains
-        )
-    }
+            .let { trains ->
+                LiveRailSnapshot(
+                    transportSourceName,
+                    generatedAt,
+                    false,
+                    Duration.ZERO,
+                    stationsQueried,
+                    stationsFailed,
+                    stationsFailed.value > 0,
+                    LiveTrainCount(trains.size),
+                    supportedRailLineIds,
+                    trains
+                )
+            }
 
     private fun buildTrain(
         railNetwork: RailNetwork,
         predictions: List<RailPredictionRecord>
-    ): LiveRailTrain {
-        val nextStopRepresentative = predictions.minWith(nextStopPredictionComparator)
-        val displayRepresentative = predictions.minWith(displayPredictionComparator)
-        val boardStation = nextStopRepresentative.stationId?.let { stationId -> railNetwork.stationsById[stationId] }
-        val lineIds = predictions.mapNotNull { prediction -> prediction.lineId }.distinct().sortedBy(LineId::value)
-        val lineNames = predictions.mapNotNull { prediction -> prediction.lineName }.distinct().sortedBy(LineName::value)
-        val location = railLocationEstimator.estimateLocation(
-            displayRepresentative.currentLocation,
-            boardStation
-        )
-        val currentLocation = displayRepresentative.currentLocation ?: location.description
+    ): LiveRailTrain =
+        predictions.minWith(nextStopPredictionComparator).let { nextStopRepresentative ->
+            predictions.minWith(displayPredictionComparator).let { displayRepresentative ->
+                val boardStation = nextStopRepresentative.stationId?.let { stationId -> railNetwork.stationsById[stationId] }
+                val lineIds = predictions.mapNotNull { prediction -> prediction.lineId }.distinct().sortedBy(LineId::value)
+                val lineNames = predictions.mapNotNull { prediction -> prediction.lineName }.distinct().sortedBy(LineName::value)
+                val location = railLocationEstimator.estimateLocation(
+                    displayRepresentative.currentLocation,
+                    boardStation
+                )
+                val currentLocation = displayRepresentative.currentLocation ?: location.description
 
-        return LiveRailTrain(
-            trainIdFor(nextStopRepresentative),
-            nextStopRepresentative.vehicleId,
-            lineIds,
-            lineNames,
-            nextStopRepresentative.direction ?: displayRepresentative.direction,
-            nextStopRepresentative.destinationName ?: displayRepresentative.destinationName,
-            nextStopRepresentative.towards ?: displayRepresentative.towards,
-            currentLocation,
-            location,
-            boardStation?.toReference(),
-            nextStopRepresentative.secondsToNextStop,
-            nextStopRepresentative.expectedArrival,
-            nextStopRepresentative.observedAt ?: displayRepresentative.observedAt,
-            PredictionCount(predictions.size)
-        )
-    }
+                LiveRailTrain(
+                    trainIdFor(nextStopRepresentative),
+                    nextStopRepresentative.vehicleId,
+                    lineIds,
+                    lineNames,
+                    nextStopRepresentative.direction ?: displayRepresentative.direction,
+                    nextStopRepresentative.destinationName ?: displayRepresentative.destinationName,
+                    nextStopRepresentative.towards ?: displayRepresentative.towards,
+                    currentLocation,
+                    location,
+                    boardStation?.toReference(),
+                    nextStopRepresentative.secondsToNextStop,
+                    nextStopRepresentative.expectedArrival,
+                    nextStopRepresentative.observedAt ?: displayRepresentative.observedAt,
+                    PredictionCount(predictions.size)
+                )
+            }
+        }
 
     private fun isSupportedPrediction(prediction: RailPredictionRecord): Boolean =
         prediction.lineId in supportedRailLineIds ||

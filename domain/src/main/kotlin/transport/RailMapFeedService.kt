@@ -50,21 +50,19 @@ class RealRailMapFeedService(
     )
 
     override suspend fun start() {
-        if (!started.compareAndSet(false, true)) {
-            return
-        }
-
-        refreshIfDue()
-        coroutineScope.launch {
-            while (isActive) {
-                delay(pollInterval.toMillis())
-                refreshIfDue()
+        if (started.compareAndSet(false, true)) {
+            refreshIfDue()
+            coroutineScope.launch {
+                while (isActive) {
+                    delay(pollInterval.toMillis())
+                    refreshIfDue()
+                }
             }
-        }
-        coroutineScope.launch {
-            while (isActive) {
-                delay(animationInterval.toMillis())
-                emitAnimatedSnapshotIfAvailable()
+            coroutineScope.launch {
+                while (isActive) {
+                    delay(animationInterval.toMillis())
+                    emitAnimatedSnapshotIfAvailable()
+                }
             }
         }
     }
@@ -92,45 +90,39 @@ class RealRailMapFeedService(
         refreshLock.withLock {
             val now = Instant.now(clock)
             val lastAttempt = lastRefreshAttemptAt.get()
-            if (lastAttempt != null && Duration.between(lastAttempt, now) < pollInterval) {
-                return
-            }
+            if (lastAttempt == null || Duration.between(lastAttempt, now) >= pollInterval) {
+                lastRefreshAttemptAt.set(now)
 
-            lastRefreshAttemptAt.set(now)
-
-            when (val mapResult = railMapService.getRailMap(true)) {
-                is Success -> {
-                    val observedSnapshot = railMapMotionEngine.observe(mapResult.value)
-                    val cached = CachedRailMapSnapshot(observedSnapshot.generatedAt, observedSnapshot)
-                    cachedSnapshot.set(cached)
-                    latestError.set(null)
-                    updateFlow.tryEmit(RailMapFeedUpdate.SnapshotUpdated(observedSnapshot))
-                }
-                is Failure -> {
-                    latestError.set(mapResult.reason)
-                    updateFlow.tryEmit(RailMapFeedUpdate.ErrorUpdated(mapResult.reason))
+                when (val mapResult = railMapService.getRailMap(true)) {
+                    is Success -> {
+                        val observedSnapshot = railMapMotionEngine.observe(mapResult.value)
+                        val cached = CachedRailMapSnapshot(observedSnapshot.generatedAt, observedSnapshot)
+                        cachedSnapshot.set(cached)
+                        latestError.set(null)
+                        updateFlow.tryEmit(RailMapFeedUpdate.SnapshotUpdated(observedSnapshot))
+                    }
+                    is Failure -> {
+                        latestError.set(mapResult.reason)
+                        updateFlow.tryEmit(RailMapFeedUpdate.ErrorUpdated(mapResult.reason))
+                    }
                 }
             }
         }
     }
 
     private fun emitAnimatedSnapshotIfAvailable() {
-        if (latestError.get() != null) {
-            return
-        }
-
-        cachedSnapshot.get()?.let { cached ->
-            val currentTime = Instant.now(clock)
-            val animatedSnapshot = railMapMotionEngine.advance(cached.snapshot, currentTime)
-            if (animatedSnapshot.trains == cached.snapshot.trains) {
-                return
+        if (latestError.get() == null) {
+            cachedSnapshot.get()?.let { cached ->
+                val currentTime = Instant.now(clock)
+                val animatedSnapshot = railMapMotionEngine.advance(cached.snapshot, currentTime)
+                if (animatedSnapshot.trains != cached.snapshot.trains) {
+                    updateFlow.tryEmit(
+                        RailMapFeedUpdate.TrainPositionsUpdated(
+                            cached.toTrainPositions(true, currentTime, animatedSnapshot)
+                        )
+                    )
+                }
             }
-
-            updateFlow.tryEmit(
-                RailMapFeedUpdate.TrainPositionsUpdated(
-                    cached.toTrainPositions(true, currentTime, animatedSnapshot)
-                )
-            )
         }
     }
 
@@ -155,54 +147,53 @@ data class CachedRailMapSnapshot(
         cached: Boolean,
         railMapMotionEngine: RailMapMotionEngine,
         currentTime: Instant
-    ): RailMapSnapshot {
-        val animatedSnapshot = railMapMotionEngine.advance(snapshot, currentTime)
-        val cacheAge = if (cached) {
-            Duration.between(generatedAt, currentTime).let { duration ->
-                if (duration.isNegative) Duration.ZERO else duration
+    ): RailMapSnapshot =
+        railMapMotionEngine.advance(snapshot, currentTime).let { animatedSnapshot ->
+            if (cached) {
+                Duration.between(generatedAt, currentTime).let { duration ->
+                    if (duration.isNegative) Duration.ZERO else duration
+                }
+            } else {
+                Duration.ZERO
+            }.let { cacheAge ->
+                RailMapSnapshot(
+                    animatedSnapshot.source,
+                    animatedSnapshot.generatedAt,
+                    cached,
+                    cacheAge,
+                    animatedSnapshot.stationsQueried,
+                    animatedSnapshot.stationsFailed,
+                    animatedSnapshot.partial,
+                    animatedSnapshot.trainCount,
+                    animatedSnapshot.lines,
+                    animatedSnapshot.stations,
+                    animatedSnapshot.trains
+                )
             }
-        } else {
-            Duration.ZERO
         }
-
-        return RailMapSnapshot(
-            animatedSnapshot.source,
-            animatedSnapshot.generatedAt,
-            cached,
-            cacheAge,
-            animatedSnapshot.stationsQueried,
-            animatedSnapshot.stationsFailed,
-            animatedSnapshot.partial,
-            animatedSnapshot.trainCount,
-            animatedSnapshot.lines,
-            animatedSnapshot.stations,
-            animatedSnapshot.trains
-        )
-    }
 
     fun toTrainPositions(
         cached: Boolean,
         currentTime: Instant,
         animatedSnapshot: RailMapSnapshot
-    ): RailMapTrainPositions {
-        val cacheAge = if (cached) {
+    ): RailMapTrainPositions =
+        if (cached) {
             Duration.between(generatedAt, currentTime).let { duration ->
                 if (duration.isNegative) Duration.ZERO else duration
             }
         } else {
             Duration.ZERO
+        }.let { cacheAge ->
+            RailMapTrainPositions(
+                animatedSnapshot.source,
+                animatedSnapshot.generatedAt,
+                cached,
+                cacheAge,
+                animatedSnapshot.stationsQueried,
+                animatedSnapshot.stationsFailed,
+                animatedSnapshot.partial,
+                animatedSnapshot.trainCount,
+                animatedSnapshot.trains
+            )
         }
-
-        return RailMapTrainPositions(
-            animatedSnapshot.source,
-            animatedSnapshot.generatedAt,
-            cached,
-            cacheAge,
-            animatedSnapshot.stationsQueried,
-            animatedSnapshot.stationsFailed,
-            animatedSnapshot.partial,
-            animatedSnapshot.trainCount,
-            animatedSnapshot.trains
-        )
-    }
 }

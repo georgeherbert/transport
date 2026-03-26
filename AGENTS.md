@@ -77,6 +77,7 @@ Use this file as the default operating guide for contributors and coding agents.
 ### Readability
 - Prefer expression-bodied functions (`fun foo() = ...`) instead of block bodies when possible.
 - In expression-bodied functions, always place the expression on the next line after `=`.
+- Do not use early returns; prefer `if`, `when`, `let`, and other expression forms so control flow stays linear.
 - Avoid unnecessary explicit return types when type inference is clear and signatures already communicate intent.
 - Avoid temporary locals that only feed a `when`; prefer `when (val value = ...)` or direct expression forms.
 - Prefer consistent alignment in multi-line expressions so related parts are easy to scan.

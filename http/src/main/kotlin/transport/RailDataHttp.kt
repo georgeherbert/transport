@@ -73,44 +73,42 @@ class RailDataHttp(
         queryParameters: List<QueryParameter>,
         attempt: Int,
         maxAttempts: Int
-    ): TransportResult<String> {
-        val result = sendRequest(endpoint, queryParameters)
-
-        if (!shouldRetry(result, attempt, maxAttempts)) {
-            return result
+    ): TransportResult<String> =
+        sendRequest(endpoint, queryParameters).let { result ->
+            if (!shouldRetry(result, attempt, maxAttempts)) {
+                result
+            } else {
+                delay(retryDelayMillis(attempt))
+                fetchEndpointAttempt(endpoint, queryParameters, attempt + 1, maxAttempts)
+            }
         }
-
-        delay(retryDelayMillis(attempt))
-        return fetchEndpointAttempt(endpoint, queryParameters, attempt + 1, maxAttempts)
-    }
 
     private suspend fun sendRequest(
         endpoint: String,
         queryParameters: List<QueryParameter>
-    ): TransportResult<String> {
-        return try {
+    ): TransportResult<String> =
+        try {
             request(endpoint, queryParameters).toTransportResult(endpoint)
         } catch (exception: CancellationException) {
             throw exception
         } catch (exception: IOException) {
             Failure(TransportError.UpstreamNetworkFailure(endpoint, exception.message ?: exception.javaClass.simpleName))
         }
-    }
 
     private fun shouldRetry(
         result: TransportResult<String>,
         attempt: Int,
         maxAttempts: Int
-    ): Boolean {
-        if (result !is Failure) {
-            return false
+    ): Boolean =
+        when (result) {
+            is Success -> false
+            is Failure ->
+                when (val reason = result.reason) {
+                    is TransportError.UpstreamHttpFailure ->
+                        reason.statusCode == 429 && attempt < maxAttempts
+                    else -> false
+                }
         }
-
-        val reason = result.reason
-        return reason is TransportError.UpstreamHttpFailure &&
-            reason.statusCode == 429 &&
-            attempt < maxAttempts
-    }
 
     private fun retryDelayMillis(attempt: Int) =
         when (attempt) {
@@ -119,13 +117,12 @@ class RailDataHttp(
             else -> 1000L
         }
 
-    private fun lastPage(page: TflModeStationsPage): Int {
+    private fun lastPage(page: TflModeStationsPage) =
         if (page.total <= 0 || page.pageSize <= 0) {
-            return page.page
+            page.page
+        } else {
+            ((page.total - 1) / page.pageSize) + 1
         }
-
-        return ((page.total - 1) / page.pageSize) + 1
-    }
 
     private suspend fun request(
         endpoint: String,
@@ -140,20 +137,20 @@ class RailDataHttp(
             parameter("app_key", tflHttpClientConfig.subscriptionKey)
         }
 
-    private suspend fun HttpResponse.toTransportResult(endpoint: String): TransportResult<String> {
-        val body = bodyAsText()
-        if (status.isSuccess()) {
-            return Success(body)
+    private suspend fun HttpResponse.toTransportResult(endpoint: String): TransportResult<String> =
+        bodyAsText().let { body ->
+            if (status.isSuccess()) {
+                Success(body)
+            } else {
+                Failure(
+                    TransportError.UpstreamHttpFailure(
+                        endpoint,
+                        status.value,
+                        body.take(250)
+                    )
+                )
+            }
         }
-
-        return Failure(
-            TransportError.UpstreamHttpFailure(
-                endpoint,
-                status.value,
-                body.take(250)
-            )
-        )
-    }
 }
 
 data class QueryParameter(

@@ -2,17 +2,17 @@ package transport
 
 import dev.forkhandles.result4k.Failure
 import dev.forkhandles.result4k.Success
+import dev.forkhandles.result4k.flatMap
 
-fun <T> Iterable<TransportResult<T>>.failFast(): TransportResult<List<T>> {
-    val values = mutableListOf<T>()
-    for (result in this) {
-        when (result) {
-            is Success -> values += result.value
-            is Failure -> return Failure(result.reason)
+fun <T> Iterable<TransportResult<T>>.failFast(): TransportResult<List<T>> =
+    fold<TransportResult<T>, TransportResult<List<T>>>(Success(emptyList())) { accumulatedResult, nextResult ->
+        accumulatedResult.flatMap { accumulatedValues ->
+            when (nextResult) {
+                is Success -> Success(accumulatedValues + nextResult.value)
+                is Failure -> Failure(nextResult.reason)
+            }
         }
     }
-    return Success(values.toList())
-}
 
 fun describeTransportError(error: TransportError): String =
     when (error) {

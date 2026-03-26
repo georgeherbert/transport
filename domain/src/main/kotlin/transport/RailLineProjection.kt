@@ -63,19 +63,20 @@ class RealRailLineProjection(
         findBetweenStationsProjection(fromStation, toStation)
             ?.toTrainMapProjection(progress.coerceIn(0.0, 1.0))
 
-    override fun projectNextStopAnchor(train: LiveRailTrain): TrainMapProjection? {
-        val nextStop = train.nextStop ?: return null
-        val coordinate = projectStation(nextStop.coordinate) ?: return null
-        val heading = matchingSequences(train.direction)
-            .mapNotNull { sequence -> nextStopMovement(sequence, nextStop.id) }
-            .flatMap { movement ->
-                projectedPaths.mapNotNull { pathProjection -> projectStationMovement(pathProjection, movement) }
-            }
-            .minByOrNull(StationMovementProjection::distanceSquared)
-            ?.heading()
+    override fun projectNextStopAnchor(train: LiveRailTrain) =
+        train.nextStop?.let { nextStop ->
+            projectStation(nextStop.coordinate)?.let { coordinate ->
+                val heading = matchingSequences(train.direction)
+                    .mapNotNull { sequence -> nextStopMovement(sequence, nextStop.id) }
+                    .flatMap { movement ->
+                        projectedPaths.mapNotNull { pathProjection -> projectStationMovement(pathProjection, movement) }
+                    }
+                    .minByOrNull(StationMovementProjection::distanceSquared)
+                    ?.heading()
 
-        return TrainMapProjection(coordinate, heading)
-    }
+                TrainMapProjection(coordinate, heading)
+            }
+        }
 
     private fun findBetweenStationsProjection(
         fromStation: StationReference,
@@ -98,53 +99,51 @@ class RealRailLineProjection(
             }
             .minByOrNull(BetweenStationsProjection::distanceSquared)
 
-    private fun matchingSequences(direction: TrainDirection?): List<RailLineSequence> {
+    private fun matchingSequences(direction: TrainDirection?) =
         if (line.sequences.isEmpty() || direction == null) {
-            return emptyList()
+            emptyList()
+        } else {
+            line.sequences.filter { sequence -> sequence.direction == direction }
         }
-
-        return line.sequences.filter { sequence -> sequence.direction == direction }
-    }
 
     private fun nextStopMovement(
         sequence: RailLineSequence,
         nextStopStationId: StationId
-    ): StationMovement? {
-        val nextStopIndex = sequence.stations.indexOfFirst { station -> station.id == nextStopStationId }
-        if (nextStopIndex < 0) {
-            return null
-        }
+    ): StationMovement? =
+        sequence.stations.indexOfFirst { station -> station.id == nextStopStationId }
+            .let { nextStopIndex ->
+                if (nextStopIndex < 0) {
+                    null
+                } else {
+                    val anchorStation = sequence.stations[nextStopIndex]
+                    val nextStation = sequence.stations.getOrNull(nextStopIndex + 1)
+                    val previousStation = sequence.stations.getOrNull(nextStopIndex - 1)
 
-        val anchorStation = sequence.stations[nextStopIndex]
-        val nextStation = sequence.stations.getOrNull(nextStopIndex + 1)
-        val previousStation = sequence.stations.getOrNull(nextStopIndex - 1)
-
-        return nextStation?.let { station ->
-            StationMovement(anchorStation, station, anchorStation)
-        } ?: previousStation?.let { station ->
-            StationMovement(station, anchorStation, anchorStation)
-        }
-    }
+                    nextStation?.let { station ->
+                        StationMovement(anchorStation, station, anchorStation)
+                    } ?: previousStation?.let { station ->
+                        StationMovement(station, anchorStation, anchorStation)
+                    }
+                }
+            }
 
     private fun projectStationMovement(
         pathProjection: RailLinePathProjection,
         movement: StationMovement
-    ): StationMovementProjection? {
-        val fromProjection = pathProjection.projectCoordinate(movement.fromStation.coordinate)
-        val toProjection = pathProjection.projectCoordinate(movement.toStation.coordinate)
-        val anchorProjection = pathProjection.projectCoordinate(movement.anchorStation.coordinate)
-        if (fromProjection == null || toProjection == null || anchorProjection == null) {
-            return null
+    ): StationMovementProjection? =
+        pathProjection.projectCoordinate(movement.fromStation.coordinate)?.let { fromProjection ->
+            pathProjection.projectCoordinate(movement.toStation.coordinate)?.let { toProjection ->
+                pathProjection.projectCoordinate(movement.anchorStation.coordinate)?.let { anchorProjection ->
+                    StationMovementProjection(
+                        pathProjection,
+                        fromProjection,
+                        toProjection,
+                        anchorProjection,
+                        fromProjection.distanceSquared + toProjection.distanceSquared + anchorProjection.distanceSquared
+                    )
+                }
+            }
         }
-
-        return StationMovementProjection(
-            pathProjection,
-            fromProjection,
-            toProjection,
-            anchorProjection,
-            fromProjection.distanceSquared + toProjection.distanceSquared + anchorProjection.distanceSquared
-        )
-    }
 }
 
 class RealRailLinePathProjection(
@@ -153,143 +152,140 @@ class RealRailLinePathProjection(
     private val cumulativeLengths = buildCumulativeLengths(path.coordinates)
     override val totalLength = cumulativeLengths.lastOrNull() ?: 0.0
 
-    override fun projectCoordinate(target: GeoCoordinate): PathCoordinateProjection? {
-        if (path.coordinates.isEmpty()) {
-            return null
+    override fun projectCoordinate(target: GeoCoordinate): PathCoordinateProjection? =
+        when {
+            path.coordinates.isEmpty() -> null
+            path.coordinates.size == 1 -> {
+                val onlyPoint = path.coordinates.first()
+                PathCoordinateProjection(this, onlyPoint, squaredDistance(onlyPoint, target), 0.0)
+            }
+            else ->
+                (0 until path.coordinates.lastIndex)
+                    .map { segmentIndex -> projectOntoSegment(target, segmentIndex) }
+                    .minByOrNull(PathCoordinateProjection::distanceSquared)
         }
 
-        if (path.coordinates.size == 1) {
-            val onlyPoint = path.coordinates.first()
-            return PathCoordinateProjection(this, onlyPoint, squaredDistance(onlyPoint, target), 0.0)
+    override fun coordinateAt(distanceAlongPath: Double): GeoCoordinate? =
+        when {
+            path.coordinates.isEmpty() -> null
+            distanceAlongPath <= 0.0 || path.coordinates.size == 1 -> path.coordinates.first()
+            distanceAlongPath >= totalLength -> path.coordinates.last()
+            else ->
+                cumulativeLengths.indexOfFirst { segmentDistance -> segmentDistance >= distanceAlongPath }
+                    .let { segmentIndex ->
+                        if (segmentIndex <= 0) {
+                            path.coordinates.first()
+                        } else {
+                            val startCoordinate = path.coordinates[segmentIndex - 1]
+                            val endCoordinate = path.coordinates[segmentIndex]
+                            val segmentStart = cumulativeLengths[segmentIndex - 1]
+                            val segmentLength = cumulativeLengths[segmentIndex] - segmentStart
+
+                            if (segmentLength == 0.0) {
+                                startCoordinate
+                            } else {
+                                val fraction = (distanceAlongPath - segmentStart) / segmentLength
+                                interpolate(startCoordinate, endCoordinate, fraction)
+                            }
+                        }
+                    }
         }
-
-        return (0 until path.coordinates.lastIndex)
-            .map { segmentIndex -> projectOntoSegment(target, segmentIndex) }
-            .minByOrNull(PathCoordinateProjection::distanceSquared)
-    }
-
-    override fun coordinateAt(distanceAlongPath: Double): GeoCoordinate? {
-        if (path.coordinates.isEmpty()) {
-            return null
-        }
-
-        if (distanceAlongPath <= 0.0 || path.coordinates.size == 1) {
-            return path.coordinates.first()
-        }
-
-        if (distanceAlongPath >= totalLength) {
-            return path.coordinates.last()
-        }
-
-        val segmentIndex = cumulativeLengths.indexOfFirst { segmentDistance -> segmentDistance >= distanceAlongPath }
-        if (segmentIndex <= 0) {
-            return path.coordinates.first()
-        }
-
-        val startCoordinate = path.coordinates[segmentIndex - 1]
-        val endCoordinate = path.coordinates[segmentIndex]
-        val segmentStart = cumulativeLengths[segmentIndex - 1]
-        val segmentLength = cumulativeLengths[segmentIndex] - segmentStart
-        if (segmentLength == 0.0) {
-            return startCoordinate
-        }
-
-        val fraction = (distanceAlongPath - segmentStart) / segmentLength
-        return interpolate(startCoordinate, endCoordinate, fraction)
-    }
 
     override fun headingAlongTravel(
         travelStartDistance: Double,
         travelEndDistance: Double
-    ): HeadingDegrees? {
-        val travelLength = abs(travelEndDistance - travelStartDistance)
-        if (travelLength < 0.0000001) {
-            return null
-        }
+    ): HeadingDegrees? =
+        abs(travelEndDistance - travelStartDistance).let { travelLength ->
+            if (travelLength < 0.0000001) {
+                null
+            } else {
+                val step = (travelLength / 4.0).coerceAtLeast(0.00001).coerceAtMost(travelLength)
+                val startCoordinate = coordinateAt(travelStartDistance)
+                val endCoordinate = coordinateAt(offsetAlongTravel(travelStartDistance, travelStartDistance, travelEndDistance, step))
 
-        val step = (travelLength / 4.0).coerceAtLeast(0.00001).coerceAtMost(travelLength)
-        val startCoordinate = coordinateAt(travelStartDistance)
-        val endCoordinate = coordinateAt(offsetAlongTravel(travelStartDistance, travelStartDistance, travelEndDistance, step))
-        if (startCoordinate == null || endCoordinate == null) {
-            return null
+                if (startCoordinate == null || endCoordinate == null) {
+                    null
+                } else {
+                    bearingBetween(startCoordinate, endCoordinate)
+                }
+            }
         }
-
-        return bearingBetween(startCoordinate, endCoordinate)
-    }
 
     override fun headingAtProgress(
         travelStartDistance: Double,
         travelEndDistance: Double,
         progress: Double
-    ): HeadingDegrees? {
-        val clampedProgress = progress.coerceIn(0.0, 1.0)
-        val travelLength = abs(travelEndDistance - travelStartDistance)
-        if (travelLength < 0.0000001) {
-            return null
+    ): HeadingDegrees? =
+        abs(travelEndDistance - travelStartDistance).let { travelLength ->
+            if (travelLength < 0.0000001) {
+                null
+            } else {
+                val clampedProgress = progress.coerceIn(0.0, 1.0)
+                val midpointDistance = offsetAlongTravel(
+                    travelStartDistance,
+                    travelStartDistance,
+                    travelEndDistance,
+                    travelLength * clampedProgress
+                )
+                val step = (travelLength / 20.0).coerceAtLeast(0.00001).coerceAtMost(travelLength / 2.0)
+                val lowerBound = minOf(travelStartDistance, travelEndDistance)
+                val upperBound = maxOf(travelStartDistance, travelEndDistance)
+                val startDistance = offsetAlongTravel(midpointDistance, travelStartDistance, travelEndDistance, -step).coerceIn(lowerBound, upperBound)
+                val endDistance = offsetAlongTravel(midpointDistance, travelStartDistance, travelEndDistance, step).coerceIn(lowerBound, upperBound)
+                val startCoordinate = coordinateAt(startDistance)
+                val endCoordinate = coordinateAt(endDistance)
+
+                if (startCoordinate == null || endCoordinate == null) {
+                    null
+                } else {
+                    bearingBetween(startCoordinate, endCoordinate)
+                }
+            }
         }
 
-        val midpointDistance = offsetAlongTravel(
-            travelStartDistance,
-            travelStartDistance,
-            travelEndDistance,
-            travelLength * clampedProgress
-        )
-        val step = (travelLength / 20.0).coerceAtLeast(0.00001).coerceAtMost(travelLength / 2.0)
-        val lowerBound = minOf(travelStartDistance, travelEndDistance)
-        val upperBound = maxOf(travelStartDistance, travelEndDistance)
-        val startDistance = offsetAlongTravel(midpointDistance, travelStartDistance, travelEndDistance, -step).coerceIn(lowerBound, upperBound)
-        val endDistance = offsetAlongTravel(midpointDistance, travelStartDistance, travelEndDistance, step).coerceIn(lowerBound, upperBound)
-        val startCoordinate = coordinateAt(startDistance)
-        val endCoordinate = coordinateAt(endDistance)
-        if (startCoordinate == null || endCoordinate == null) {
-            return null
+    private fun projectOntoSegment(target: GeoCoordinate, segmentIndex: Int): PathCoordinateProjection =
+        path.coordinates[segmentIndex].let { startCoordinate ->
+            path.coordinates[segmentIndex + 1].let { endCoordinate ->
+                val segmentLat = endCoordinate.lat - startCoordinate.lat
+                val segmentLon = endCoordinate.lon - startCoordinate.lon
+                val segmentLengthSquared = segmentLat.pow(2) + segmentLon.pow(2)
+
+                if (segmentLengthSquared == 0.0) {
+                    PathCoordinateProjection(
+                        this,
+                        startCoordinate,
+                        squaredDistance(startCoordinate, target),
+                        cumulativeLengths[segmentIndex]
+                    )
+                } else {
+                    val targetLat = target.lat - startCoordinate.lat
+                    val targetLon = target.lon - startCoordinate.lon
+                    val fraction = ((targetLat * segmentLat) + (targetLon * segmentLon)) / segmentLengthSquared
+                    val clampedFraction = fraction.coerceIn(0.0, 1.0)
+                    val projectedCoordinate = interpolate(startCoordinate, endCoordinate, clampedFraction)
+                    val segmentLength = sqrt(segmentLengthSquared)
+                    val segmentStartDistance = cumulativeLengths[segmentIndex]
+
+                    PathCoordinateProjection(
+                        this,
+                        projectedCoordinate,
+                        squaredDistance(projectedCoordinate, target),
+                        segmentStartDistance + (segmentLength * clampedFraction)
+                    )
+                }
+            }
         }
 
-        return bearingBetween(startCoordinate, endCoordinate)
-    }
-
-    private fun projectOntoSegment(target: GeoCoordinate, segmentIndex: Int): PathCoordinateProjection {
-        val startCoordinate = path.coordinates[segmentIndex]
-        val endCoordinate = path.coordinates[segmentIndex + 1]
-        val segmentLat = endCoordinate.lat - startCoordinate.lat
-        val segmentLon = endCoordinate.lon - startCoordinate.lon
-        val segmentLengthSquared = segmentLat.pow(2) + segmentLon.pow(2)
-        if (segmentLengthSquared == 0.0) {
-            return PathCoordinateProjection(
-                this,
-                startCoordinate,
-                squaredDistance(startCoordinate, target),
-                cumulativeLengths[segmentIndex]
-            )
-        }
-
-        val targetLat = target.lat - startCoordinate.lat
-        val targetLon = target.lon - startCoordinate.lon
-        val fraction = ((targetLat * segmentLat) + (targetLon * segmentLon)) / segmentLengthSquared
-        val clampedFraction = fraction.coerceIn(0.0, 1.0)
-        val projectedCoordinate = interpolate(startCoordinate, endCoordinate, clampedFraction)
-        val segmentLength = sqrt(segmentLengthSquared)
-        val segmentStartDistance = cumulativeLengths[segmentIndex]
-
-        return PathCoordinateProjection(
-            this,
-            projectedCoordinate,
-            squaredDistance(projectedCoordinate, target),
-            segmentStartDistance + (segmentLength * clampedFraction)
-        )
-    }
-
-    private fun buildCumulativeLengths(coordinates: List<GeoCoordinate>): List<Double> {
+    private fun buildCumulativeLengths(coordinates: List<GeoCoordinate>): List<Double> =
         if (coordinates.isEmpty()) {
-            return emptyList()
+            emptyList()
+        } else {
+            val cumulative = mutableListOf(0.0)
+            for (index in 1 until coordinates.size) {
+                cumulative += cumulative.last() + distance(coordinates[index - 1], coordinates[index])
+            }
+            cumulative
         }
-
-        val cumulative = mutableListOf(0.0)
-        for (index in 1 until coordinates.size) {
-            cumulative += cumulative.last() + distance(coordinates[index - 1], coordinates[index])
-        }
-        return cumulative
-    }
 
     private fun offsetAlongTravel(
         referenceDistance: Double,
@@ -337,17 +333,20 @@ data class TrainMapProjection(
     val heading: HeadingDegrees?
 )
 
-private fun BetweenStationsProjection.toTrainMapProjection(progress: Double): TrainMapProjection? {
-    val progressDistance = fromProjection.distanceAlongPath +
-        ((toProjection.distanceAlongPath - fromProjection.distanceAlongPath) * progress.coerceIn(0.0, 1.0))
-    val coordinate = path.coordinateAt(progressDistance) ?: return null
-    val heading = path.headingAtProgress(
-        fromProjection.distanceAlongPath,
-        toProjection.distanceAlongPath,
-        progress
-    )
-    return TrainMapProjection(coordinate, heading)
-}
+private fun BetweenStationsProjection.toTrainMapProjection(progress: Double): TrainMapProjection? =
+    (fromProjection.distanceAlongPath +
+        ((toProjection.distanceAlongPath - fromProjection.distanceAlongPath) * progress.coerceIn(0.0, 1.0)))
+        .let { progressDistance ->
+            path.coordinateAt(progressDistance)?.let { coordinate ->
+                val heading = path.headingAtProgress(
+                    fromProjection.distanceAlongPath,
+                    toProjection.distanceAlongPath,
+                    progress
+                )
+
+                TrainMapProjection(coordinate, heading)
+            }
+        }
 
 private fun StationMovementProjection.heading() =
     path.headingAlongTravel(fromProjection.distanceAlongPath, toProjection.distanceAlongPath)

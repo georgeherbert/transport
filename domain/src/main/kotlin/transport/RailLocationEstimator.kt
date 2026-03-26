@@ -17,27 +17,27 @@ class RealRailLocationEstimator : RailLocationEstimator {
     private fun nextStopAnchor(
         currentLocation: LocationDescription?,
         nextStopStation: RailStation?
-    ): LocationEstimate {
-        val description = currentLocation
+    ): LocationEstimate =
+        currentLocation
             ?.value
             ?.trim()
             ?.takeIf(String::isNotBlank)
             ?.let(::LocationDescription)
-
-        return if (nextStopStation == null) {
-            LocationEstimate(
-                LocationType.UNKNOWN,
-                description ?: LocationDescription("Location unavailable"),
-                null,
-                null
-            )
-        } else {
-            LocationEstimate(
-                LocationType.STATION_BOARD,
-                description ?: LocationDescription(nextStopStation.name.value),
-                nextStopStation.coordinate,
-                nextStopStation.toReference()
-            )
-        }
-    }
+            .let { description ->
+                if (nextStopStation == null) {
+                    LocationEstimate(
+                        LocationType.UNKNOWN,
+                        description ?: LocationDescription("Location unavailable"),
+                        null,
+                        null
+                    )
+                } else {
+                    LocationEstimate(
+                        LocationType.STATION_BOARD,
+                        description ?: LocationDescription(nextStopStation.name.value),
+                        nextStopStation.coordinate,
+                        nextStopStation.toReference()
+                    )
+                }
+            }
 }
