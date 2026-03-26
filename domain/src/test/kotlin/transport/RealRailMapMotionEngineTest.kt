@@ -11,7 +11,8 @@ import strikt.assertions.isLessThan
 import strikt.assertions.isNotNull
 
 class RealRailMapMotionEngineTest {
-    private val motionEngine: RailMapMotionEngine = RealRailMapMotionEngine()
+    private val motionEngine: RailMapMotionEngine =
+        RealRailMapMotionEngine(RealRailLineProjectionFactory())
 
     @Test
     fun `observe learns segment duration from next stop transitions and advances later trains`() {

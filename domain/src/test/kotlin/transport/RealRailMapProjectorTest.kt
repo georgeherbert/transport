@@ -14,8 +14,10 @@ import strikt.assertions.isNotNull
 import strikt.assertions.isNull
 
 class RealRailMapProjectorTest {
+    private val railLineProjectionFactory: RailLineProjectionFactory =
+        RealRailLineProjectionFactory()
     private val projector: RailMapProjector =
-        RealRailMapProjector(RealRailPathSmoother(6))
+        RealRailMapProjector(RealRailPathSmoother(6), railLineProjectionFactory)
 
     @Test
     fun `identity smoother preserves imported line geometry`() {
@@ -580,7 +582,10 @@ class RealRailMapProjectorTest {
             )
         )
 
-        val projected = RealRailMapProjector(RealIdentityRailPathSmoother()).project(snapshot, lineMap)
+        val projected = RealRailMapProjector(
+            RealIdentityRailPathSmoother(),
+            railLineProjectionFactory
+        ).project(snapshot, lineMap)
 
         expectThat(projected.stations).hasSize(5)
         expectThat(projected.stations.first().name.value).isEqualTo("Alpha Underground Station")
@@ -768,7 +773,7 @@ class RealRailMapProjectorTest {
 
     @Test
     fun `headingAtProgress respects reverse travel direction`() {
-        val projectedPath = ProjectedRailLinePath(
+        val projectedPath = RealRailLinePathProjection(
             RailLinePath(
                 listOf(
                     GeoCoordinate(51.5, -0.3),
@@ -785,7 +790,7 @@ class RealRailMapProjectorTest {
 
     @Test
     fun `headingAtProgress keeps reverse travel direction at station arrival`() {
-        val projectedPath = ProjectedRailLinePath(
+        val projectedPath = RealRailLinePathProjection(
             RailLinePath(
                 listOf(
                     GeoCoordinate(51.5, -0.3),

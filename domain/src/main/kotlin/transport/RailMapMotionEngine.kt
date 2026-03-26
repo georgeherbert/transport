@@ -8,7 +8,9 @@ interface RailMapMotionEngine {
     fun advance(snapshot: RailMapSnapshot, currentTime: Instant): RailMapSnapshot
 }
 
-class RealRailMapMotionEngine : RailMapMotionEngine {
+class RealRailMapMotionEngine(
+    private val railLineProjectionFactory: RailLineProjectionFactory
+) : RailMapMotionEngine {
     private val segmentDurations = linkedMapOf<SegmentKey, SegmentDurationSamples>()
     private val trainStates = linkedMapOf<TrainId, TrainMotionState>()
 
@@ -28,7 +30,9 @@ class RealRailMapMotionEngine : RailMapMotionEngine {
 
     override fun advance(snapshot: RailMapSnapshot, currentTime: Instant) =
         run {
-            val projectedLines = snapshot.lines.associateBy(RailLine::id) { line -> ProjectedRailLine(line) }
+            val projectedLines = snapshot.lines.associateBy(RailLine::id) { line ->
+                railLineProjectionFactory.create(line)
+            }
 
             RailMapSnapshot(
                 snapshot.source,
@@ -113,7 +117,7 @@ class RealRailMapMotionEngine : RailMapMotionEngine {
 
     private fun advanceTrain(
         train: RailMapTrain,
-        projectedLine: ProjectedRailLine?,
+        projectedLine: RailLineProjection?,
         currentTime: Instant
     ): RailMapTrain {
         val trainState = trainStates[train.trainId] ?: return train

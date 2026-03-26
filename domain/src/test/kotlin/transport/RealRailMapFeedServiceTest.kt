@@ -20,6 +20,9 @@ import strikt.assertions.isEqualTo
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class RealRailMapFeedServiceTest {
+    private val railLineProjectionFactory: RailLineProjectionFactory =
+        RealRailLineProjectionFactory()
+
     @Test
     fun `start polls immediately and serves the cached snapshot`() =
         runTest {
@@ -31,7 +34,7 @@ class RealRailMapFeedServiceTest {
                         callCount.incrementAndGet()
                         Success(sampleRailMapSnapshot(clock.instant(), forceRefresh))
                     },
-                    RealRailMapMotionEngine(),
+                    RealRailMapMotionEngine(railLineProjectionFactory),
                     clock,
                     Duration.ofSeconds(20),
                     backgroundScope
@@ -58,7 +61,7 @@ class RealRailMapFeedServiceTest {
                             else -> Failure(TransportError.UpstreamHttpFailure("/Mode/tube/Arrivals", 503, "down"))
                         }
                     },
-                    RealRailMapMotionEngine(),
+                    RealRailMapMotionEngine(railLineProjectionFactory),
                     clock,
                     Duration.ofSeconds(20),
                     backgroundScope
@@ -146,7 +149,7 @@ class RealRailMapFeedServiceTest {
                         callCount.incrementAndGet()
                         Success(sampleRailMapSnapshot(clock.instant(), forceRefresh))
                     },
-                    RealRailMapMotionEngine(),
+                    RealRailMapMotionEngine(railLineProjectionFactory),
                     clock,
                     Duration.ofSeconds(20),
                     backgroundScope

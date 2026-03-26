@@ -12,8 +12,10 @@ import strikt.assertions.hasSize
 import strikt.assertions.isA
 
 class RealRailMapServiceTest {
+    private val railLineProjectionFactory: RailLineProjectionFactory =
+        RealRailLineProjectionFactory()
     private val railMapProjector: RailMapProjector =
-        RealRailMapProjector(RealIdentityRailPathSmoother())
+        RealRailMapProjector(RealIdentityRailPathSmoother(), railLineProjectionFactory)
 
     @Test
     fun `getRailMap combines snapshot and line geometry`() {
