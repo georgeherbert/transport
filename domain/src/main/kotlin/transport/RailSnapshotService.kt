@@ -24,13 +24,14 @@ class RealRailSnapshotService(
     private val cachedSnapshot = AtomicReference<CachedLiveRailSnapshot?>(null)
     private val refreshLock = Mutex()
 
-    override suspend fun getLiveSnapshot(forceRefresh: Boolean): TransportResult<LiveRailSnapshot> {
-        val currentSnapshot = cachedSnapshot.get()
-        if (!forceRefresh && currentSnapshot != null && !currentSnapshot.isExpired(clock, cacheTtl)) {
-            return Success(currentSnapshot.toSnapshot(clock, true))
+    override suspend fun getLiveSnapshot(forceRefresh: Boolean) =
+        cachedSnapshot.get().let { currentSnapshot ->
+            if (!forceRefresh && currentSnapshot != null && !currentSnapshot.isExpired(clock, cacheTtl)) {
+                Success(currentSnapshot.toSnapshot(clock, true))
+            } else {
+                refreshSnapshot(forceRefresh)
+            }
         }
-        return refreshSnapshot(forceRefresh)
-    }
 
     private suspend fun refreshSnapshot(forceRefresh: Boolean): TransportResult<LiveRailSnapshot> =
         refreshLock.withLock {

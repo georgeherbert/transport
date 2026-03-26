@@ -1,15 +1,9 @@
 package transport
 
-import com.sun.net.httpserver.HttpExchange
-import com.sun.net.httpserver.HttpHandler
-import com.sun.net.httpserver.HttpServer
-import io.ktor.client.HttpClient
-import java.net.InetSocketAddress
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.Test
-import kotlinx.coroutines.runBlocking
 import strikt.api.expectThat
 import strikt.assertions.contains
 import strikt.assertions.get
@@ -21,7 +15,7 @@ import strikt.assertions.isNotNull
 class RailDataHttpTest {
     @Test
     fun `fetchModeStations filters non station stop points and expands line memberships`() =
-        withRailDataTestContext {
+        withRailDataHttpTestContext {
             respond(
                 "/StopPoint/Mode/tube",
                 200,
@@ -66,7 +60,7 @@ class RailDataHttpTest {
 
     @Test
     fun `fetchLineRoutes parses the route sequence payload`() =
-        withRailDataTestContext {
+        withRailDataHttpTestContext {
             respond(
                 "/Line/victoria/Route/Sequence/all",
                 200,
@@ -99,7 +93,7 @@ class RailDataHttpTest {
 
     @Test
     fun `fetchPredictions parses the bulk arrivals payload for a mode`() =
-        withRailDataTestContext {
+        withRailDataHttpTestContext {
             respond(
                 "/Mode/tube/Arrivals",
                 200,
@@ -137,7 +131,7 @@ class RailDataHttpTest {
 
     @Test
     fun `fetchLineRoutes requests regular service geometry`() =
-        withRailDataTestContext {
+        withRailDataHttpTestContext {
             val observedQuery = AtomicReference<String?>(null)
             server.createContext(
                 "/Line/victoria/Route/Sequence/all",
@@ -163,7 +157,7 @@ class RailDataHttpTest {
 
     @Test
     fun `fetchLineRoutes retries once when TfL rate limits the request`() =
-        withRailDataTestContext {
+        withRailDataHttpTestContext {
             val attempts = AtomicInteger(0)
             server.createContext(
                 "/Line/victoria/Route/Sequence/all"
@@ -208,7 +202,7 @@ class RailDataHttpTest {
 
     @Test
     fun `fetchModeStations requests additional pages when TfL indicates more stop points are available`() =
-        withRailDataTestContext {
+        withRailDataHttpTestContext {
             val requests = AtomicInteger(0)
             server.createContext("/StopPoint/Mode/tube") { exchange ->
                 val requestNumber = requests.incrementAndGet()
@@ -271,7 +265,7 @@ class RailDataHttpTest {
 
     @Test
     fun `fetchModeStations returns upstream http failure`() =
-        withRailDataTestContext {
+        withRailDataHttpTestContext {
             respond("/StopPoint/Mode/tube", 503, """{"message":"down"}""")
 
             val result = railData.fetchModeStations(TransportModeName("tube"))
@@ -285,10 +279,10 @@ class RailDataHttpTest {
 
     @Test
     fun `fetchModeStations returns upstream network failure when the socket cannot be reached`() =
-        withRailDataTestContext {
+        withRailDataHttpTestContext {
             val unreachableHttpClient = createTflHttpClient(Duration.ofMillis(250))
             try {
-                val unreachableRailData = createRailData(
+                val unreachableRailData = createRailDataHttp(
                     "http://127.0.0.1:1",
                     Duration.ofMillis(250),
                     "test-key",
@@ -307,7 +301,7 @@ class RailDataHttpTest {
 
     @Test
     fun `fetchPredictions requests all arrivals and includes credentials in the upstream query string`() =
-        withRailDataTestContext {
+        withRailDataHttpTestContext {
             val observedQuery = AtomicReference<String?>(null)
             server.createContext(
                 "/Mode/elizabeth-line/Arrivals",
@@ -315,7 +309,7 @@ class RailDataHttpTest {
             )
             val credentialedHttpClient = createTflHttpClient(Duration.ofSeconds(5))
             try {
-                val credentialedRailData = createRailData(
+                val credentialedRailData = createRailDataHttp(
                     "http://127.0.0.1:${server.address.port}",
                     Duration.ofSeconds(5),
                     "secret/key",
@@ -331,83 +325,4 @@ class RailDataHttpTest {
                 credentialedHttpClient.close()
             }
         }
-
-    private fun withRailDataTestContext(block: suspend TestRailDataContext.() -> Unit) {
-        runBlocking {
-            val server = HttpServer.create(InetSocketAddress(0), 0)
-            val httpClient = createTflHttpClient(Duration.ofSeconds(5))
-            server.start()
-            val testRailDataContext = TestRailDataContext(
-                server,
-                createRailData(
-                    "http://127.0.0.1:${server.address.port}",
-                    Duration.ofSeconds(5),
-                    "test-key",
-                    httpClient
-                )
-            )
-
-            try {
-                testRailDataContext.block()
-            } finally {
-                httpClient.close()
-                server.stop(0)
-            }
-        }
-    }
-
-    private fun createRailData(
-        baseUrl: String,
-        requestTimeout: Duration,
-        subscriptionKey: String,
-        httpClient: HttpClient
-    ): RailData =
-        RailDataHttp(
-            TflHttpClientConfig(
-                baseUrl,
-                requestTimeout,
-                subscriptionKey
-            ),
-            httpClient,
-            TflPayloadParserHttp(transportJson())
-        )
-}
-
-private class TestRailDataContext(
-    val server: HttpServer,
-    val railData: RailData
-) {
-    fun respond(path: String, status: Int, body: String) {
-        server.createContext(path, StaticJsonHandler(status, body))
-    }
-}
-
-class StaticJsonHandler(
-    private val status: Int,
-    private val body: String
-) : HttpHandler {
-    override fun handle(exchange: HttpExchange) {
-        val bytes = body.toByteArray()
-        exchange.responseHeaders.add("Content-Type", "application/json")
-        exchange.sendResponseHeaders(status, bytes.size.toLong())
-        exchange.responseBody.use { output ->
-            output.write(bytes)
-        }
-    }
-}
-
-class RecordingJsonHandler(
-    private val observedQuery: AtomicReference<String?>,
-    private val status: Int,
-    private val body: String
-) : HttpHandler {
-    override fun handle(exchange: HttpExchange) {
-        observedQuery.set(exchange.requestURI.query)
-        val bytes = body.toByteArray()
-        exchange.responseHeaders.add("Content-Type", "application/json")
-        exchange.sendResponseHeaders(status, bytes.size.toLong())
-        exchange.responseBody.use { output ->
-            output.write(bytes)
-        }
-    }
 }

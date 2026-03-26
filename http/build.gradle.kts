@@ -2,6 +2,7 @@ import org.gradle.api.tasks.testing.Test
 
 plugins {
     kotlin("jvm")
+    `java-test-fixtures`
 }
 
 val ktorVersion: String by rootProject.extra
@@ -22,6 +23,26 @@ dependencies {
     testImplementation(kotlin("test-junit5"))
     testImplementation("io.strikt:strikt-core:$striktVersion")
     testImplementation(testFixtures(project(":domain")))
+
+    testFixturesImplementation(project(":domain"))
+    testFixturesImplementation(project(":json"))
+    testFixturesImplementation("io.ktor:ktor-client-core-jvm:$ktorVersion")
+    testFixturesImplementation("io.ktor:ktor-client-cio-jvm:$ktorVersion")
+    testFixturesImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:$coroutinesVersion")
+    testFixturesImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:$kotlinxSerializationVersion")
+    testFixturesImplementation("dev.forkhandles:result4k:$result4kVersion")
+}
+
+sourceSets {
+    val main by getting
+    named("testFixtures") {
+        compileClasspath += main.output
+        runtimeClasspath += main.output
+    }
+}
+
+tasks.named("compileTestFixturesKotlin") {
+    dependsOn("compileKotlin")
 }
 
 val testExternal by sourceSets.creating {

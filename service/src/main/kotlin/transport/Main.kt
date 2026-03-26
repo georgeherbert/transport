@@ -43,7 +43,7 @@ fun main() {
                     json
                 )
             }
-        ).start(wait = true)
+        ).start(true)
     } finally {
         feedScope.cancel()
         httpClient.close()
