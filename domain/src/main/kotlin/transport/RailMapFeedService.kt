@@ -147,53 +147,51 @@ data class CachedRailMapSnapshot(
         cached: Boolean,
         railMapMotionEngine: RailMapMotionEngine,
         currentTime: Instant
-    ): RailMapSnapshot =
-        railMapMotionEngine.advance(snapshot, currentTime).let { animatedSnapshot ->
-            if (cached) {
-                Duration.between(generatedAt, currentTime).let { duration ->
-                    if (duration.isNegative) Duration.ZERO else duration
-                }
-            } else {
-                Duration.ZERO
-            }.let { cacheAge ->
-                RailMapSnapshot(
-                    animatedSnapshot.source,
-                    animatedSnapshot.generatedAt,
-                    cached,
-                    cacheAge,
-                    animatedSnapshot.stationsQueried,
-                    animatedSnapshot.stationsFailed,
-                    animatedSnapshot.partial,
-                    animatedSnapshot.trainCount,
-                    animatedSnapshot.lines,
-                    animatedSnapshot.stations,
-                    animatedSnapshot.trains
-                )
-            }
-        }
+    ): RailMapSnapshot {
+        val animatedSnapshot = railMapMotionEngine.advance(snapshot, currentTime)
+        val cacheAge = cacheAgeAt(currentTime, cached)
+
+        return RailMapSnapshot(
+            animatedSnapshot.source,
+            animatedSnapshot.generatedAt,
+            cached,
+            cacheAge,
+            animatedSnapshot.stationsQueried,
+            animatedSnapshot.stationsFailed,
+            animatedSnapshot.partial,
+            animatedSnapshot.trainCount,
+            animatedSnapshot.lines,
+            animatedSnapshot.stations,
+            animatedSnapshot.trains
+        )
+    }
 
     fun toTrainPositions(
         cached: Boolean,
         currentTime: Instant,
         animatedSnapshot: RailMapSnapshot
-    ): RailMapTrainPositions =
+    ): RailMapTrainPositions {
+        val cacheAge = cacheAgeAt(currentTime, cached)
+
+        return RailMapTrainPositions(
+            animatedSnapshot.source,
+            animatedSnapshot.generatedAt,
+            cached,
+            cacheAge,
+            animatedSnapshot.stationsQueried,
+            animatedSnapshot.stationsFailed,
+            animatedSnapshot.partial,
+            animatedSnapshot.trainCount,
+            animatedSnapshot.trains
+        )
+    }
+
+    private fun cacheAgeAt(currentTime: Instant, cached: Boolean): Duration =
         if (cached) {
             Duration.between(generatedAt, currentTime).let { duration ->
                 if (duration.isNegative) Duration.ZERO else duration
             }
         } else {
             Duration.ZERO
-        }.let { cacheAge ->
-            RailMapTrainPositions(
-                animatedSnapshot.source,
-                animatedSnapshot.generatedAt,
-                cached,
-                cacheAge,
-                animatedSnapshot.stationsQueried,
-                animatedSnapshot.stationsFailed,
-                animatedSnapshot.partial,
-                animatedSnapshot.trainCount,
-                animatedSnapshot.trains
-            )
         }
 }

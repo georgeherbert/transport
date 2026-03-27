@@ -101,25 +101,26 @@ data class CachedLiveRailSnapshot(
     fun isExpired(clock: Clock, ttl: Duration): Boolean =
         Duration.between(generatedAt, Instant.now(clock)) > ttl
 
-    fun toSnapshot(clock: Clock, cached: Boolean): LiveRailSnapshot =
-        if (cached) {
+    fun toSnapshot(clock: Clock, cached: Boolean): LiveRailSnapshot {
+        val cacheAge = if (cached) {
             Duration.between(generatedAt, Instant.now(clock)).let { duration ->
                 if (duration.isNegative) Duration.ZERO else duration
             }
         } else {
             Duration.ZERO
-        }.let { cacheAge ->
-            LiveRailSnapshot(
-                snapshot.source,
-                snapshot.generatedAt,
-                cached,
-                cacheAge,
-                snapshot.stationsQueried,
-                snapshot.stationsFailed,
-                snapshot.partial,
-                snapshot.trainCount,
-                snapshot.lines,
-                snapshot.trains
-            )
         }
+
+        return LiveRailSnapshot(
+            snapshot.source,
+            snapshot.generatedAt,
+            cached,
+            cacheAge,
+            snapshot.stationsQueried,
+            snapshot.stationsFailed,
+            snapshot.partial,
+            snapshot.trainCount,
+            snapshot.lines,
+            snapshot.trains
+        )
+    }
 }

@@ -63,20 +63,19 @@ class RealRailLineProjection(
         findBetweenStationsProjection(fromStation, toStation)
             ?.toTrainMapProjection(progress.coerceIn(0.0, 1.0))
 
-    override fun projectNextStopAnchor(train: LiveRailTrain) =
-        train.nextStop?.let { nextStop ->
-            projectStation(nextStop.coordinate)?.let { coordinate ->
-                val heading = matchingSequences(train.direction)
-                    .mapNotNull { sequence -> nextStopMovement(sequence, nextStop.id) }
-                    .flatMap { movement ->
-                        projectedPaths.mapNotNull { pathProjection -> projectStationMovement(pathProjection, movement) }
-                    }
-                    .minByOrNull(StationMovementProjection::distanceSquared)
-                    ?.heading()
+    override fun projectNextStopAnchor(train: LiveRailTrain): TrainMapProjection? {
+        val nextStop = train.nextStop
+        val coordinate = nextStop?.let { stop -> projectStation(stop.coordinate) }
 
-                TrainMapProjection(coordinate, heading)
-            }
+        return if (nextStop == null || coordinate == null) {
+            null
+        } else {
+            TrainMapProjection(
+                coordinate,
+                stationAnchorHeading(train.direction, nextStop)
+            )
         }
+    }
 
     private fun findBetweenStationsProjection(
         fromStation: StationReference,
@@ -84,20 +83,41 @@ class RealRailLineProjection(
     ) =
         projectedPaths
             .mapNotNull { pathProjection ->
-                val fromProjection = pathProjection.projectCoordinate(fromStation.coordinate)
-                val toProjection = pathProjection.projectCoordinate(toStation.coordinate)
-                if (fromProjection == null || toProjection == null) {
-                    null
-                } else {
-                    BetweenStationsProjection(
-                        pathProjection,
-                        fromProjection,
-                        toProjection,
-                        fromProjection.distanceSquared + toProjection.distanceSquared
-                    )
-                }
+                betweenStationsProjection(pathProjection, fromStation, toStation)
             }
             .minByOrNull(BetweenStationsProjection::distanceSquared)
+
+    private fun stationAnchorHeading(
+        direction: TrainDirection?,
+        nextStop: StationReference
+    ) =
+        matchingSequences(direction)
+            .mapNotNull { sequence -> nextStopMovement(sequence, nextStop.id) }
+            .flatMap { movement ->
+                projectedPaths.mapNotNull { pathProjection -> projectStationMovement(pathProjection, movement) }
+            }
+            .minByOrNull(StationMovementProjection::distanceSquared)
+            ?.heading()
+
+    private fun betweenStationsProjection(
+        pathProjection: RailLinePathProjection,
+        fromStation: StationReference,
+        toStation: StationReference
+    ): BetweenStationsProjection? {
+        val fromProjection = pathProjection.projectCoordinate(fromStation.coordinate)
+        val toProjection = pathProjection.projectCoordinate(toStation.coordinate)
+
+        return if (fromProjection == null || toProjection == null) {
+            null
+        } else {
+            BetweenStationsProjection(
+                pathProjection,
+                fromProjection,
+                toProjection,
+                fromProjection.distanceSquared + toProjection.distanceSquared
+            )
+        }
+    }
 
     private fun matchingSequences(direction: TrainDirection?) =
         if (line.sequences.isEmpty() || direction == null) {
@@ -109,41 +129,40 @@ class RealRailLineProjection(
     private fun nextStopMovement(
         sequence: RailLineSequence,
         nextStopStationId: StationId
-    ): StationMovement? =
-        sequence.stations.indexOfFirst { station -> station.id == nextStopStationId }
-            .let { nextStopIndex ->
-                if (nextStopIndex < 0) {
-                    null
-                } else {
-                    val anchorStation = sequence.stations[nextStopIndex]
-                    val nextStation = sequence.stations.getOrNull(nextStopIndex + 1)
-                    val previousStation = sequence.stations.getOrNull(nextStopIndex - 1)
+    ): StationMovement? {
+        val nextStopIndex = sequence.stations.indexOfFirst { station -> station.id == nextStopStationId }
+        val anchorStation = sequence.stations.getOrNull(nextStopIndex)
+        val nextStation = sequence.stations.getOrNull(nextStopIndex + 1)
+        val previousStation = sequence.stations.getOrNull(nextStopIndex - 1)
 
-                    nextStation?.let { station ->
-                        StationMovement(anchorStation, station, anchorStation)
-                    } ?: previousStation?.let { station ->
-                        StationMovement(station, anchorStation, anchorStation)
-                    }
-                }
-            }
+        return when {
+            anchorStation == null -> null
+            nextStation != null -> StationMovement(anchorStation, nextStation, anchorStation)
+            previousStation != null -> StationMovement(previousStation, anchorStation, anchorStation)
+            else -> null
+        }
+    }
 
     private fun projectStationMovement(
         pathProjection: RailLinePathProjection,
         movement: StationMovement
-    ): StationMovementProjection? =
-        pathProjection.projectCoordinate(movement.fromStation.coordinate)?.let { fromProjection ->
-            pathProjection.projectCoordinate(movement.toStation.coordinate)?.let { toProjection ->
-                pathProjection.projectCoordinate(movement.anchorStation.coordinate)?.let { anchorProjection ->
-                    StationMovementProjection(
-                        pathProjection,
-                        fromProjection,
-                        toProjection,
-                        anchorProjection,
-                        fromProjection.distanceSquared + toProjection.distanceSquared + anchorProjection.distanceSquared
-                    )
-                }
-            }
+    ): StationMovementProjection? {
+        val fromProjection = pathProjection.projectCoordinate(movement.fromStation.coordinate)
+        val toProjection = pathProjection.projectCoordinate(movement.toStation.coordinate)
+        val anchorProjection = pathProjection.projectCoordinate(movement.anchorStation.coordinate)
+
+        return if (fromProjection == null || toProjection == null || anchorProjection == null) {
+            null
+        } else {
+            StationMovementProjection(
+                pathProjection,
+                fromProjection,
+                toProjection,
+                anchorProjection,
+                fromProjection.distanceSquared + toProjection.distanceSquared + anchorProjection.distanceSquared
+            )
         }
+    }
 }
 
 class RealRailLinePathProjection(
