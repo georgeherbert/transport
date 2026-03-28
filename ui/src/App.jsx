@@ -8,7 +8,7 @@ import {
   useState
 } from 'react'
 import L from 'leaflet'
-import { MapContainer, Marker, Pane, Polyline, Popup, TileLayer } from 'react-leaflet'
+import { MapContainer, Marker, Pane, Polyline, Popup, TileLayer, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 
 const londonCenter = [51.5072, -0.1276]
@@ -41,6 +41,8 @@ const linePalette = {
 
 const trainIconCache = new Map()
 const stationIconCache = new Map()
+const trainHitRadiusPixels = 18
+const stationHitRadiusPixels = 10
 
 function App() {
   const [mapSnapshot, setMapSnapshot] = useState(null)
@@ -48,6 +50,7 @@ function App() {
   const [errorMessage, setErrorMessage] = useState('')
   const [selectedLineId, setSelectedLineId] = useState('all')
   const [selectedMapFeature, setSelectedMapFeature] = useState(null)
+  const [featurePicker, setFeaturePicker] = useState(null)
   const pendingTrainPositionsRef = useRef(null)
   const trainPositionsAnimationFrameRef = useRef(null)
 
@@ -192,15 +195,46 @@ function App() {
 
   useEffect(() => {
     setSelectedMapFeature(null)
+    setFeaturePicker(null)
   }, [deferredSelectedLineId])
 
   const lineOptions = buildLineOptions(mapSnapshot)
   const visibleTrains = buildVisibleTrains(mapSnapshot, deferredSelectedLineId)
   const plottedTrains = visibleTrains.filter(train => train.coordinate != null)
+  const visibleStations = buildVisibleStations(mapSnapshot, deferredSelectedLineId)
   const selectedStationId =
     selectedMapFeature?.kind === 'station' ? selectedMapFeature.id : null
   const selectedTrainId =
     selectedMapFeature?.kind === 'train' ? selectedMapFeature.id : null
+  const chooseMapFeature = feature => {
+    setFeaturePicker(null)
+    setSelectedMapFeature({
+      kind: feature.kind,
+      id: feature.id
+    })
+  }
+  const handleFeatureClick = (clickedFeature, event, map) => {
+    event.originalEvent?.stopPropagation()
+
+    const overlappingFeatures = overlappingFeaturesAtClick(
+      map,
+      event.containerPoint,
+      plottedTrains,
+      visibleStations
+    )
+
+    if (overlappingFeatures.length > 1) {
+      setSelectedMapFeature(null)
+      setFeaturePicker({
+        lat: event.latlng.lat,
+        lon: event.latlng.lng,
+        features: prioritizedOverlapFeatures(overlappingFeatures, clickedFeature)
+      })
+    } else {
+      setFeaturePicker(null)
+      setSelectedMapFeature(clickedFeature)
+    }
+  }
 
   return (
     <div className="page">
@@ -269,13 +303,9 @@ function App() {
               <StaticMapLayers
                 mapSnapshot={mapSnapshot}
                 selectedLineId={deferredSelectedLineId}
+                visibleStations={visibleStations}
                 selectedStationId={selectedStationId}
-                onSelectStation={stationId =>
-                  setSelectedMapFeature({
-                    kind: 'station',
-                    id: stationId
-                  })
-                }
+                onStationClick={handleFeatureClick}
                 onDeselectStation={stationId =>
                   setSelectedMapFeature(currentFeature =>
                     currentFeature?.kind === 'station' && currentFeature.id === stationId
@@ -290,12 +320,7 @@ function App() {
                   key={train.trainId}
                   train={train}
                   isSelected={selectedTrainId === train.trainId}
-                  onSelect={() =>
-                    setSelectedMapFeature({
-                      kind: 'train',
-                      id: train.trainId
-                    })
-                  }
+                  onSelect={handleFeatureClick}
                   onDeselect={() =>
                     setSelectedMapFeature(currentFeature =>
                       currentFeature?.kind === 'train' && currentFeature.id === train.trainId
@@ -305,6 +330,14 @@ function App() {
                   }
                 />
               ))}
+
+              {featurePicker != null ? (
+                <OverlapFeaturePicker
+                  featurePicker={featurePicker}
+                  onChoose={chooseMapFeature}
+                  onDismiss={() => setFeaturePicker(null)}
+                />
+              ) : null}
             </MapContainer>
           </section>
         </section>
@@ -372,6 +405,7 @@ function LineBadges({ lineIds }) {
 const TrainMarker = memo(
   function TrainMarker({ train, isSelected, onSelect, onDeselect }) {
     const markerRef = useRef(null)
+    const map = useMap()
 
     useEffect(() => {
       if (!isSelected) {
@@ -388,7 +422,15 @@ const TrainMarker = memo(
         icon={createTrainIcon(train)}
         pane="rail-trains"
         eventHandlers={{
-          click: onSelect,
+          click: event =>
+            onSelect(
+              {
+                kind: 'train',
+                id: train.trainId
+              },
+              event,
+              map
+            ),
           popupclose: onDeselect
         }}
       >
@@ -434,6 +476,7 @@ const TrainMarker = memo(
 const StationMarker = memo(
   function StationMarker({ station, selectedLineId, isSelected, onSelect, onDeselect }) {
     const markerRef = useRef(null)
+    const map = useMap()
 
     useEffect(() => {
       if (!isSelected) {
@@ -450,7 +493,15 @@ const StationMarker = memo(
         icon={createStationIcon(station, selectedLineId)}
         pane="rail-stations"
         eventHandlers={{
-          click: onSelect,
+          click: event =>
+            onSelect(
+              {
+                kind: 'station',
+                id: station.id
+              },
+              event,
+              map
+            ),
           popupclose: onDeselect
         }}
       >
@@ -474,12 +525,12 @@ const StaticMapLayers = memo(
   function StaticMapLayers({
     mapSnapshot,
     selectedLineId,
+    visibleStations,
     selectedStationId,
-    onSelectStation,
+    onStationClick,
     onDeselectStation
   }) {
     const visibleLinePaths = buildVisibleLinePaths(mapSnapshot, selectedLineId)
-    const visibleStations = buildVisibleStations(mapSnapshot, selectedLineId)
 
     return (
       <>
@@ -502,7 +553,7 @@ const StaticMapLayers = memo(
             station={station}
             selectedLineId={selectedLineId}
             isSelected={selectedStationId === station.id}
-            onSelect={() => onSelectStation(station.id)}
+            onSelect={onStationClick}
             onDeselect={() => onDeselectStation(station.id)}
           />
         ))}
@@ -510,6 +561,50 @@ const StaticMapLayers = memo(
     )
   },
   areStaticMapLayersEqual
+)
+
+const OverlapFeaturePicker = memo(
+  function OverlapFeaturePicker({ featurePicker, onChoose, onDismiss }) {
+    return (
+      <Popup
+        position={[featurePicker.lat, featurePicker.lon]}
+        eventHandlers={{
+          remove: onDismiss
+        }}
+      >
+        <PopupCard title="Select">
+          <div className="map-popup-options">
+            {featurePicker.features.map(feature => (
+              <button
+                className="map-popup-option"
+                key={`${feature.kind}:${feature.id}`}
+                onClick={clickEvent => {
+                  clickEvent.preventDefault()
+                  clickEvent.stopPropagation()
+                  onChoose(feature)
+                }}
+                onMouseDown={mouseEvent => {
+                  mouseEvent.preventDefault()
+                  mouseEvent.stopPropagation()
+                }}
+                type="button"
+              >
+                <span
+                  className={`map-popup-option-icon map-popup-option-icon--${feature.kind}`}
+                  style={feature.accentColor == null ? undefined : { '--accent-color': feature.accentColor }}
+                ></span>
+                <span className="map-popup-option-copy">
+                  <span className="map-popup-option-title">{feature.title}</span>
+                  <span className="map-popup-option-detail">{feature.detail}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </PopupCard>
+      </Popup>
+    )
+  },
+  areOverlapFeaturePickerPropsEqual
 )
 
 function buildLineOptions(mapSnapshot) {
@@ -560,6 +655,70 @@ function buildVisibleStations(mapSnapshot, selectedLineId) {
     .sort((leftStation, rightStation) => leftStation.name.localeCompare(rightStation.name))
 }
 
+function overlappingFeaturesAtClick(map, containerPoint, plottedTrains, visibleStations) {
+  const trainMatches = plottedTrains
+    .filter(train =>
+      withinHitRadius(
+        containerPoint,
+        map.latLngToContainerPoint([train.coordinate.lat, train.coordinate.lon]),
+        trainHitRadiusPixels
+      )
+    )
+    .map(train => ({
+      kind: 'train',
+      id: train.trainId,
+      title: `${train.lineName} train`,
+      detail: destinationLabelFor(train),
+      accentColor: colorForLine(train.lineId)
+    }))
+  const stationMatches = visibleStations
+    .filter(station =>
+      withinHitRadius(
+        containerPoint,
+        map.latLngToContainerPoint([station.coordinate.lat, station.coordinate.lon]),
+        stationHitRadiusPixels
+      )
+    )
+    .map(station => ({
+      kind: 'station',
+      id: station.id,
+      title: station.name,
+      detail: stationDetailLabelForPicker(station),
+      accentColor: null
+    }))
+
+  return [...trainMatches, ...stationMatches]
+}
+
+function prioritizedOverlapFeatures(features, clickedFeature) {
+  return [...features].sort((leftFeature, rightFeature) => {
+    if (leftFeature.kind === clickedFeature.kind && leftFeature.id === clickedFeature.id) {
+      return -1
+    }
+
+    if (rightFeature.kind === clickedFeature.kind && rightFeature.id === clickedFeature.id) {
+      return 1
+    }
+
+    if (leftFeature.kind !== rightFeature.kind) {
+      return leftFeature.kind === 'train' ? -1 : 1
+    }
+
+    return leftFeature.title.localeCompare(rightFeature.title)
+  })
+}
+
+function withinHitRadius(clickedPoint, featurePoint, hitRadiusPixels) {
+  return pointDistance(clickedPoint, featurePoint) <= hitRadiusPixels
+}
+
+function pointDistance(leftPoint, rightPoint) {
+  const deltaX = leftPoint.x - rightPoint.x
+  const deltaY = leftPoint.y - rightPoint.y
+
+  return Math.sqrt((deltaX * deltaX) + (deltaY * deltaY))
+}
+
 function areStaticMapLayersEqual(previousProps, nextProps) {
   return (
     previousProps.selectedLineId === nextProps.selectedLineId &&
@@ -601,6 +760,10 @@ function areStationMarkerPropsEqual(previousProps, nextProps) {
     previousStation.coordinate.lon === nextStation.coordinate.lon &&
     previousStation.lineIds.join('|') === nextStation.lineIds.join('|')
   )
+}
+
+function areOverlapFeaturePickerPropsEqual(previousProps, nextProps) {
+  return previousProps.featurePicker === nextProps.featurePicker
 }
 
 function statusLabelFor(status) {
@@ -647,6 +810,10 @@ function currentLocationLabelFor(train) {
 
 function destinationLabelFor(train) {
   return train.destinationName ?? 'Destination unavailable'
+}
+
+function stationDetailLabelForPicker(station) {
+  return `${station.lineIds.length} ${station.lineIds.length === 1 ? 'line' : 'lines'}`
 }
 
 function prettifyLineId(lineId) {

@@ -349,6 +349,65 @@ body {
   white-space: nowrap;
 }
 
+.map-popup-options {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.map-popup-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.6rem;
+  align-items: center;
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--border-muted);
+  border-radius: 0.75rem;
+  background: var(--surface-muted);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.map-popup-option:hover {
+  border-color: #bcccdc;
+  background: #f2f7fb;
+}
+
+.map-popup-option-icon {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 999px;
+  border: 2px solid #bcccdc;
+}
+
+.map-popup-option-icon--train {
+  border-color: var(--accent-color);
+  background: var(--accent-color);
+}
+
+.map-popup-option-icon--station {
+  background: #ffffff;
+}
+
+.map-popup-option-copy {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.map-popup-option-title {
+  font-size: 0.86rem;
+  line-height: 1.25;
+}
+
+.map-popup-option-detail {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  line-height: 1.2;
+}
+
 @media (max-width: 900px) {
   .topbar {
     flex-direction: column;
