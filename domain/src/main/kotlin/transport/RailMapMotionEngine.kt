@@ -96,8 +96,7 @@ class RealRailMapMotionEngine(
             train.direction,
             null,
             null,
-            nextStop,
-            train.expectedArrival
+            nextStop
         )
 
     private fun updatedTrainState(
@@ -113,8 +112,7 @@ class RealRailMapMotionEngine(
             currentDirection,
             retainedDeparture?.station,
             retainedDeparture?.departedAt,
-            nextStop,
-            train.expectedArrival
+            nextStop
         )
     }
 
@@ -139,8 +137,7 @@ class RealRailMapMotionEngine(
             currentDirection,
             departure?.station,
             departure?.departedAt,
-            nextStop,
-            train.expectedArrival
+            nextStop
         )
     }
 
@@ -181,9 +178,10 @@ class RealRailMapMotionEngine(
         val departure = trainState?.let(::departureState)
         val currentNextStop = train.nextStop
         val travelDuration =
-            trainState?.let { state ->
-                departure?.let { departed -> travelDuration(departed, state) }
-            }
+            train.expectedArrival
+                ?.let { expectedArrival ->
+                    departure?.let { departed -> travelDuration(departed, expectedArrival) }
+                }
         val elapsed = departure?.let { departed -> elapsedSinceDeparture(departed, currentTime) }
 
         return if (
@@ -213,13 +211,10 @@ class RealRailMapMotionEngine(
 
     private fun travelDuration(
         departed: TrainDepartureState,
-        state: TrainMotionState
+        expectedArrival: Instant
     ) =
-        state.currentExpectedArrival
-            ?.let { expectedArrival ->
-                Duration.between(departed.departedAt, expectedArrival)
-                    .takeUnless { duration -> duration.isNegative || duration.isZero }
-            }
+        Duration.between(departed.departedAt, expectedArrival)
+            .takeUnless { duration -> duration.isNegative || duration.isZero }
 
     private fun elapsedSinceDeparture(
         departed: TrainDepartureState,
@@ -280,8 +275,7 @@ data class TrainMotionState(
     val direction: TrainDirection?,
     val departedFrom: StationReference?,
     val departedAt: Instant?,
-    val currentNextStop: StationReference,
-    val currentExpectedArrival: Instant?
+    val currentNextStop: StationReference
 )
 
 data class TrainDepartureState(
