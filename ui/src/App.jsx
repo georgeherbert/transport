@@ -8,7 +8,7 @@ import {
   useState
 } from 'react'
 import L from 'leaflet'
-import { MapContainer, Marker, Polyline, Popup, TileLayer } from 'react-leaflet'
+import { MapContainer, Marker, Pane, Polyline, Popup, TileLayer } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 
 const londonCenter = [51.5072, -0.1276]
@@ -256,6 +256,10 @@ function App() {
               scrollWheelZoom={true}
               className="map"
             >
+              <Pane name="rail-lines" style={{ zIndex: 350 }} />
+              <Pane name="rail-stations" style={{ zIndex: 610 }} />
+              <Pane name="rail-trains" style={{ zIndex: 620 }} />
+
               <TileLayer
                 attribution={basemapAttribution}
                 maxZoom={20}
@@ -382,6 +386,7 @@ const TrainMarker = memo(
         ref={markerRef}
         position={[train.coordinate.lat, train.coordinate.lon]}
         icon={createTrainIcon(train)}
+        pane="rail-trains"
         eventHandlers={{
           click: onSelect,
           popupclose: onDeselect
@@ -443,6 +448,7 @@ const StationMarker = memo(
         ref={markerRef}
         position={[station.coordinate.lat, station.coordinate.lon]}
         icon={createStationIcon(station, selectedLineId)}
+        pane="rail-stations"
         eventHandlers={{
           click: onSelect,
           popupclose: onDeselect
@@ -480,6 +486,7 @@ const StaticMapLayers = memo(
         {visibleLinePaths.map(path => (
           <Polyline
             key={path.id}
+            pane="rail-lines"
             positions={path.coordinates.map(coordinate => [coordinate.lat, coordinate.lon])}
             pathOptions={{
               color: colorForLine(path.lineId),
