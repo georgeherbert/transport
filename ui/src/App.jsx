@@ -753,17 +753,16 @@ function createStationIcon(station, selectedLineId) {
     return cachedIcon
   }
 
-  const ringMarkup =
+  const shapeMarkup =
     visibleLineIds.length === 1
-      ? singleLineStationRing(visibleLineIds[0])
-      : segmentedStationRing(visibleLineIds)
+      ? singleLineStationDot(visibleLineIds[0])
+      : segmentedStationDot(visibleLineIds)
   const icon = L.divIcon({
     className: 'station-icon-shell',
     html: `
       <div class="station-marker">
         <svg class="station-marker-shape" viewBox="0 0 26 26" aria-hidden="true">
-          ${ringMarkup}
-          <circle cx="13" cy="13" r="5.2" fill="#ffffff" />
+          ${shapeMarkup}
         </svg>
       </div>
     `,
@@ -776,44 +775,53 @@ function createStationIcon(station, selectedLineId) {
   return icon
 }
 
-function singleLineStationRing(lineId) {
+function singleLineStationDot(lineId) {
   return `
     <circle
       cx="13"
       cy="13"
-      r="8.3"
-      fill="none"
-      stroke="${colorForLine(lineId)}"
-      stroke-width="5.4"
+      r="8.4"
+      fill="${colorForLine(lineId)}"
+      stroke="#ffffff"
+      stroke-width="1.7"
     />
   `
 }
 
-function segmentedStationRing(lineIds) {
-  const circumference = 2 * Math.PI * 8.3
-  const visibleCircumference = circumference - lineIds.length * 1.5
-  const segmentLength = visibleCircumference / lineIds.length
-
+function segmentedStationDot(lineIds) {
   return lineIds
     .map((lineId, index) => {
-      const dashOffset = -((segmentLength + 1.8) * index)
+      const startAngle = (-Math.PI / 2) + ((Math.PI * 2 * index) / lineIds.length)
+      const endAngle = (-Math.PI / 2) + ((Math.PI * 2 * (index + 1)) / lineIds.length)
 
-      return `
-        <circle
-          cx="13"
-          cy="13"
-          r="8.3"
-          fill="none"
-          stroke="${colorForLine(lineId)}"
-          stroke-width="5.4"
-          stroke-linecap="round"
-          stroke-dasharray="${segmentLength} ${circumference}"
-          stroke-dashoffset="${dashOffset}"
-          transform="rotate(-90 13 13)"
-        />
-      `
+      return stationSegmentPath(startAngle, endAngle, colorForLine(lineId))
     })
     .join('')
+}
+
+function stationSegmentPath(startAngle, endAngle, fillColor) {
+  const radius = 8.4
+  const center = 13
+  const startPoint = polarPoint(center, center, radius, startAngle)
+  const endPoint = polarPoint(center, center, radius, endAngle)
+  const largeArcFlag = endAngle - startAngle > Math.PI ? 1 : 0
+
+  return `
+    <path
+      d="M ${center} ${center} L ${startPoint.x} ${startPoint.y} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${endPoint.x} ${endPoint.y} Z"
+      fill="${fillColor}"
+      stroke="#ffffff"
+      stroke-width="1.1"
+      stroke-linejoin="round"
+    />
+  `
+}
+
+function polarPoint(centerX, centerY, radius, angleInRadians) {
+  return {
+    x: (centerX + radius * Math.cos(angleInRadians)).toFixed(3),
+    y: (centerY + radius * Math.sin(angleInRadians)).toFixed(3)
+  }
 }
 
 function iconCacheKeyForTrain(lineId, headingDegrees, headingHidden) {
