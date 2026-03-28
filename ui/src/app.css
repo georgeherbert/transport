@@ -182,15 +182,32 @@ body {
   will-change: transform;
 }
 
+.station-icon-shell {
+  background: transparent;
+  border: 0;
+}
+
 .train-marker {
   width: 44px;
   height: 44px;
+}
+
+.station-marker {
+  width: 22px;
+  height: 22px;
 }
 
 .train-marker-shape {
   display: block;
   width: 44px;
   height: 44px;
+  overflow: visible;
+}
+
+.station-marker-shape {
+  display: block;
+  width: 22px;
+  height: 22px;
   overflow: visible;
 }
 

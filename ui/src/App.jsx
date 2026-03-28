@@ -8,7 +8,7 @@ import {
   useState
 } from 'react'
 import L from 'leaflet'
-import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer } from 'react-leaflet'
+import { MapContainer, Marker, Polyline, Popup, TileLayer } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 
 const londonCenter = [51.5072, -0.1276]
@@ -40,6 +40,7 @@ const linePalette = {
 }
 
 const trainIconCache = new Map()
+const stationIconCache = new Map()
 
 function App() {
   const [mapSnapshot, setMapSnapshot] = useState(null)
@@ -314,10 +315,12 @@ function PopupCard({ title, accentColor, kicker, children }) {
   return (
     <div className="map-popup">
       <div className="map-popup-header">
-        <span
-          className="map-popup-accent"
-          style={{ '--accent-color': accentColor }}
-        ></span>
+        {accentColor != null ? (
+          <span
+            className="map-popup-accent"
+            style={{ '--accent-color': accentColor }}
+          ></span>
+        ) : null}
         <div className="map-popup-heading">
           {kicker != null ? <span className="map-popup-kicker">{kicker}</span> : null}
           <strong className="map-popup-title">{title}</strong>
@@ -338,9 +341,11 @@ function PopupRow({ label, value }) {
 }
 
 function LineBadges({ lineIds }) {
+  const orderedLineIds = sortedLineIds(lineIds)
+
   return (
     <div className="map-popup-badges">
-      {lineIds.map(lineId => (
+      {orderedLineIds.map(lineId => (
         <span className="map-popup-badge" key={lineId}>
           <span
             className="map-popup-badge-swatch"
@@ -401,7 +406,6 @@ const TrainMarker = memo(
 
 const StationMarker = memo(
   function StationMarker({ station, selectedLineId, isSelected, onSelect, onDeselect }) {
-    const fillColor = stationColorFor(station, selectedLineId)
     const markerRef = useRef(null)
 
     useEffect(() => {
@@ -413,16 +417,10 @@ const StationMarker = memo(
     }, [isSelected])
 
     return (
-      <CircleMarker
+      <Marker
         ref={markerRef}
-        center={[station.coordinate.lat, station.coordinate.lon]}
-        radius={stationRadiusFor(station, selectedLineId)}
-        pathOptions={{
-          color: '#ffffff',
-          weight: 2,
-          fillColor,
-          fillOpacity: 1
-        }}
+        position={[station.coordinate.lat, station.coordinate.lon]}
+        icon={createStationIcon(station, selectedLineId)}
         eventHandlers={{
           click: onSelect,
           popupclose: onDeselect
@@ -430,7 +428,7 @@ const StationMarker = memo(
       >
         {isSelected ? (
           <Popup>
-            <PopupCard title={station.name} accentColor={fillColor} kicker="Station">
+            <PopupCard title={station.name} kicker="Station">
               <div className="map-popup-section">
                 <span className="map-popup-label">Lines</span>
                 <LineBadges lineIds={station.lineIds} />
@@ -438,7 +436,7 @@ const StationMarker = memo(
             </PopupCard>
           </Popup>
         ) : null}
-      </CircleMarker>
+      </Marker>
     )
   },
   areStationMarkerPropsEqual
@@ -637,20 +635,10 @@ function colorForLine(lineId) {
   return linePalette[lineId] ?? '#1f6feb'
 }
 
-function stationColorFor(station, selectedLineId) {
-  if (selectedLineId !== 'all' && station.lineIds.includes(selectedLineId)) {
-    return colorForLine(selectedLineId)
-  }
-
-  return colorForLine(station.lineIds[0])
-}
-
-function stationRadiusFor(station, selectedLineId) {
-  if (selectedLineId !== 'all' && station.lineIds.includes(selectedLineId)) {
-    return 4.5
-  }
-
-  return station.lineIds.length > 1 ? 4.5 : 4
+function sortedLineIds(lineIds) {
+  return [...lineIds].sort((leftLineId, rightLineId) =>
+    prettifyLineId(leftLineId).localeCompare(prettifyLineId(rightLineId))
+  )
 }
 
 function markerLabelForLine(lineId) {
@@ -751,6 +739,81 @@ function createTrainIcon(train) {
 
   trainIconCache.set(cacheKey, icon)
   return icon
+}
+
+function createStationIcon(station, selectedLineId) {
+  const visibleLineIds =
+    selectedLineId !== 'all' && station.lineIds.includes(selectedLineId)
+      ? [selectedLineId]
+      : sortedLineIds(station.lineIds)
+  const cacheKey = `${selectedLineId}:${visibleLineIds.join('|')}`
+  const cachedIcon = stationIconCache.get(cacheKey)
+
+  if (cachedIcon != null) {
+    return cachedIcon
+  }
+
+  const ringMarkup =
+    visibleLineIds.length === 1
+      ? singleLineStationRing(visibleLineIds[0])
+      : segmentedStationRing(visibleLineIds)
+  const icon = L.divIcon({
+    className: 'station-icon-shell',
+    html: `
+      <div class="station-marker">
+        <svg class="station-marker-shape" viewBox="0 0 26 26" aria-hidden="true">
+          ${ringMarkup}
+          <circle cx="13" cy="13" r="5.2" fill="#ffffff" />
+        </svg>
+      </div>
+    `,
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+    popupAnchor: [0, -10]
+  })
+
+  stationIconCache.set(cacheKey, icon)
+  return icon
+}
+
+function singleLineStationRing(lineId) {
+  return `
+    <circle
+      cx="13"
+      cy="13"
+      r="8.3"
+      fill="none"
+      stroke="${colorForLine(lineId)}"
+      stroke-width="5.4"
+    />
+  `
+}
+
+function segmentedStationRing(lineIds) {
+  const circumference = 2 * Math.PI * 8.3
+  const visibleCircumference = circumference - lineIds.length * 1.5
+  const segmentLength = visibleCircumference / lineIds.length
+
+  return lineIds
+    .map((lineId, index) => {
+      const dashOffset = -((segmentLength + 1.8) * index)
+
+      return `
+        <circle
+          cx="13"
+          cy="13"
+          r="8.3"
+          fill="none"
+          stroke="${colorForLine(lineId)}"
+          stroke-width="5.4"
+          stroke-linecap="round"
+          stroke-dasharray="${segmentLength} ${circumference}"
+          stroke-dashoffset="${dashOffset}"
+          transform="rotate(-90 13 13)"
+        />
+      `
+    })
+    .join('')
 }
 
 function iconCacheKeyForTrain(lineId, headingDegrees, headingHidden) {
