@@ -11,7 +11,6 @@ interface RailMapMotionEngine {
 class RealRailMapMotionEngine(
     private val railLineProjectionFactory: RailLineProjectionFactory
 ) : RailMapMotionEngine {
-    private val segmentDurations = linkedMapOf<SegmentKey, SegmentDurationSamples>()
     private val trainStates = linkedMapOf<TrainId, TrainMotionState>()
 
     override fun observe(snapshot: RailMapSnapshot) =
@@ -68,29 +67,55 @@ class RealRailMapMotionEngine(
         observedAt: Instant,
         nextStop: StationReference
     ) {
-        val previousState = trainStates[train.trainId]
+        trainStates[train.trainId] =
+            observedTrainState(train, line, observedAt, nextStop)
+    }
 
-        when {
-            previousState == null ->
-                trainStates[train.trainId] =
-                    TrainMotionState(
-                        train.lineId,
-                        train.direction,
-                        null,
-                        nextStop,
-                        observedAt
-                    )
-            previousState.currentNextStop.id == nextStop.id ->
-                trainStates[train.trainId] =
-                    previousState.copy(
-                        lineId = train.lineId,
-                        direction = train.direction ?: previousState.direction,
-                        currentNextStop = nextStop
-                    )
-            else ->
-                trainStates[train.trainId] =
-                    transitionedTrainState(train, line, observedAt, nextStop, previousState)
-        }
+    private fun observedTrainState(
+        train: RailMapTrain,
+        line: RailLine?,
+        observedAt: Instant,
+        nextStop: StationReference
+    ) =
+        trainStates[train.trainId]
+            ?.let { previousState ->
+                when {
+                    previousState.currentNextStop.id == nextStop.id ->
+                        updatedTrainState(train, line, nextStop, previousState)
+                    else ->
+                        transitionedTrainState(train, line, observedAt, nextStop, previousState)
+                }
+            }
+            ?: initialTrainState(train, nextStop)
+
+    private fun initialTrainState(
+        train: RailMapTrain,
+        nextStop: StationReference
+    ) =
+        TrainMotionState(
+            train.direction,
+            null,
+            null,
+            nextStop,
+            train.expectedArrival
+        )
+
+    private fun updatedTrainState(
+        train: RailMapTrain,
+        line: RailLine?,
+        nextStop: StationReference,
+        previousState: TrainMotionState
+    ): TrainMotionState {
+        val currentDirection = train.direction ?: previousState.direction
+        val retainedDeparture = retainedDeparture(previousState, line, currentDirection, nextStop)
+
+        return TrainMotionState(
+            currentDirection,
+            retainedDeparture?.station,
+            retainedDeparture?.departedAt,
+            nextStop,
+            train.expectedArrival
+        )
     }
 
     private fun transitionedTrainState(
@@ -100,55 +125,35 @@ class RealRailMapMotionEngine(
         nextStop: StationReference,
         previousState: TrainMotionState
     ): TrainMotionState {
-        maybeRecordSegmentDuration(train, line, observedAt, previousState)
-
         val currentDirection = train.direction ?: previousState.direction
-        val previousNextStop =
-            if (hasAdjacentStopPair(line, currentDirection, previousState.currentNextStop.id, nextStop.id)) {
-                previousState.currentNextStop
-            } else {
-                null
-            }
+        val departure =
+            previousState.currentNextStop
+                .takeIf { previousNextStop ->
+                    hasAdjacentStopPair(line, currentDirection, previousNextStop.id, nextStop.id)
+                }
+                ?.let { previousNextStop ->
+                    TrainDepartureState(previousNextStop, observedAt)
+                }
 
         return TrainMotionState(
-            train.lineId,
             currentDirection,
-            previousNextStop,
+            departure?.station,
+            departure?.departedAt,
             nextStop,
-            observedAt
+            train.expectedArrival
         )
     }
 
-    private fun maybeRecordSegmentDuration(
-        train: RailMapTrain,
+    private fun retainedDeparture(
+        previousState: TrainMotionState,
         line: RailLine?,
-        observedAt: Instant,
-        previousState: TrainMotionState
-    ) {
-        val previousDirection = previousState.direction ?: train.direction
-        val sampleDuration = Duration.between(previousState.currentNextStopObservedAt, observedAt)
-        val canRecordSample =
-            previousState.previousNextStop != null &&
-                line != null &&
-                isAdjacentStopPair(
-                    line,
-                    previousDirection,
-                    previousState.previousNextStop.id,
-                    previousState.currentNextStop.id
-                ) &&
-                !sampleDuration.isNegative &&
-                !sampleDuration.isZero
-
-        if (canRecordSample) {
-            val segmentKey = SegmentKey(
-                train.lineId,
-                previousState.previousNextStop.id,
-                previousState.currentNextStop.id
-            )
-            val existing = segmentDurations[segmentKey] ?: SegmentDurationSamples(Duration.ZERO, 0)
-            segmentDurations[segmentKey] = existing.addSample(sampleDuration)
-        }
-    }
+        direction: TrainDirection?,
+        nextStop: StationReference
+    ) =
+        departureState(previousState)
+            ?.takeIf { departure ->
+                hasAdjacentStopPair(line, direction, departure.station.id, nextStop.id)
+            }
 
     private fun advanceTrain(
         train: RailMapTrain,
@@ -173,35 +178,61 @@ class RealRailMapMotionEngine(
         currentTime: Instant
     ): TrainMapProjection? {
         val trainState = trainStates[train.trainId]
-        val previousNextStop = trainState?.previousNextStop
+        val departure = trainState?.let(::departureState)
         val currentNextStop = train.nextStop
-        val learnedDuration =
-            if (previousNextStop == null || currentNextStop == null) {
-                null
-            } else {
-                segmentDurations[SegmentKey(train.lineId, previousNextStop.id, currentNextStop.id)]?.averageDuration()
+        val travelDuration =
+            trainState?.let { state ->
+                departure?.let { departed -> travelDuration(departed, state) }
             }
-        val elapsed =
-            if (trainState == null || learnedDuration == null) {
-                null
-            } else {
-                Duration.between(trainState.currentNextStopObservedAt, currentTime)
-                    .takeUnless(Duration::isNegative)
-            }
+        val elapsed = departure?.let { departed -> elapsedSinceDeparture(departed, currentTime) }
 
         return if (
-            previousNextStop == null ||
+            departure == null ||
             currentNextStop == null ||
-            learnedDuration == null ||
+            travelDuration == null ||
             projectedLine == null ||
             elapsed == null
         ) {
             null
         } else {
-            val progress = elapsed.toMillis().toDouble() / learnedDuration.toMillis().coerceAtLeast(1).toDouble()
-            projectedLine.projectBetweenStationsAtProgress(previousNextStop, currentNextStop, progress)
+            projectedLine.projectBetweenStationsAtProgress(
+                departure.station,
+                currentNextStop,
+                progress(elapsed, travelDuration)
+            )
         }
     }
+
+    private fun departureState(state: TrainMotionState) =
+        state.departedFrom
+            ?.let { departedFrom ->
+                state.departedAt?.let { departedAt ->
+                    TrainDepartureState(departedFrom, departedAt)
+                }
+            }
+
+    private fun travelDuration(
+        departed: TrainDepartureState,
+        state: TrainMotionState
+    ) =
+        state.currentExpectedArrival
+            ?.let { expectedArrival ->
+                Duration.between(departed.departedAt, expectedArrival)
+                    .takeUnless { duration -> duration.isNegative || duration.isZero }
+            }
+
+    private fun elapsedSinceDeparture(
+        departed: TrainDepartureState,
+        currentTime: Instant
+    ) =
+        Duration.between(departed.departedAt, currentTime)
+            .takeUnless(Duration::isNegative)
+
+    private fun progress(
+        elapsed: Duration,
+        travelDuration: Duration
+    ) =
+        elapsed.toMillis().toDouble() / travelDuration.toMillis().toDouble()
 
     private fun hasAdjacentStopPair(
         line: RailLine?,
@@ -246,30 +277,14 @@ class RealRailMapMotionEngine(
 }
 
 data class TrainMotionState(
-    val lineId: LineId,
     val direction: TrainDirection?,
-    val previousNextStop: StationReference?,
+    val departedFrom: StationReference?,
+    val departedAt: Instant?,
     val currentNextStop: StationReference,
-    val currentNextStopObservedAt: Instant
+    val currentExpectedArrival: Instant?
 )
 
-data class SegmentKey(
-    val lineId: LineId,
-    val fromStationId: StationId,
-    val toStationId: StationId
+data class TrainDepartureState(
+    val station: StationReference,
+    val departedAt: Instant
 )
-
-data class SegmentDurationSamples(
-    val totalDuration: Duration,
-    val sampleCount: Int
-) {
-    fun addSample(duration: Duration) =
-        SegmentDurationSamples(totalDuration.plus(duration), sampleCount + 1)
-
-    fun averageDuration(): Duration =
-        if (sampleCount <= 0) {
-            Duration.ZERO
-        } else {
-            Duration.ofMillis(totalDuration.toMillis() / sampleCount.toLong())
-        }
-}

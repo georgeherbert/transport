@@ -17,37 +17,86 @@ class RealRailMapMotionEngineTest {
         )
 
     @Test
-    fun `observe learns segment duration from next stop transitions and advances later trains`() {
-        val firstSnapshot = snapshotFor(Instant.parse("2026-03-22T20:50:00Z"), "B", "B")
-        val secondSnapshot = snapshotFor(Instant.parse("2026-03-22T20:51:00Z"), "C", "B")
-        val thirdSnapshot = snapshotFor(Instant.parse("2026-03-22T20:52:00Z"), "D", "C")
+    fun `advance uses the observed departure time and TfL arrival time to interpolate between stations`() {
+        val firstSnapshot = snapshotFor(
+            Instant.parse("2026-03-22T20:50:00Z"),
+            "B",
+            Instant.parse("2026-03-22T20:51:00Z")
+        )
+        val secondSnapshot = snapshotFor(
+            Instant.parse("2026-03-22T20:51:00Z"),
+            "C",
+            Instant.parse("2026-03-22T20:52:00Z")
+        )
 
         motionEngine.observe(firstSnapshot)
         motionEngine.observe(secondSnapshot)
-        motionEngine.observe(thirdSnapshot)
 
-        val animated = motionEngine.advance(thirdSnapshot, Instant.parse("2026-03-22T20:52:30Z"))
+        val animated = motionEngine.advance(secondSnapshot, Instant.parse("2026-03-22T20:51:30Z"))
 
-        expectThat(animated.trains.last().coordinate).isNotNull().get { lon }.isGreaterThan(-0.251)
-        expectThat(animated.trains.last().coordinate).isNotNull().get { lon }.isLessThan(-0.249)
+        expectThat(animated.trains.single().coordinate).isNotNull().get { lon }.isGreaterThan(-0.251)
+        expectThat(animated.trains.single().coordinate).isNotNull().get { lon }.isLessThan(-0.249)
     }
 
     @Test
-    fun `advance leaves trains static when no learned segment duration exists`() {
-        val firstSnapshot = snapshotFor(Instant.parse("2026-03-22T20:50:00Z"), "B", "B")
-        val secondSnapshot = snapshotFor(Instant.parse("2026-03-22T20:51:00Z"), "C", "B")
+    fun `advance leaves trains anchored at the next stop until a departure is observed`() {
+        val snapshot = snapshotFor(
+            Instant.parse("2026-03-22T20:50:00Z"),
+            "B",
+            Instant.parse("2026-03-22T20:51:00Z")
+        )
+
+        val observed = motionEngine.observe(snapshot)
+        val animated = motionEngine.advance(observed, Instant.parse("2026-03-22T20:50:30Z"))
+
+        expectThat(animated.trains.single().coordinate).isEqualTo(GeoCoordinate(51.0, -0.3))
+    }
+
+    @Test
+    fun `advance clamps the projection at the next stop after the expected arrival time`() {
+        val firstSnapshot = snapshotFor(
+            Instant.parse("2026-03-22T20:50:00Z"),
+            "B",
+            Instant.parse("2026-03-22T20:51:00Z")
+        )
+        val secondSnapshot = snapshotFor(
+            Instant.parse("2026-03-22T20:51:00Z"),
+            "C",
+            Instant.parse("2026-03-22T20:52:00Z")
+        )
+
+        motionEngine.observe(firstSnapshot)
+        motionEngine.observe(secondSnapshot)
+
+        val animated = motionEngine.advance(secondSnapshot, Instant.parse("2026-03-22T20:53:00Z"))
+
+        expectThat(animated.trains.single().coordinate).isEqualTo(GeoCoordinate(51.0, -0.2))
+    }
+
+    @Test
+    fun `advance leaves trains anchored at the next stop when the observed stop jump is not adjacent`() {
+        val firstSnapshot = snapshotFor(
+            Instant.parse("2026-03-22T20:50:00Z"),
+            "B",
+            Instant.parse("2026-03-22T20:51:00Z")
+        )
+        val secondSnapshot = snapshotFor(
+            Instant.parse("2026-03-22T20:51:00Z"),
+            "D",
+            Instant.parse("2026-03-22T20:52:00Z")
+        )
 
         motionEngine.observe(firstSnapshot)
         val observed = motionEngine.observe(secondSnapshot)
         val animated = motionEngine.advance(observed, Instant.parse("2026-03-22T20:51:30Z"))
 
-        expectThat(animated.trains.last().coordinate).isEqualTo(observed.trains.last().coordinate)
+        expectThat(animated.trains.single().coordinate).isEqualTo(GeoCoordinate(51.0, -0.1))
     }
 
     private fun snapshotFor(
         generatedAt: Instant,
-        trainOneNextStopId: String,
-        trainTwoNextStopId: String
+        nextStopId: String,
+        expectedArrival: Instant
     ) =
         RailMapSnapshot(
             transportSourceName,
@@ -57,80 +106,82 @@ class RealRailMapMotionEngineTest {
             StationQueryCount(1),
             StationFailureCount(0),
             false,
-            LiveTrainCount(2),
+            LiveTrainCount(1),
+            listOf(sampleLine()),
             listOf(
-                RailLine(
-                    LineId("victoria"),
-                    LineName("Victoria"),
+                mapStation("B", -0.3),
+                mapStation("C", -0.2),
+                mapStation("D", -0.1)
+            ),
+            listOf(
+                movingTrain(generatedAt, nextStopId, expectedArrival)
+            )
+        )
+
+    private fun sampleLine() =
+        RailLine(
+            LineId("victoria"),
+            LineName("Victoria"),
+            listOf(
+                RailLinePath(
                     listOf(
-                        RailLinePath(
-                            listOf(
-                                GeoCoordinate(51.0, -0.4),
-                                GeoCoordinate(51.0, -0.3),
-                                GeoCoordinate(51.0, -0.2),
-                                GeoCoordinate(51.0, -0.1)
-                            )
-                        )
-                    ),
-                    listOf(
-                        RailLineSequence(
-                            TrainDirection("outbound"),
-                            listOf(
-                                stationReference("A", -0.4),
-                                stationReference("B", -0.3),
-                                stationReference("C", -0.2),
-                                stationReference("D", -0.1)
-                            )
-                        )
+                        GeoCoordinate(51.0, -0.4),
+                        GeoCoordinate(51.0, -0.3),
+                        GeoCoordinate(51.0, -0.2),
+                        GeoCoordinate(51.0, -0.1)
                     )
                 )
             ),
             listOf(
-                MapStation(
-                    StationId("B"),
-                    StationName("B Underground Station"),
-                    GeoCoordinate(51.0, -0.3),
-                    listOf(LineId("victoria"))
-                ),
-                MapStation(
-                    StationId("C"),
-                    StationName("C Underground Station"),
-                    GeoCoordinate(51.0, -0.2),
-                    listOf(LineId("victoria"))
-                ),
-                MapStation(
-                    StationId("D"),
-                    StationName("D Underground Station"),
-                    GeoCoordinate(51.0, -0.1),
-                    listOf(LineId("victoria"))
+                RailLineSequence(
+                    TrainDirection("outbound"),
+                    listOf(
+                        stationReference("A", -0.4),
+                        stationReference("B", -0.3),
+                        stationReference("C", -0.2),
+                        stationReference("D", -0.1)
+                    )
                 )
-            ),
-            listOf(
-                movingTrain("train-1", trainOneNextStopId, generatedAt),
-                movingTrain("train-2", trainTwoNextStopId, generatedAt)
             )
         )
 
+    private fun mapStation(
+        id: String,
+        lon: Double
+    ) =
+        MapStation(
+            StationId(id),
+            StationName("$id Underground Station"),
+            GeoCoordinate(51.0, lon),
+            listOf(LineId("victoria"))
+        )
+
     private fun movingTrain(
-        suffix: String,
+        generatedAt: Instant,
         nextStopId: String,
-        generatedAt: Instant
+        expectedArrival: Instant
     ) =
         RailMapTrain(
-            TrainId("victoria|$suffix"),
-            VehicleId(suffix),
+            TrainId("victoria|train-1"),
+            VehicleId("train-1"),
             LineId("victoria"),
             LineName("Victoria"),
             TrainDirection("outbound"),
-            DestinationName("Delta Underground Station"),
-            TowardsDescription("Delta"),
+            DestinationName("D Underground Station"),
+            TowardsDescription("D"),
             LocationDescription("Structured next stop $nextStopId"),
             stationReference(nextStopId, stopLongitude(nextStopId)),
             coordinateAtNextStop(nextStopId),
             HeadingDegrees(90.0),
-            generatedAt.plusSeconds(60),
+            expectedArrival,
             generatedAt,
-            emptyList()
+            listOf(
+                FutureStationArrival(
+                    StationId(nextStopId),
+                    StationName("$nextStopId Underground Station"),
+                    expectedArrival
+                )
+            )
         )
 
     private fun coordinateAtNextStop(nextStopId: String) =

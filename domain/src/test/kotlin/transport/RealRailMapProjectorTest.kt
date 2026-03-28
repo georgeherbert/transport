@@ -231,7 +231,7 @@ class RealRailMapProjectorTest {
     }
 
     @Test
-    fun `project anchors trains at the next stop when no timing is learned`() {
+    fun `project anchors trains at the next stop when no departure has been observed yet`() {
         val snapshot = LiveRailSnapshot(
             transportSourceName,
             Instant.parse("2026-03-22T00:49:20Z"),

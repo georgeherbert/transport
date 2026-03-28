@@ -85,15 +85,15 @@ The map does not use onboard GPS. Train positions are inferred from:
 - TfL arrival predictions
 - resolved next-stop station metadata
 - imported rail geometry
-- learned timings between adjacent stops
+- observed departures from the previous next-stop station
 
 Current location text in the UI comes directly from TfL prediction data and is not the same thing as the projected map coordinate.
 
 Under the current projection rules:
 
 - if `nextStop` is unknown, the train is not plotted
-- if `nextStop` is known but no timing has been learned yet, the train is plotted at `nextStop`
-- if timing has been learned, the train is interpolated between the previous and next stops
+- if `nextStop` is known but no departure has been observed yet, the train is plotted at `nextStop`
+- once the train has been observed leaving station `A` for adjacent station `B`, it is interpolated between `A` and `B` using TfL's `expectedArrival` for `B`
 
 ## Development
 
