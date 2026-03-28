@@ -14,6 +14,7 @@ import kotlin.test.Test
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import strikt.api.expectThat
@@ -113,6 +114,7 @@ class ApiTest {
             expectThat(payload["cached"]?.jsonPrimitive?.content).isEqualTo("true")
             expectThat(payload["trainCount"]?.jsonPrimitive?.int).isEqualTo(1)
             expectThat(body).contains("\"stations\"")
+            expectThat(body).contains("\"futureArrivals\"")
         }
     }
 
@@ -206,6 +208,7 @@ class ApiTest {
                 expectThat(eventLines.joinToString("\n")).contains("event: train_positions")
                 expectThat(payload["trainCount"]?.jsonPrimitive?.int).isEqualTo(1)
                 expectThat(payload.containsKey("lines")).isEqualTo(false)
+                expectThat(payload["trains"]?.jsonArray?.first()?.jsonObject?.containsKey("futureArrivals")).isEqualTo(false)
             }
         }
     }
@@ -289,9 +292,15 @@ class ApiTest {
                     ),
                     GeoCoordinate(51.506947, -0.142787),
                     HeadingDegrees(42.0),
-                    Duration.ofSeconds(90),
                     Instant.parse("2026-03-22T00:50:50Z"),
-                    Instant.parse("2026-03-22T00:49:20Z")
+                    Instant.parse("2026-03-22T00:49:20Z"),
+                    listOf(
+                        FutureStationArrival(
+                            StationId("940GZZLUOXC"),
+                            StationName("Oxford Circus Underground Station"),
+                            Instant.parse("2026-03-22T00:52:20Z")
+                        )
+                    )
                 )
             )
         )

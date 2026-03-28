@@ -42,7 +42,6 @@ data class TflArrivalJson(
     val destinationNaptanId: String? = null,
     val destinationName: String? = null,
     val timestamp: String,
-    val timeToStation: Int? = null,
     val currentLocation: String? = null,
     val towards: String,
     val expectedArrival: String,

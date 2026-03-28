@@ -95,6 +95,10 @@ function App() {
           return currentSnapshot
         }
 
+        const futureArrivalsByTrainId = new Map(
+          currentSnapshot.trains.map(train => [train.trainId, train.futureArrivals ?? []])
+        )
+
         return {
           ...currentSnapshot,
           source: trainPositions.source,
@@ -105,7 +109,10 @@ function App() {
           stationsFailed: trainPositions.stationsFailed,
           partial: trainPositions.partial,
           trainCount: trainPositions.trainCount,
-          trains: trainPositions.trains
+          trains: trainPositions.trains.map(train => ({
+            ...train,
+            futureArrivals: train.futureArrivals ?? futureArrivalsByTrainId.get(train.trainId) ?? []
+          }))
         }
       })
       setErrorMessage('')
@@ -392,8 +399,23 @@ const TrainMarker = memo(
               {train.towards != null ? (
                 <PopupRow label="Towards" value={train.towards} />
               ) : null}
-              {train.secondsToNextStop != null ? (
-                <PopupRow label="Next stop" value={secondsLabelFor(train.secondsToNextStop)} />
+              {train.futureArrivals != null && train.futureArrivals.length > 0 ? (
+                <div className="map-popup-section">
+                  <span className="map-popup-label">TfL arrivals</span>
+                  <div className="map-popup-arrivals">
+                    {train.futureArrivals.map(arrival => (
+                      <div
+                        className="map-popup-arrival-row"
+                        key={`${arrival.stationId ?? arrival.stationName}:${arrival.expectedArrival}`}
+                      >
+                        <span className="map-popup-arrival-station">{arrival.stationName}</span>
+                        <span className="map-popup-arrival-time">
+                          {formatClockTime(arrival.expectedArrival)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               ) : null}
             </PopupCard>
           </Popup>
@@ -552,10 +574,10 @@ function areTrainMarkerPropsEqual(previousProps, nextProps) {
     previousTrain.currentLocation === nextTrain.currentLocation &&
     previousTrain.destinationName === nextTrain.destinationName &&
     previousTrain.towards === nextTrain.towards &&
-    previousTrain.secondsToNextStop === nextTrain.secondsToNextStop &&
     previousTrain.coordinate?.lat === nextTrain.coordinate?.lat &&
     previousTrain.coordinate?.lon === nextTrain.coordinate?.lon &&
-    previousTrain.headingDegrees === nextTrain.headingDegrees
+    previousTrain.headingDegrees === nextTrain.headingDegrees &&
+    futureArrivalsSignature(previousTrain.futureArrivals) === futureArrivalsSignature(nextTrain.futureArrivals)
   )
 }
 
@@ -604,16 +626,12 @@ function formatDateTime(value) {
   }).format(new Date(value))
 }
 
-function secondsLabelFor(seconds) {
-  if (seconds == null) {
-    return 'Time to next stop unavailable'
-  }
-
-  if (seconds < 60) {
-    return `${seconds}s to next stop`
-  }
-
-  return `${Math.round(seconds / 60)}m to next stop`
+function formatClockTime(value) {
+  return new Intl.DateTimeFormat('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  }).format(new Date(value))
 }
 
 function currentLocationLabelFor(train) {
@@ -639,6 +657,12 @@ function sortedLineIds(lineIds) {
   return [...lineIds].sort((leftLineId, rightLineId) =>
     prettifyLineId(leftLineId).localeCompare(prettifyLineId(rightLineId))
   )
+}
+
+function futureArrivalsSignature(futureArrivals) {
+  return (futureArrivals ?? [])
+    .map(arrival => `${arrival.stationId ?? arrival.stationName}:${arrival.expectedArrival}`)
+    .join('|')
 }
 
 function markerLabelForLine(lineId) {

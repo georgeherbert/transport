@@ -176,9 +176,9 @@ class RealRailMapFeedServiceTest {
                     ),
                     GeoCoordinate(51.506947, -0.142787),
                     HeadingDegrees(42.0),
-                    Duration.ofSeconds(90),
                     Instant.parse("2026-03-22T20:51:30Z"),
-                    generatedAt
+                    generatedAt,
+                    emptyList()
                 )
             )
         )

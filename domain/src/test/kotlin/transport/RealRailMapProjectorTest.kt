@@ -122,10 +122,10 @@ class RealRailMapProjectorTest {
                         nextStop
                     ),
                     nextStop,
-                    Duration.ofSeconds(90),
                     Instant.parse("2026-03-22T00:50:50Z"),
                     Instant.parse("2026-03-22T00:49:20Z"),
-                    PredictionCount(1)
+                    PredictionCount(1),
+                    emptyList()
                 )
             )
         )
@@ -267,10 +267,10 @@ class RealRailMapProjectorTest {
                         StationName("Bravo Underground Station"),
                         GeoCoordinate(51.0, -0.2)
                     ),
-                    Duration.ofSeconds(90),
                     Instant.parse("2026-03-22T00:50:50Z"),
                     Instant.parse("2026-03-22T00:49:20Z"),
-                    PredictionCount(1)
+                    PredictionCount(1),
+                    emptyList()
                 )
             )
         )
@@ -357,10 +357,10 @@ class RealRailMapProjectorTest {
                         )
                     ),
                     null,
-                    Duration.ofSeconds(90),
                     Instant.parse("2026-03-22T00:50:50Z"),
                     Instant.parse("2026-03-22T00:49:20Z"),
-                    PredictionCount(1)
+                    PredictionCount(1),
+                    emptyList()
                 )
             )
         )
@@ -447,10 +447,10 @@ class RealRailMapProjectorTest {
                         StationName("Alpha Underground Station"),
                         GeoCoordinate(51.0, -0.3)
                     ),
-                    Duration.ofSeconds(90),
                     Instant.parse("2026-03-22T00:50:50Z"),
                     Instant.parse("2026-03-22T00:49:20Z"),
-                    PredictionCount(1)
+                    PredictionCount(1),
+                    emptyList()
                 )
             )
         )
@@ -537,10 +537,10 @@ class RealRailMapProjectorTest {
                         StationName("Bravo Underground Station"),
                         GeoCoordinate(51.0, -0.2)
                     ),
-                    Duration.ofSeconds(90),
                     Instant.parse("2026-03-22T00:50:50Z"),
                     Instant.parse("2026-03-22T00:49:20Z"),
-                    PredictionCount(1)
+                    PredictionCount(1),
+                    emptyList()
                 )
             )
         )
@@ -782,10 +782,10 @@ class RealRailMapProjectorTest {
                         StationName("Downstream Underground Station"),
                         GeoCoordinate(51.6, 0.6)
                     ),
-                    Duration.ofSeconds(30),
                     Instant.parse("2026-03-22T00:49:50Z"),
                     Instant.parse("2026-03-22T00:49:20Z"),
-                    PredictionCount(1)
+                    PredictionCount(1),
+                    emptyList()
                 )
             )
         )
@@ -875,10 +875,10 @@ class RealRailMapProjectorTest {
                         StationName("Downstream Underground Station"),
                         GeoCoordinate(51.6, 0.6)
                     ),
-                    Duration.ofSeconds(45),
                     Instant.parse("2026-03-22T00:50:05Z"),
                     Instant.parse("2026-03-22T00:49:20Z"),
-                    PredictionCount(1)
+                    PredictionCount(1),
+                    emptyList()
                 )
             )
         )

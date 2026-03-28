@@ -86,7 +86,7 @@ class StubServiceResponseMapper : ServiceResponseMapper {
             trainPositions.stationsFailed.value,
             trainPositions.partial,
             trainPositions.trainCount.value,
-            trainPositions.trains.map(::trainJson)
+            trainPositions.trains.map(::trainPositionJson)
         )
 
     private fun trainJson(train: RailMapTrain) =
@@ -103,7 +103,25 @@ class StubServiceResponseMapper : ServiceResponseMapper {
                 GeoCoordinateJson(coordinate.lat, coordinate.lon)
             },
             train.heading?.value,
-            train.secondsToNextStop?.seconds?.toInt(),
+            train.expectedArrival?.toString(),
+            train.observedAt?.toString(),
+            train.futureArrivals.map(::futureArrivalJson)
+        )
+
+    private fun trainPositionJson(train: RailMapTrain) =
+        RailMapTrainPositionJson(
+            train.trainId.value,
+            train.vehicleId?.value,
+            train.lineId.value,
+            train.lineName.value,
+            train.direction?.value,
+            train.destinationName?.value,
+            train.towards?.value,
+            train.currentLocation.value,
+            train.coordinate?.let { coordinate ->
+                GeoCoordinateJson(coordinate.lat, coordinate.lon)
+            },
+            train.heading?.value,
             train.expectedArrival?.toString(),
             train.observedAt?.toString()
         )
@@ -125,4 +143,11 @@ class StubServiceResponseMapper : ServiceResponseMapper {
             is TransportError.UpstreamNetworkFailure -> error.message
             is TransportError.UpstreamPayloadFailure -> error.message
         }
+
+    private fun futureArrivalJson(arrival: FutureStationArrival) =
+        FutureStationArrivalJson(
+            arrival.stationId?.value,
+            arrival.stationName.value,
+            arrival.expectedArrival.toString()
+        )
 }

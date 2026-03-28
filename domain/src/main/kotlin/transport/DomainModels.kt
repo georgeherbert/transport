@@ -83,9 +83,9 @@ data class RailMapTrain(
     val nextStop: StationReference?,
     val coordinate: GeoCoordinate?,
     val heading: HeadingDegrees?,
-    val secondsToNextStop: Duration?,
     val expectedArrival: Instant?,
-    val observedAt: Instant?
+    val observedAt: Instant?,
+    val futureArrivals: List<FutureStationArrival>
 )
 
 data class LiveRailTrain(
@@ -99,10 +99,16 @@ data class LiveRailTrain(
     val currentLocation: LocationDescription,
     val location: LocationEstimate,
     val nextStop: StationReference?,
-    val secondsToNextStop: Duration?,
     val expectedArrival: Instant?,
     val observedAt: Instant?,
-    val sourcePredictions: PredictionCount
+    val sourcePredictions: PredictionCount,
+    val futureArrivals: List<FutureStationArrival>
+)
+
+data class FutureStationArrival(
+    val stationId: StationId?,
+    val stationName: StationName,
+    val expectedArrival: Instant
 )
 
 enum class LocationType {
@@ -144,7 +150,6 @@ data class RailPredictionRecord(
     val direction: TrainDirection?,
     val destinationName: DestinationName?,
     val observedAt: Instant?,
-    val secondsToNextStop: Duration?,
     val currentLocation: LocationDescription?,
     val towards: TowardsDescription?,
     val expectedArrival: Instant?,

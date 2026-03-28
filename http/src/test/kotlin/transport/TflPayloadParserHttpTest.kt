@@ -1,5 +1,6 @@
 package transport
 
+import java.time.Instant
 import kotlin.test.Test
 import strikt.api.expectThat
 import strikt.assertions.contains
@@ -145,7 +146,6 @@ class TflPayloadParserHttpTest {
                 "destinationNaptanId":"940GZZLUWWL",
                 "destinationName":"Walthamstow Central Underground Station",
                 "timestamp":"2026-03-22T00:49:20Z",
-                "timeToStation":120,
                 "currentLocation":"Approaching Green Park",
                 "towards":"Walthamstow Central",
                 "expectedArrival":"2026-03-22T00:51:20Z",
@@ -176,7 +176,6 @@ class TflPayloadParserHttpTest {
                 "lineName":"Victoria",
                 "platformName":"Northbound - Platform 4",
                 "timestamp":"2026-03-22T00:49:20Z",
-                "timeToStation":120,
                 "currentLocation":"Approaching Green Park",
                 "towards":"Walthamstow Central",
                 "expectedArrival":"2026-03-22T00:51:20Z",
@@ -194,7 +193,7 @@ class TflPayloadParserHttpTest {
     }
 
     @Test
-    fun `parsePredictions allows missing optional timeToStation`() {
+    fun `parsePredictions ignores unknown upstream fields`() {
         val result = tflPayloadParser.parsePredictions(
             """
             [
@@ -207,6 +206,7 @@ class TflPayloadParserHttpTest {
                 "lineName":"Victoria",
                 "platformName":"Northbound - Platform 4",
                 "timestamp":"2026-03-22T00:49:20Z",
+                "bearing":"180",
                 "currentLocation":"At Platform",
                 "towards":"Walthamstow Central",
                 "expectedArrival":"2026-03-22T00:51:20Z",
@@ -219,7 +219,7 @@ class TflPayloadParserHttpTest {
         )
 
         expectThat(result).isSuccess().hasSize(1)
-        expectThat(result).isSuccess().get { first().secondsToNextStop }.isEqualTo(null)
+        expectThat(result).isSuccess().get { first().expectedArrival }.isEqualTo(Instant.parse("2026-03-22T00:51:20Z"))
     }
 
     @Test
@@ -302,7 +302,6 @@ class TflPayloadParserHttpTest {
                 "lineName":"Victoria",
                 "platformName":"Northbound - Platform 4",
                 "timestamp":"not-an-instant",
-                "timeToStation":120,
                 "currentLocation":"Approaching Green Park",
                 "towards":"Walthamstow Central",
                 "expectedArrival":"2026-03-22T00:51:20Z",
@@ -334,7 +333,6 @@ class TflPayloadParserHttpTest {
                 "lineName":"Victoria",
                 "platformName":"Northbound - Platform 4",
                 "timestamp":"2026-03-22T00:49:20Z",
-                "timeToStation":120,
                 "currentLocation":"Approaching Green Park",
                 "towards":"Walthamstow Central",
                 "expectedArrival":"2026-03-22T00:51:20Z",

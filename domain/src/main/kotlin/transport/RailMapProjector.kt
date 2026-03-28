@@ -101,9 +101,9 @@ class RealRailMapProjector(
                 train.nextStop,
                 projection?.coordinate,
                 projection?.heading,
-                train.secondsToNextStop,
                 train.expectedArrival,
-                train.observedAt
+                train.observedAt,
+                train.futureArrivals
             )
         }
 }

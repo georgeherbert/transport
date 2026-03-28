@@ -72,10 +72,10 @@ class RealRailMapServiceTest {
                         )
                     ),
                     null,
-                    Duration.ofSeconds(45),
                     Instant.parse("2026-03-22T00:50:05Z"),
                     Instant.parse("2026-03-22T00:49:20Z"),
-                    PredictionCount(1)
+                    PredictionCount(1),
+                    emptyList()
                 )
             )
         )

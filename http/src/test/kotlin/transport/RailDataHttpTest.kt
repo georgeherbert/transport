@@ -131,7 +131,6 @@ class RailDataHttpTest {
                     "destinationNaptanId":"940GZZLUWWL",
                     "destinationName":"Walthamstow Central Underground Station",
                     "timestamp":"2026-03-22T00:49:20Z",
-                    "timeToStation":120,
                     "currentLocation":"Approaching Green Park",
                     "towards":"Walthamstow Central",
                     "expectedArrival":"2026-03-22T00:51:20Z",

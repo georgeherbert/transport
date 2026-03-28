@@ -58,9 +58,9 @@ class StubRailMapProjector : RailMapProjector {
                         train.nextStop,
                         null,
                         null,
-                        train.secondsToNextStop,
                         train.expectedArrival,
-                        train.observedAt
+                        train.observedAt,
+                        train.futureArrivals
                     )
                 }
             }

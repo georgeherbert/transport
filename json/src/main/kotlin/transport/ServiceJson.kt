@@ -33,7 +33,7 @@ data class RailMapTrainPositionsJson(
     val stationsFailed: Int,
     val partial: Boolean,
     val trainCount: Int,
-    val trains: List<RailMapTrainJson>
+    val trains: List<RailMapTrainPositionJson>
 )
 
 @Serializable
@@ -68,9 +68,32 @@ data class RailMapTrainJson(
     val currentLocation: String,
     val coordinate: GeoCoordinateJson?,
     val headingDegrees: Double?,
-    val secondsToNextStop: Int?,
+    val expectedArrival: String?,
+    val observedAt: String?,
+    val futureArrivals: List<FutureStationArrivalJson>
+)
+
+@Serializable
+data class RailMapTrainPositionJson(
+    val trainId: String,
+    val vehicleId: String?,
+    val lineId: String,
+    val lineName: String,
+    val direction: String?,
+    val destinationName: String?,
+    val towards: String?,
+    val currentLocation: String,
+    val coordinate: GeoCoordinateJson?,
+    val headingDegrees: Double?,
     val expectedArrival: String?,
     val observedAt: String?
+)
+
+@Serializable
+data class FutureStationArrivalJson(
+    val stationId: String?,
+    val stationName: String,
+    val expectedArrival: String
 )
 
 @Serializable

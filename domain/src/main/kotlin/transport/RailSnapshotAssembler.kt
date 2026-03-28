@@ -76,10 +76,10 @@ class RealRailSnapshotAssembler(
                     currentLocation,
                     location,
                     boardStation?.toReference(),
-                    nextStopRepresentative.secondsToNextStop,
                     nextStopRepresentative.expectedArrival,
                     nextStopRepresentative.observedAt ?: displayRepresentative.observedAt,
-                    PredictionCount(predictions.size)
+                    PredictionCount(predictions.size),
+                    futureArrivals(predictions)
                 )
             }
         }
@@ -104,18 +104,39 @@ class RealRailSnapshotAssembler(
     private fun trainIdFor(prediction: RailPredictionRecord): TrainId =
         TrainId(trainIdentityKey(prediction))
 
+    private fun futureArrivals(predictions: List<RailPredictionRecord>) =
+        predictions
+            .mapNotNull(::futureArrival)
+            .groupBy(::futureArrivalKey)
+            .values
+            .map { arrivals -> arrivals.minBy(FutureStationArrival::expectedArrival) }
+            .sortedBy(FutureStationArrival::expectedArrival)
+
+    private fun futureArrival(prediction: RailPredictionRecord) =
+        prediction.stationName
+            ?.let { stationName ->
+                prediction.expectedArrival?.let { expectedArrival ->
+                    FutureStationArrival(
+                        prediction.stationId,
+                        stationName,
+                        expectedArrival
+                    )
+                }
+            }
+
+    private fun futureArrivalKey(arrival: FutureStationArrival) =
+        arrival.stationId?.value ?: arrival.stationName.value
+
     private companion object {
         val nextStopPredictionComparator = compareBy<RailPredictionRecord>(
             { prediction -> if (prediction.stationId == null) 1 else 0 },
             { prediction -> prediction.expectedArrival?.toEpochMilli() ?: Long.MAX_VALUE },
-            { prediction -> prediction.secondsToNextStop?.seconds ?: Long.MAX_VALUE },
             { prediction -> if (prediction.currentLocation == null) 1 else 0 }
         )
         val displayPredictionComparator = compareBy<RailPredictionRecord>(
             { prediction -> if (prediction.currentLocation == null) 1 else 0 },
             { prediction -> if (prediction.stationId == null) 1 else 0 },
             { prediction -> prediction.expectedArrival?.toEpochMilli() ?: Long.MAX_VALUE },
-            { prediction -> prediction.secondsToNextStop?.seconds ?: Long.MAX_VALUE },
             { prediction -> prediction.currentLocation?.value.orEmpty() }
         )
     }

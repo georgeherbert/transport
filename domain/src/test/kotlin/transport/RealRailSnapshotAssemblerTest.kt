@@ -37,7 +37,6 @@ class RealRailSnapshotAssemblerTest {
                 TrainDirection("outbound"),
                 DestinationName("Walthamstow Central Underground Station"),
                 Instant.parse("2026-03-22T00:49:20Z"),
-                Duration.ofSeconds(492),
                 LocationDescription("Between Victoria and Green Park"),
                 TowardsDescription("Walthamstow Central"),
                 Instant.parse("2026-03-22T00:57:32Z"),
@@ -52,7 +51,6 @@ class RealRailSnapshotAssemblerTest {
                 TrainDirection("outbound"),
                 DestinationName("Walthamstow Central Underground Station"),
                 Instant.parse("2026-03-22T00:49:20Z"),
-                Duration.ofSeconds(120),
                 LocationDescription("Approaching Warren Street"),
                 TowardsDescription("Walthamstow Central"),
                 Instant.parse("2026-03-22T00:51:20Z"),
@@ -73,6 +71,9 @@ class RealRailSnapshotAssemblerTest {
         expectThat(snapshot.trains.first().location.type).isEqualTo(LocationType.STATION_BOARD)
         expectThat(snapshot.trains.first().nextStop!!.id).isEqualTo(StationId("940GZZLUWSM"))
         expectThat(snapshot.trains.first().sourcePredictions).isEqualTo(PredictionCount(2))
+        expectThat(snapshot.trains.first().futureArrivals).hasSize(2)
+        expectThat(snapshot.trains.first().futureArrivals.first().stationName).isEqualTo(StationName("Warren Street Underground Station"))
+        expectThat(snapshot.trains.first().futureArrivals.last().stationName).isEqualTo(StationName("King's Cross St. Pancras Underground Station"))
     }
 
     @Test
@@ -87,7 +88,6 @@ class RealRailSnapshotAssemblerTest {
                 null,
                 DestinationName("Check Front of Train"),
                 Instant.parse("2026-03-22T00:49:20Z"),
-                Duration.ofSeconds(132),
                 LocationDescription("At Euston Square Platform 2"),
                 TowardsDescription("Check Front of Train"),
                 Instant.parse("2026-03-22T00:51:32Z"),
@@ -102,7 +102,6 @@ class RealRailSnapshotAssemblerTest {
                 null,
                 DestinationName("Check Front of Train"),
                 Instant.parse("2026-03-22T00:49:20Z"),
-                Duration.ofSeconds(131),
                 LocationDescription("At Euston Square Platform 2"),
                 TowardsDescription("Check Front of Train"),
                 Instant.parse("2026-03-22T00:51:31Z"),
@@ -130,7 +129,7 @@ class RealRailSnapshotAssemblerTest {
     }
 
     @Test
-    fun `assemble leaves seconds to next stop empty when timeToStation is missing`() {
+    fun `assemble keeps expected arrival when upstream only provides absolute station time`() {
         val snapshot = assembler.assemble(
             railNetwork,
             listOf(
@@ -143,7 +142,6 @@ class RealRailSnapshotAssemblerTest {
                     TrainDirection("outbound"),
                     DestinationName("Walthamstow Central Underground Station"),
                     Instant.parse("2026-03-22T00:49:20Z"),
-                    null,
                     LocationDescription("Approaching Warren Street"),
                     TowardsDescription("Walthamstow Central"),
                     Instant.parse("2026-03-22T00:51:20Z"),
@@ -156,7 +154,7 @@ class RealRailSnapshotAssemblerTest {
         )
 
         expectThat(snapshot.trains).hasSize(1)
-        expectThat(snapshot.trains.first().secondsToNextStop).isEqualTo(null)
+        expectThat(snapshot.trains.first().expectedArrival).isEqualTo(Instant.parse("2026-03-22T00:51:20Z"))
     }
 
     @Test
@@ -173,7 +171,6 @@ class RealRailSnapshotAssemblerTest {
                     null,
                     DestinationName("Heathrow Terminal 5"),
                     Instant.parse("2026-03-22T16:00:00Z"),
-                    null,
                     null,
                     null,
                     Instant.parse("2026-03-22T16:08:00Z"),
@@ -205,7 +202,6 @@ class RealRailSnapshotAssemblerTest {
                     TrainDirection("outbound"),
                     DestinationName("West Croydon"),
                     Instant.parse("2026-03-22T16:31:56Z"),
-                    null,
                     null,
                     TowardsDescription("West Croydon"),
                     Instant.parse("2026-03-22T16:32:00Z"),

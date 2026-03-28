@@ -32,7 +32,7 @@ class ServiceResponseMapperHttp : ServiceResponseMapper {
             trainPositions.stationsFailed.value,
             trainPositions.partial,
             trainPositions.trainCount.value,
-            trainPositions.trains.map(::mapTrainJson)
+            trainPositions.trains.map(::mapTrainPositionJson)
         )
 
     override fun errorResponse(error: TransportError) =
@@ -75,7 +75,23 @@ class ServiceResponseMapperHttp : ServiceResponseMapper {
             train.currentLocation.value,
             train.coordinate?.let(::geoCoordinateJson),
             train.heading?.value,
-            train.secondsToNextStop?.seconds?.toInt(),
+            train.expectedArrival?.toString(),
+            train.observedAt?.toString(),
+            train.futureArrivals.map(::futureArrivalJson)
+        )
+
+    private fun mapTrainPositionJson(train: RailMapTrain) =
+        RailMapTrainPositionJson(
+            train.trainId.value,
+            train.vehicleId?.value,
+            train.lineId.value,
+            train.lineName.value,
+            train.direction?.value,
+            train.destinationName?.value,
+            train.towards?.value,
+            train.currentLocation.value,
+            train.coordinate?.let(::geoCoordinateJson),
+            train.heading?.value,
             train.expectedArrival?.toString(),
             train.observedAt?.toString()
         )
@@ -90,4 +106,11 @@ class ServiceResponseMapperHttp : ServiceResponseMapper {
 
     private fun geoCoordinateJson(geoCoordinate: GeoCoordinate) =
         GeoCoordinateJson(geoCoordinate.lat, geoCoordinate.lon)
+
+    private fun futureArrivalJson(arrival: FutureStationArrival) =
+        FutureStationArrivalJson(
+            arrival.stationId?.value,
+            arrival.stationName.value,
+            arrival.expectedArrival.toString()
+        )
 }

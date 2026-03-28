@@ -128,9 +128,9 @@ class RealRailMapMotionEngineTest {
             stationReference(nextStopId, stopLongitude(nextStopId)),
             coordinateAtNextStop(nextStopId),
             HeadingDegrees(90.0),
-            null,
             generatedAt.plusSeconds(60),
-            generatedAt
+            generatedAt,
+            emptyList()
         )
 
     private fun coordinateAtNextStop(nextStopId: String) =

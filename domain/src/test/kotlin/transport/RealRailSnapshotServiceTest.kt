@@ -86,7 +86,6 @@ class RealRailSnapshotServiceTest {
                 TrainDirection("outbound"),
                 DestinationName("Walthamstow Central Underground Station"),
                 Instant.parse("2026-03-22T00:49:20Z"),
-                Duration.ofSeconds(90),
                 LocationDescription("Approaching Green Park"),
                 TowardsDescription("Walthamstow Central"),
                 Instant.parse("2026-03-22T00:50:50Z"),

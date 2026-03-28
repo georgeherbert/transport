@@ -4,7 +4,6 @@ import dev.forkhandles.result4k.Failure
 import dev.forkhandles.result4k.Success
 import dev.forkhandles.result4k.flatMap
 import dev.forkhandles.result4k.map
-import java.time.Duration
 import java.time.Instant
 import java.time.format.DateTimeParseException
 import kotlinx.serialization.decodeFromString
@@ -127,9 +126,6 @@ class TflPayloadParserHttp(
                             arrival.direction.toValue(::TrainDirection),
                             arrival.destinationName.toValue(::DestinationName),
                             observedAt,
-                            arrival.timeToStation?.let { timeToStation ->
-                                Duration.ofSeconds(timeToStation.toLong())
-                            },
                             arrival.currentLocation.toValue(::LocationDescription),
                             arrival.towards.toValue(::TowardsDescription),
                             expectedArrival,
