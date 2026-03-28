@@ -98,10 +98,6 @@ function App() {
           return currentSnapshot
         }
 
-        const futureArrivalsByTrainId = new Map(
-          currentSnapshot.trains.map(train => [train.trainId, train.futureArrivals ?? []])
-        )
-
         return {
           ...currentSnapshot,
           source: trainPositions.source,
@@ -112,10 +108,8 @@ function App() {
           stationsFailed: trainPositions.stationsFailed,
           partial: trainPositions.partial,
           trainCount: trainPositions.trainCount,
-          trains: trainPositions.trains.map(train => ({
-            ...train,
-            futureArrivals: train.futureArrivals ?? futureArrivalsByTrainId.get(train.trainId) ?? []
-          }))
+          stations: trainPositions.stations,
+          trains: trainPositions.trains
         }
       })
       setErrorMessage('')
@@ -448,7 +442,7 @@ const TrainMarker = memo(
               ) : null}
               {train.futureArrivals != null && train.futureArrivals.length > 0 ? (
                 <div className="map-popup-section">
-                  <span className="map-popup-label">TfL arrivals</span>
+                  <span className="map-popup-label">Arrivals</span>
                   <div className="map-popup-arrivals">
                     {train.futureArrivals.map(arrival => (
                       <div
@@ -512,6 +506,32 @@ const StationMarker = memo(
                 <span className="map-popup-label">Lines</span>
                 <LineBadges lineIds={station.lineIds} />
               </div>
+              {station.arrivals != null && station.arrivals.length > 0 ? (
+                <div className="map-popup-section">
+                  <span className="map-popup-label">Arrivals</span>
+                  <div className="map-popup-arrivals">
+                    {station.arrivals.map(arrival => (
+                      <div
+                        className="map-popup-arrival-row"
+                        key={`${arrival.trainId}:${arrival.expectedArrival}`}
+                      >
+                        <span className="map-popup-arrival-service">
+                          <span
+                            className="map-popup-arrival-line"
+                            style={{ '--accent-color': colorForLine(arrival.lineId) }}
+                          ></span>
+                          <span className="map-popup-arrival-station">
+                            {stationArrivalLabelFor(arrival)}
+                          </span>
+                        </span>
+                        <span className="map-popup-arrival-time">
+                          {formatClockTime(arrival.expectedArrival)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </PopupCard>
           </Popup>
         ) : null}
@@ -758,7 +778,8 @@ function areStationMarkerPropsEqual(previousProps, nextProps) {
     previousStation.name === nextStation.name &&
     previousStation.coordinate.lat === nextStation.coordinate.lat &&
     previousStation.coordinate.lon === nextStation.coordinate.lon &&
-    previousStation.lineIds.join('|') === nextStation.lineIds.join('|')
+    previousStation.lineIds.join('|') === nextStation.lineIds.join('|') &&
+    stationArrivalsSignature(previousStation.arrivals) === stationArrivalsSignature(nextStation.arrivals)
   )
 }
 
@@ -816,6 +837,10 @@ function stationDetailLabelForPicker(station) {
   return `${station.lineIds.length} ${station.lineIds.length === 1 ? 'line' : 'lines'}`
 }
 
+function stationArrivalLabelFor(arrival) {
+  return arrival.destinationName ?? 'Destination unavailable'
+}
+
 function prettifyLineId(lineId) {
   return lineId
     .split('-')
@@ -836,6 +861,12 @@ function sortedLineIds(lineIds) {
 function futureArrivalsSignature(futureArrivals) {
   return (futureArrivals ?? [])
     .map(arrival => `${arrival.stationId ?? arrival.stationName}:${arrival.expectedArrival}`)
+    .join('|')
+}
+
+function stationArrivalsSignature(arrivals) {
+  return (arrivals ?? [])
+    .map(arrival => `${arrival.trainId}:${arrival.expectedArrival}`)
     .join('|')
 }
 

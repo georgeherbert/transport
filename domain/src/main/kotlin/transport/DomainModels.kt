@@ -41,6 +41,7 @@ data class RailMapTrainPositions(
     val stationsFailed: StationFailureCount,
     val partial: Boolean,
     val trainCount: LiveTrainCount,
+    val stations: List<MapStation>,
     val trains: List<RailMapTrain>
 )
 
@@ -68,7 +69,16 @@ data class MapStation(
     val id: StationId,
     val name: StationName,
     val coordinate: GeoCoordinate,
-    val lineIds: List<LineId>
+    val lineIds: List<LineId>,
+    val arrivals: List<StationArrival>
+)
+
+data class StationArrival(
+    val trainId: TrainId,
+    val lineId: LineId,
+    val lineName: LineName,
+    val destinationName: DestinationName?,
+    val expectedArrival: Instant
 )
 
 data class RailMapTrain(

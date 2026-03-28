@@ -70,7 +70,8 @@ class StubServiceResponseMapper : ServiceResponseMapper {
                     station.id.value,
                     station.name.value,
                     GeoCoordinateJson(station.coordinate.lat, station.coordinate.lon),
-                    station.lineIds.map(LineId::value)
+                    station.lineIds.map(LineId::value),
+                    station.arrivals.map(::stationArrivalJson)
                 )
             },
             mapSnapshot.trains.map(::trainJson)
@@ -86,7 +87,16 @@ class StubServiceResponseMapper : ServiceResponseMapper {
             trainPositions.stationsFailed.value,
             trainPositions.partial,
             trainPositions.trainCount.value,
-            trainPositions.trains.map(::trainPositionJson)
+            trainPositions.stations.map { station ->
+                MapStationJson(
+                    station.id.value,
+                    station.name.value,
+                    GeoCoordinateJson(station.coordinate.lat, station.coordinate.lon),
+                    station.lineIds.map(LineId::value),
+                    station.arrivals.map(::stationArrivalJson)
+                )
+            },
+            trainPositions.trains.map(::trainJson)
         )
 
     private fun trainJson(train: RailMapTrain) =
@@ -106,24 +116,6 @@ class StubServiceResponseMapper : ServiceResponseMapper {
             train.expectedArrival?.toString(),
             train.observedAt?.toString(),
             train.futureArrivals.map(::futureArrivalJson)
-        )
-
-    private fun trainPositionJson(train: RailMapTrain) =
-        RailMapTrainPositionJson(
-            train.trainId.value,
-            train.vehicleId?.value,
-            train.lineId.value,
-            train.lineName.value,
-            train.direction?.value,
-            train.destinationName?.value,
-            train.towards?.value,
-            train.currentLocation.value,
-            train.coordinate?.let { coordinate ->
-                GeoCoordinateJson(coordinate.lat, coordinate.lon)
-            },
-            train.heading?.value,
-            train.expectedArrival?.toString(),
-            train.observedAt?.toString()
         )
 
     private fun errorCode(error: TransportError) =
@@ -148,6 +140,15 @@ class StubServiceResponseMapper : ServiceResponseMapper {
         FutureStationArrivalJson(
             arrival.stationId?.value,
             arrival.stationName.value,
+            arrival.expectedArrival.toString()
+        )
+
+    private fun stationArrivalJson(arrival: StationArrival) =
+        StationArrivalJson(
+            arrival.trainId.value,
+            arrival.lineId.value,
+            arrival.lineName.value,
+            arrival.destinationName?.value,
             arrival.expectedArrival.toString()
         )
 }

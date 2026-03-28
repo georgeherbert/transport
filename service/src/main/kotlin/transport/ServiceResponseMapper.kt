@@ -32,7 +32,8 @@ class ServiceResponseMapperHttp : ServiceResponseMapper {
             trainPositions.stationsFailed.value,
             trainPositions.partial,
             trainPositions.trainCount.value,
-            trainPositions.trains.map(::mapTrainPositionJson)
+            trainPositions.stations.map(::mapStationJson),
+            trainPositions.trains.map(::mapTrainJson)
         )
 
     override fun errorResponse(error: TransportError) =
@@ -80,28 +81,13 @@ class ServiceResponseMapperHttp : ServiceResponseMapper {
             train.futureArrivals.map(::futureArrivalJson)
         )
 
-    private fun mapTrainPositionJson(train: RailMapTrain) =
-        RailMapTrainPositionJson(
-            train.trainId.value,
-            train.vehicleId?.value,
-            train.lineId.value,
-            train.lineName.value,
-            train.direction?.value,
-            train.destinationName?.value,
-            train.towards?.value,
-            train.currentLocation.value,
-            train.coordinate?.let(::geoCoordinateJson),
-            train.heading?.value,
-            train.expectedArrival?.toString(),
-            train.observedAt?.toString()
-        )
-
     private fun mapStationJson(station: MapStation) =
         MapStationJson(
             station.id.value,
             station.name.value,
             geoCoordinateJson(station.coordinate),
-            station.lineIds.map(LineId::value)
+            station.lineIds.map(LineId::value),
+            station.arrivals.map(::stationArrivalJson)
         )
 
     private fun geoCoordinateJson(geoCoordinate: GeoCoordinate) =
@@ -111,6 +97,15 @@ class ServiceResponseMapperHttp : ServiceResponseMapper {
         FutureStationArrivalJson(
             arrival.stationId?.value,
             arrival.stationName.value,
+            arrival.expectedArrival.toString()
+        )
+
+    private fun stationArrivalJson(arrival: StationArrival) =
+        StationArrivalJson(
+            arrival.trainId.value,
+            arrival.lineId.value,
+            arrival.lineName.value,
+            arrival.destinationName?.value,
             arrival.expectedArrival.toString()
         )
 }

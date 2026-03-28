@@ -182,6 +182,7 @@ data class CachedRailMapSnapshot(
             animatedSnapshot.stationsFailed,
             animatedSnapshot.partial,
             animatedSnapshot.trainCount,
+            animatedSnapshot.stations,
             animatedSnapshot.trains
         )
     }

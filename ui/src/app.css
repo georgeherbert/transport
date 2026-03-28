@@ -337,6 +337,21 @@ body {
   align-items: baseline;
 }
 
+.map-popup-arrival-service {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.map-popup-arrival-line {
+  width: 0.32rem;
+  min-height: 1.15rem;
+  border-radius: 999px;
+  background: var(--accent-color);
+}
+
 .map-popup-arrival-station {
   font-size: 0.84rem;
   line-height: 1.3;

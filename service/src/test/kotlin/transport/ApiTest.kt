@@ -177,7 +177,7 @@ class ApiTest {
     }
 
     @Test
-    fun `api streams train-only position updates after the initial snapshot`() {
+    fun `api streams dynamic rail state updates after the initial snapshot`() {
         testApplication {
             railMapFeedService.returns(sampleMap(true))
             railMapFeedService.emitsUpdates(
@@ -208,7 +208,8 @@ class ApiTest {
                 expectThat(eventLines.joinToString("\n")).contains("event: train_positions")
                 expectThat(payload["trainCount"]?.jsonPrimitive?.int).isEqualTo(1)
                 expectThat(payload.containsKey("lines")).isEqualTo(false)
-                expectThat(payload["trains"]?.jsonArray?.first()?.jsonObject?.containsKey("futureArrivals")).isEqualTo(false)
+                expectThat(payload["stations"]?.jsonArray?.first()?.jsonObject?.containsKey("arrivals")).isEqualTo(true)
+                expectThat(payload["trains"]?.jsonArray?.first()?.jsonObject?.containsKey("futureArrivals")).isEqualTo(true)
             }
         }
     }
@@ -272,7 +273,16 @@ class ApiTest {
                     StationId("940GZZLUGPK"),
                     StationName("Green Park Underground Station"),
                     GeoCoordinate(51.506947, -0.142787),
-                    listOf(LineId("victoria"))
+                    listOf(LineId("victoria")),
+                    listOf(
+                        StationArrival(
+                            TrainId("victoria|257"),
+                            LineId("victoria"),
+                            LineName("Victoria"),
+                            DestinationName("Walthamstow Central Underground Station"),
+                            Instant.parse("2026-03-22T00:50:50Z")
+                        )
+                    )
                 )
             ),
             listOf(
@@ -315,6 +325,7 @@ class ApiTest {
             StationFailureCount(0),
             false,
             LiveTrainCount(1),
+            sampleMap(true).stations,
             sampleMap(true).trains
         )
 }

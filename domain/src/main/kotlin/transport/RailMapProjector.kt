@@ -31,55 +31,91 @@ class RealRailMapProjector(
                 snapshot.partial,
                 snapshot.trainCount,
                 smoothedLineMap.lines,
-                projectStations(smoothedLineMap, projectedLines),
+                projectStations(snapshot, smoothedLineMap, projectedLines),
                 snapshot.trains.mapNotNull { train -> projectTrain(train, projectedLines) }
             )
         }
 
     private fun projectStations(
+        snapshot: LiveRailSnapshot,
         lineMap: RailLineMap,
         projectedLines: Map<LineId, RailLineProjection>
     ): List<MapStation> =
-        lineMap.lines
-            .filter { line -> line.id in supportedMapStationLineIdSet }
-            .flatMap { line ->
-                projectedLines[line.id]?.let { projectedLine ->
-                    line.sequences
-                        .flatMap(RailLineSequence::stations)
-                        .distinctBy(StationReference::id)
-                        .map { station ->
-                            ProjectedStationCandidate(
-                                station.id,
-                                station.name,
-                                station.coordinate,
-                                projectedLine.projectStation(station.coordinate) ?: station.coordinate,
-                                line.id
-                            )
+        stationArrivalsByStationId(snapshot)
+            .let { arrivalsByStationId ->
+                lineMap.lines
+                    .filter { line -> line.id in supportedMapStationLineIdSet }
+                    .flatMap { line ->
+                        projectedLines[line.id]?.let { projectedLine ->
+                            line.sequences
+                                .flatMap(RailLineSequence::stations)
+                                .distinctBy(StationReference::id)
+                                .map { station ->
+                                    ProjectedStationCandidate(
+                                        station.id,
+                                        station.name,
+                                        station.coordinate,
+                                        projectedLine.projectStation(station.coordinate) ?: station.coordinate,
+                                        line.id
+                                    )
+                                }
+                        } ?: emptyList()
+                    }
+                    .groupBy(ProjectedStationCandidate::id)
+                    .values
+                    .map { candidates ->
+                        val firstCandidate = candidates.first()
+                        val projectedCoordinate = candidates
+                            .minByOrNull { candidate ->
+                                squaredDistance(candidate.projectedCoordinate, candidate.sourceCoordinate)
+                            }
+                            ?.projectedCoordinate
+                            ?: firstCandidate.projectedCoordinate
+
+                        MapStation(
+                            firstCandidate.id,
+                            firstCandidate.name,
+                            projectedCoordinate,
+                            candidates
+                                .map(ProjectedStationCandidate::lineId)
+                                .distinctBy(LineId::value)
+                                .sortedBy(LineId::value),
+                            arrivalsByStationId[firstCandidate.id] ?: emptyList()
+                        )
+                    }
+                    .sortedBy { station -> station.name.value }
+            }
+
+    private fun stationArrivalsByStationId(snapshot: LiveRailSnapshot) =
+        snapshot.trains
+            .flatMap { train ->
+                train.lineIds.firstOrNull()?.let { lineId ->
+                    train.lineNames.firstOrNull()?.let { lineName ->
+                        train.futureArrivals.mapNotNull { arrival ->
+                            arrival.stationId?.let { stationId ->
+                                stationId to StationArrival(
+                                    train.trainId,
+                                    lineId,
+                                    lineName,
+                                    train.destinationName,
+                                    arrival.expectedArrival
+                                )
+                            }
                         }
+                    }
                 } ?: emptyList()
             }
-            .groupBy(ProjectedStationCandidate::id)
-            .values
-            .map { candidates ->
-                val firstCandidate = candidates.first()
-                val projectedCoordinate = candidates
-                    .minByOrNull { candidate ->
-                        squaredDistance(candidate.projectedCoordinate, candidate.sourceCoordinate)
-                    }
-                    ?.projectedCoordinate
-                    ?: firstCandidate.projectedCoordinate
-
-                MapStation(
-                    firstCandidate.id,
-                    firstCandidate.name,
-                    projectedCoordinate,
-                    candidates
-                        .map(ProjectedStationCandidate::lineId)
-                        .distinctBy(LineId::value)
-                        .sortedBy(LineId::value)
+            .groupBy({ entry -> entry.first }, { entry -> entry.second })
+            .mapValues { entry ->
+                entry.value.sortedWith(
+                    compareBy<StationArrival>(
+                        StationArrival::expectedArrival,
+                        { arrival -> arrival.lineName.value },
+                        { arrival -> arrival.destinationName?.value.orEmpty() },
+                        { arrival -> arrival.trainId.value }
+                    )
                 )
             }
-            .sortedBy { station -> station.name.value }
 
     private fun projectTrain(
         train: LiveRailTrain,

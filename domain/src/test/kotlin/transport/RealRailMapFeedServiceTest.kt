@@ -91,6 +91,16 @@ class RealRailMapFeedServiceTest {
             expectThat(update)
                 .isA<RailMapFeedUpdate.TrainPositionsUpdated>()
                 .get(RailMapFeedUpdate.TrainPositionsUpdated::trainPositions)
+                .get(RailMapTrainPositions::stations)
+                .get(0)
+                .get(MapStation::arrivals)
+                .get(0)
+                .get(StationArrival::lineId)
+                .isEqualTo(LineId("victoria"))
+
+            expectThat(update)
+                .isA<RailMapFeedUpdate.TrainPositionsUpdated>()
+                .get(RailMapFeedUpdate.TrainPositionsUpdated::trainPositions)
                 .get(RailMapTrainPositions::trains)
                 .get(0)
                 .get(RailMapTrain::coordinate)
@@ -156,7 +166,16 @@ class RealRailMapFeedServiceTest {
                     StationId("940GZZLUGPK"),
                     StationName("Green Park Underground Station"),
                     GeoCoordinate(51.506947, -0.142787),
-                    listOf(LineId("victoria"))
+                    listOf(LineId("victoria")),
+                    listOf(
+                        StationArrival(
+                            TrainId("victoria|257"),
+                            LineId("victoria"),
+                            LineName("Victoria"),
+                            DestinationName("Walthamstow Central Underground Station"),
+                            Instant.parse("2026-03-22T20:51:30Z")
+                        )
+                    )
                 )
             ),
             listOf(
@@ -178,7 +197,13 @@ class RealRailMapFeedServiceTest {
                     HeadingDegrees(42.0),
                     Instant.parse("2026-03-22T20:51:30Z"),
                     generatedAt,
-                    emptyList()
+                    listOf(
+                        FutureStationArrival(
+                            StationId("940GZZLUGPK"),
+                            StationName("Green Park Underground Station"),
+                            Instant.parse("2026-03-22T20:51:30Z")
+                        )
+                    )
                 )
             )
         )

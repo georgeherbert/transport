@@ -125,7 +125,13 @@ class RealRailMapProjectorTest {
                     Instant.parse("2026-03-22T00:50:50Z"),
                     Instant.parse("2026-03-22T00:49:20Z"),
                     PredictionCount(1),
-                    emptyList()
+                    listOf(
+                        FutureStationArrival(
+                            nextStop.id,
+                            nextStop.name,
+                            Instant.parse("2026-03-22T00:50:50Z")
+                        )
+                    )
                 )
             )
         )
@@ -147,6 +153,8 @@ class RealRailMapProjectorTest {
         expectThat(projected.lines).isEqualTo(smoothedLineMap.lines)
         expectThat(projected.stations).hasSize(1)
         expectThat(projected.stations.first().coordinate).isEqualTo(GeoCoordinate(51.507100, -0.142500))
+        expectThat(projected.stations.first().arrivals).hasSize(1)
+        expectThat(projected.stations.first().arrivals.first().lineId).isEqualTo(LineId("victoria"))
         expectThat(projected.trains).hasSize(1)
         expectThat(projected.trains.first().coordinate).isEqualTo(GeoCoordinate(51.507200, -0.142400))
         expectThat(projected.trains.first().heading).isEqualTo(HeadingDegrees(32.0))

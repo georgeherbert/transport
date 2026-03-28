@@ -153,7 +153,8 @@ class RealRailMapMotionEngineTest {
             StationId(id),
             StationName("$id Underground Station"),
             GeoCoordinate(51.0, lon),
-            listOf(LineId("victoria"))
+            listOf(LineId("victoria")),
+            emptyList()
         )
 
     private fun movingTrain(
