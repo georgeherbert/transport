@@ -99,7 +99,7 @@ class RealRailLineProjection(
         nextStop: StationReference
     ) =
         matchingSequences(direction)
-            .mapNotNull { sequence -> nextStopMovement(sequence, nextStop.id) }
+            .flatMap { sequence -> nextStopMovements(sequence, nextStop.id) }
             .flatMap { movement ->
                 projectedPaths.mapNotNull { pathProjection -> projectStationMovement(pathProjection, movement) }
             }
@@ -110,21 +110,16 @@ class RealRailLineProjection(
         pathProjection: RailLinePathProjection,
         fromStation: StationReference,
         toStation: StationReference
-    ): BetweenStationsProjection? {
-        val fromProjection = pathProjection.projectCoordinate(fromStation.coordinate)
-        val toProjection = pathProjection.projectCoordinate(toStation.coordinate)
-
-        return if (fromProjection == null || toProjection == null) {
-            null
-        } else {
-            BetweenStationsProjection(
-                pathProjection,
-                fromProjection,
-                toProjection,
-                fromProjection.distanceSquared + toProjection.distanceSquared
-            )
-        }
-    }
+    ) =
+        bestProjectionPair(pathProjection, fromStation.coordinate, toStation.coordinate)
+            ?.let { pair ->
+                BetweenStationsProjection(
+                    pathProjection,
+                    pair.fromProjection,
+                    pair.toProjection,
+                    pair.distanceSquared
+                )
+            }
 
     private fun matchingSequences(direction: TrainDirection?) =
         if (line.sequences.isEmpty() || direction == null) {
@@ -133,43 +128,83 @@ class RealRailLineProjection(
             line.sequences.filter { sequence -> sequence.direction == direction }
         }
 
-    private fun nextStopMovement(
+    private fun nextStopMovements(
         sequence: RailLineSequence,
         nextStopStationId: StationId
-    ): StationMovement? {
-        val nextStopIndex = sequence.stations.indexOfFirst { station -> station.id == nextStopStationId }
-        val anchorStation = sequence.stations.getOrNull(nextStopIndex)
-        val nextStation = sequence.stations.getOrNull(nextStopIndex + 1)
-        val previousStation = sequence.stations.getOrNull(nextStopIndex - 1)
+    ) =
+        sequence.stations.withIndex()
+            .filter { indexedStation -> indexedStation.value.id == nextStopStationId }
+            .mapNotNull { indexedStation ->
+                val nextStopIndex = indexedStation.index
+                val anchorStation = indexedStation.value
+                val nextStation = sequence.stations.getOrNull(nextStopIndex + 1)
+                val previousStation = sequence.stations.getOrNull(nextStopIndex - 1)
 
-        return when {
-            anchorStation == null -> null
-            nextStation != null -> StationMovement(anchorStation, nextStation, anchorStation)
-            previousStation != null -> StationMovement(previousStation, anchorStation, anchorStation)
-            else -> null
-        }
-    }
+                when {
+                    nextStation != null -> StationMovement(anchorStation, nextStation, anchorStation)
+                    previousStation != null -> StationMovement(previousStation, anchorStation, anchorStation)
+                    else -> null
+                }
+            }
 
     private fun projectStationMovement(
         pathProjection: RailLinePathProjection,
         movement: StationMovement
-    ): StationMovementProjection? {
-        val fromProjection = pathProjection.projectCoordinate(movement.fromStation.coordinate)
-        val toProjection = pathProjection.projectCoordinate(movement.toStation.coordinate)
-        val anchorProjection = pathProjection.projectCoordinate(movement.anchorStation.coordinate)
+    ) =
+        bestProjectionPair(pathProjection, movement.fromStation.coordinate, movement.toStation.coordinate)
+            ?.let { pair ->
+                closestAnchorProjection(pathProjection, movement.anchorStation.coordinate, pair)
+                    ?.let { anchorProjection ->
+                        StationMovementProjection(
+                            pathProjection,
+                            pair.fromProjection,
+                            pair.toProjection,
+                            anchorProjection,
+                            pair.distanceSquared + anchorProjection.distanceSquared
+                        )
+                    }
+            }
 
-        return if (fromProjection == null || toProjection == null || anchorProjection == null) {
-            null
-        } else {
-            StationMovementProjection(
-                pathProjection,
-                fromProjection,
-                toProjection,
-                anchorProjection,
-                fromProjection.distanceSquared + toProjection.distanceSquared + anchorProjection.distanceSquared
+    private fun bestProjectionPair(
+        pathProjection: RailLinePathProjection,
+        fromCoordinate: GeoCoordinate,
+        toCoordinate: GeoCoordinate
+    ) =
+        candidatePathProjections(pathProjection, fromCoordinate)
+            .flatMap { fromProjection ->
+                candidatePathProjections(pathProjection, toCoordinate).map { toProjection ->
+                    ProjectionPair(
+                        fromProjection,
+                        toProjection,
+                        fromProjection.distanceSquared + toProjection.distanceSquared,
+                        abs(toProjection.distanceAlongPath - fromProjection.distanceAlongPath)
+                    )
+                }
+            }
+            .minWithOrNull(
+                compareBy<ProjectionPair>(
+                    ProjectionPair::distanceSquared,
+                    ProjectionPair::travelDistance
+                )
             )
-        }
-    }
+
+    private fun closestAnchorProjection(
+        pathProjection: RailLinePathProjection,
+        anchorCoordinate: GeoCoordinate,
+        pair: ProjectionPair
+    ) =
+        candidatePathProjections(pathProjection, anchorCoordinate)
+            .minWithOrNull(
+                compareBy<PathCoordinateProjection>(
+                    { anchorProjection -> anchorProjection.distanceSquared },
+                    { anchorProjection ->
+                        minOf(
+                            abs(anchorProjection.distanceAlongPath - pair.fromProjection.distanceAlongPath),
+                            abs(anchorProjection.distanceAlongPath - pair.toProjection.distanceAlongPath)
+                        )
+                    }
+                )
+            )
 }
 
 class RealRailLinePathProjection(
@@ -364,6 +399,13 @@ data class TrainMapProjection(
     val heading: HeadingDegrees?
 )
 
+private data class ProjectionPair(
+    val fromProjection: PathCoordinateProjection,
+    val toProjection: PathCoordinateProjection,
+    val distanceSquared: Double,
+    val travelDistance: Double
+)
+
 private fun BetweenStationsProjection.toTrainMapProjection(progress: Double): TrainMapProjection? =
     (fromProjection.distanceAlongPath +
         ((toProjection.distanceAlongPath - fromProjection.distanceAlongPath) * progress.coerceIn(0.0, 1.0)))
@@ -381,3 +423,102 @@ private fun BetweenStationsProjection.toTrainMapProjection(progress: Double): Tr
 
 private fun StationMovementProjection.heading() =
     path.headingAlongTravel(fromProjection.distanceAlongPath, toProjection.distanceAlongPath)
+
+private fun candidatePathProjections(
+    pathProjection: RailLinePathProjection,
+    target: GeoCoordinate
+): List<PathCoordinateProjection> =
+    allPathCoordinateProjections(pathProjection, target)
+        .sortedBy(PathCoordinateProjection::distanceSquared)
+        .let { projections ->
+            projections.firstOrNull()
+                ?.let { nearestProjection ->
+                    projections
+                        .takeWhile { projection ->
+                            projection.distanceSquared <= nearestProjection.distanceSquared + candidateDistanceToleranceSquared
+                        }
+                        .distinctBy { projection ->
+                            projection.distanceAlongPath.toString() + "|" + projection.coordinate.lat + "|" + projection.coordinate.lon
+                        }
+                }
+                ?: emptyList()
+        }
+
+private fun allPathCoordinateProjections(
+    pathProjection: RailLinePathProjection,
+    target: GeoCoordinate
+): List<PathCoordinateProjection> =
+    pathProjection.path.coordinates
+        .let { coordinates ->
+            when {
+                coordinates.isEmpty() -> emptyList()
+                coordinates.size == 1 ->
+                    listOf(
+                        PathCoordinateProjection(
+                            pathProjection,
+                            coordinates.first(),
+                            squaredDistance(coordinates.first(), target),
+                            0.0
+                        )
+                    )
+                else ->
+                    buildCumulativeLengths(coordinates).let { cumulativeLengths ->
+                        (0 until coordinates.lastIndex).map { segmentIndex ->
+                            projectOntoPathSegment(pathProjection, coordinates, cumulativeLengths, target, segmentIndex)
+                        }
+                    }
+            }
+        }
+
+private fun projectOntoPathSegment(
+    pathProjection: RailLinePathProjection,
+    coordinates: List<GeoCoordinate>,
+    cumulativeLengths: List<Double>,
+    target: GeoCoordinate,
+    segmentIndex: Int
+) =
+    coordinates[segmentIndex].let { startCoordinate ->
+        coordinates[segmentIndex + 1].let { endCoordinate ->
+            val segmentLat = endCoordinate.lat - startCoordinate.lat
+            val segmentLon = endCoordinate.lon - startCoordinate.lon
+            val segmentLengthSquared = (segmentLat * segmentLat) + (segmentLon * segmentLon)
+
+            if (segmentLengthSquared == 0.0) {
+                PathCoordinateProjection(
+                    pathProjection,
+                    startCoordinate,
+                    squaredDistance(startCoordinate, target),
+                    cumulativeLengths[segmentIndex]
+                )
+            } else {
+                val targetLat = target.lat - startCoordinate.lat
+                val targetLon = target.lon - startCoordinate.lon
+                val fraction = ((targetLat * segmentLat) + (targetLon * segmentLon)) / segmentLengthSquared
+                val clampedFraction = fraction.coerceIn(0.0, 1.0)
+                val projectedCoordinate = interpolate(startCoordinate, endCoordinate, clampedFraction)
+                val segmentStartDistance = cumulativeLengths[segmentIndex]
+
+                PathCoordinateProjection(
+                    pathProjection,
+                    projectedCoordinate,
+                    squaredDistance(projectedCoordinate, target),
+                    segmentStartDistance + (distance(startCoordinate, endCoordinate) * clampedFraction)
+                )
+            }
+        }
+    }
+
+private fun buildCumulativeLengths(coordinates: List<GeoCoordinate>): List<Double> =
+    if (coordinates.isEmpty()) {
+        emptyList()
+    } else {
+        val cumulative = mutableListOf(0.0)
+
+        for (index in 1 until coordinates.size) {
+            cumulative += cumulative.last() + distance(coordinates[index - 1], coordinates[index])
+        }
+
+        cumulative
+    }
+
+private val candidateDistanceToleranceSquared = 0.00000001

@@ -924,6 +924,64 @@ class RealRailMapProjectorTest {
     }
 
     @Test
+    fun `projectBetweenStationsAtProgress uses the shortest loop segment when a station appears twice`() {
+        val repeatedLoopStation = StationReference(
+            StationId("A"),
+            StationName("Alpha Underground Station"),
+            GeoCoordinate(51.0, -0.4)
+        )
+        val previousStation = StationReference(
+            StationId("D"),
+            StationName("Delta Underground Station"),
+            GeoCoordinate(51.0, -0.3)
+        )
+        val lineProjection =
+            RealRailLineProjection(
+                RailLine(
+                    LineId("circle"),
+                    LineName("Circle"),
+                    listOf(
+                        RailLinePath(
+                            listOf(
+                                GeoCoordinate(51.0, -0.4),
+                                GeoCoordinate(51.1, -0.4),
+                                GeoCoordinate(51.1, -0.3),
+                                GeoCoordinate(51.0, -0.3),
+                                GeoCoordinate(51.0, -0.4)
+                            )
+                        )
+                    ),
+                    listOf(
+                        RailLineSequence(
+                            TrainDirection("outbound"),
+                            listOf(
+                                repeatedLoopStation,
+                                StationReference(
+                                    StationId("B"),
+                                    StationName("Bravo Underground Station"),
+                                    GeoCoordinate(51.1, -0.4)
+                                ),
+                                StationReference(
+                                    StationId("C"),
+                                    StationName("Charlie Underground Station"),
+                                    GeoCoordinate(51.1, -0.3)
+                                ),
+                                previousStation,
+                                repeatedLoopStation
+                            )
+                        )
+                    )
+                ),
+                RealRailLinePathProjectionFactory()
+            )
+
+        val projection =
+            lineProjection.projectBetweenStationsAtProgress(previousStation, repeatedLoopStation, 0.5)
+
+        expectThat(projection).isNotNull().get(TrainMapProjection::coordinate).isEqualTo(GeoCoordinate(51.0, -0.35))
+    }
+
+    @Test
     fun `headingAtProgress respects reverse travel direction`() {
         val projectedPath = RealRailLinePathProjection(
             RailLinePath(
