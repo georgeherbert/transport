@@ -14,10 +14,162 @@ import strikt.assertions.isNotNull
 import strikt.assertions.isNull
 
 class RealRailMapProjectorTest {
+    private val nextStop = StationReference(
+        StationId("940GZZLUGPK"),
+        StationName("Green Park Underground Station"),
+        GeoCoordinate(51.506947, -0.142787)
+    )
+    private val originalLineMap = RailLineMap(
+        listOf(
+            RailLine(
+                LineId("victoria"),
+                LineName("Victoria"),
+                listOf(
+                    RailLinePath(
+                        listOf(
+                            GeoCoordinate(51.500000, -0.150000),
+                            GeoCoordinate(51.510000, -0.140000)
+                        )
+                    )
+                ),
+                listOf(
+                    RailLineSequence(
+                        TrainDirection("outbound"),
+                        listOf(nextStop)
+                    )
+                )
+            )
+        )
+    )
+    private val smoothedLineMap = RailLineMap(
+        listOf(
+            RailLine(
+                LineId("victoria"),
+                LineName("Victoria"),
+                listOf(
+                    RailLinePath(
+                        listOf(
+                            GeoCoordinate(51.501000, -0.149000),
+                            GeoCoordinate(51.509000, -0.141000)
+                        )
+                    )
+                ),
+                listOf(
+                    RailLineSequence(
+                        TrainDirection("outbound"),
+                        listOf(nextStop)
+                    )
+                )
+            )
+        )
+    )
+    private val seamProjection = StubRailLineProjection(smoothedLineMap.lines.first())
+    private val seamPathSmoother = StubRailPathSmoother()
+    private val seamProjectionFactory = StubRailLineProjectionFactory()
+    private val seamProjector: RailMapProjector =
+        RealRailMapProjector(seamPathSmoother, seamProjectionFactory)
+    private val linePath = RailLinePath(
+        listOf(
+            GeoCoordinate(51.500000, -0.150000),
+            GeoCoordinate(51.510000, -0.140000)
+        )
+    )
+    private val line = RailLine(
+        LineId("victoria"),
+        LineName("Victoria"),
+        listOf(linePath),
+        emptyList()
+    )
+    private val pathProjection = StubRailLinePathProjection(linePath, 100.0)
+    private val pathProjectionFactory = StubRailLinePathProjectionFactory()
+    private val lineProjectionUnderTest: RailLineProjection
     private val railLineProjectionFactory: RailLineProjectionFactory =
-        RealRailLineProjectionFactory()
+        RealRailLineProjectionFactory(RealRailLinePathProjectionFactory())
     private val projector: RailMapProjector =
         RealRailMapProjector(RealRailPathSmoother(6), railLineProjectionFactory)
+
+    init {
+        pathProjectionFactory.returns(pathProjection)
+        lineProjectionUnderTest = RealRailLineProjection(line, pathProjectionFactory)
+    }
+
+    @Test
+    fun `project uses the injected smoother and line projection seams`() {
+        val snapshot = LiveRailSnapshot(
+            transportSourceName,
+            Instant.parse("2026-03-22T00:49:20Z"),
+            false,
+            Duration.ZERO,
+            StationQueryCount(1),
+            StationFailureCount(0),
+            false,
+            LiveTrainCount(1),
+            listOf(LineId("victoria")),
+            listOf(
+                LiveRailTrain(
+                    TrainId("victoria|257"),
+                    VehicleId("257"),
+                    listOf(LineId("victoria")),
+                    listOf(LineName("Victoria")),
+                    TrainDirection("outbound"),
+                    DestinationName("Walthamstow Central Underground Station"),
+                    TowardsDescription("Walthamstow Central"),
+                    LocationDescription("Approaching Green Park"),
+                    LocationEstimate(
+                        LocationType.STATION_BOARD,
+                        LocationDescription("Green Park Underground Station"),
+                        nextStop.coordinate,
+                        nextStop
+                    ),
+                    nextStop,
+                    Duration.ofSeconds(90),
+                    Instant.parse("2026-03-22T00:50:50Z"),
+                    Instant.parse("2026-03-22T00:49:20Z"),
+                    PredictionCount(1)
+                )
+            )
+        )
+        seamPathSmoother.returns(smoothedLineMap)
+        seamProjection.projectsStation(nextStop.coordinate, GeoCoordinate(51.507100, -0.142500))
+        seamProjection.projectsNextStopAnchor(
+            TrainId("victoria|257"),
+            TrainMapProjection(
+                GeoCoordinate(51.507200, -0.142400),
+                HeadingDegrees(32.0)
+            )
+        )
+        seamProjectionFactory.returns(LineId("victoria"), seamProjection)
+
+        val projected = seamProjector.project(snapshot, originalLineMap)
+
+        expectThat(seamPathSmoother.requests).hasSize(1)
+        expectThat(seamProjectionFactory.requestedLines).hasSize(1)
+        expectThat(projected.lines).isEqualTo(smoothedLineMap.lines)
+        expectThat(projected.stations).hasSize(1)
+        expectThat(projected.stations.first().coordinate).isEqualTo(GeoCoordinate(51.507100, -0.142500))
+        expectThat(projected.trains).hasSize(1)
+        expectThat(projected.trains.first().coordinate).isEqualTo(GeoCoordinate(51.507200, -0.142400))
+        expectThat(projected.trains.first().heading).isEqualTo(HeadingDegrees(32.0))
+    }
+
+    @Test
+    fun `line projection uses the injected path projection seam`() {
+        val stationCoordinate = GeoCoordinate(51.506947, -0.142787)
+        val projectedCoordinate = GeoCoordinate(51.507000, -0.142700)
+        val stationPathProjection = PathCoordinateProjection(
+            pathProjection,
+            projectedCoordinate,
+            0.01,
+            40.0
+        )
+        pathProjection.projectsCoordinate(stationCoordinate, stationPathProjection)
+
+        val projection = lineProjectionUnderTest.projectStation(stationCoordinate)
+
+        expectThat(pathProjectionFactory.requestedPaths).hasSize(1)
+        expectThat(pathProjection.projectCoordinateRequests).hasSize(1)
+        expectThat(projection).isEqualTo(projectedCoordinate)
+    }
 
     @Test
     fun `identity smoother preserves imported line geometry`() {

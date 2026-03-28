@@ -1,6 +1,5 @@
 package transport
 
-import dev.forkhandles.result4k.Success
 import kotlin.test.Test
 import kotlinx.coroutines.runBlocking
 import strikt.api.expectThat
@@ -8,28 +7,27 @@ import strikt.assertions.get
 import strikt.assertions.hasSize
 
 class RealRailLineMapServiceTest {
+    private val railLineMapRepository = StubRailLineMapRepository()
+    private val service = RealRailLineMapService(railLineMapRepository)
+
     @Test
     fun `getRailLineMap delegates to the repository`() {
         runBlocking {
-            val service = RealRailLineMapService(
-                StubRailLineMapRepository(
-                    Success(
-                        RailLineMap(
+            railLineMapRepository.returns(
+                RailLineMap(
+                    listOf(
+                        RailLine(
+                            LineId("victoria"),
+                            LineName("Victoria"),
                             listOf(
-                                RailLine(
-                                    LineId("victoria"),
-                                    LineName("Victoria"),
+                                RailLinePath(
                                     listOf(
-                                        RailLinePath(
-                                            listOf(
-                                                GeoCoordinate(51.0, -0.1),
-                                                GeoCoordinate(51.1, -0.2)
-                                            )
-                                        )
-                                    ),
-                                    emptyList()
+                                        GeoCoordinate(51.0, -0.1),
+                                        GeoCoordinate(51.1, -0.2)
+                                    )
                                 )
-                            )
+                            ),
+                            emptyList()
                         )
                     )
                 )

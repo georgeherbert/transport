@@ -8,6 +8,10 @@ interface RailLineProjectionFactory {
     fun create(line: RailLine): RailLineProjection
 }
 
+interface RailLinePathProjectionFactory {
+    fun create(path: RailLinePath): RailLinePathProjection
+}
+
 interface RailLineProjection {
     val line: RailLine
 
@@ -39,15 +43,18 @@ interface RailLinePathProjection {
     ): HeadingDegrees?
 }
 
-class RealRailLineProjectionFactory : RailLineProjectionFactory {
+class RealRailLineProjectionFactory(
+    private val railLinePathProjectionFactory: RailLinePathProjectionFactory
+) : RailLineProjectionFactory {
     override fun create(line: RailLine) =
-        RealRailLineProjection(line)
+        RealRailLineProjection(line, railLinePathProjectionFactory)
 }
 
 class RealRailLineProjection(
-    override val line: RailLine
+    override val line: RailLine,
+    private val railLinePathProjectionFactory: RailLinePathProjectionFactory
 ) : RailLineProjection {
-    private val projectedPaths = line.paths.map(::RealRailLinePathProjection)
+    private val projectedPaths = line.paths.map(railLinePathProjectionFactory::create)
 
     override fun projectStation(stationCoordinate: GeoCoordinate) =
         projectedPaths
@@ -317,6 +324,11 @@ class RealRailLinePathProjection(
         } else {
             referenceDistance - offset
         }
+}
+
+class RealRailLinePathProjectionFactory : RailLinePathProjectionFactory {
+    override fun create(path: RailLinePath) =
+        RealRailLinePathProjection(path)
 }
 
 data class PathCoordinateProjection(

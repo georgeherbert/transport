@@ -102,6 +102,9 @@ Use this file as the default operating guide for contributors and coding agents.
 - Separate consecutive assertion blocks with a blank line.
 - Keep logic out of tests; prefer explicit setup over clever abstractions.
 - Tests should prioritise readability over reuse.
+- Instantiate shared stubs/fakes as top-level properties in the test class when the test lifecycle allows it.
+- Instantiate the class under test as a top-level property in the test class when the required test context is also available at that level.
+- Configure stub behavior with explicit mutation statements inside each test instead of fluent chaining.
 
 ### Test Behavior
 - For `Result`, use Strikt assertion-builder extensions (`expectThat(result).isSuccess()` / `isFailure()`) from `src/testFixtures`.
@@ -115,3 +118,4 @@ Use this file as the default operating guide for contributors and coding agents.
 - Use `src/testFixtures` for reusable test doubles.
 - Name reusable doubles clearly in the relevant component package, for example `StubX`, `FakeX`, or `CallbackXStub`.
 - Avoid vague names such as `...TestDoubles`.
+- Reusable stubs should expose simple mutation methods such as `returns...`, `fails...`, or `thenReturns...` rather than builder-style setup.

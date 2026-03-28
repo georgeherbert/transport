@@ -15,6 +15,16 @@ class RailDataHttpTestContext(
 }
 
 fun withRailDataHttpTestContext(block: suspend RailDataHttpTestContext.() -> Unit) {
+    withRailDataHttpTestContext(
+        TflPayloadParserHttp(transportJson()),
+        block
+    )
+}
+
+fun withRailDataHttpTestContext(
+    tflPayloadParser: TflPayloadParser,
+    block: suspend RailDataHttpTestContext.() -> Unit
+) {
     runBlocking {
         val server = HttpServer.create(InetSocketAddress(0), 0)
         val httpClient = createTflHttpClient(Duration.ofSeconds(5))
@@ -25,7 +35,8 @@ fun withRailDataHttpTestContext(block: suspend RailDataHttpTestContext.() -> Uni
                 "http://127.0.0.1:${server.address.port}",
                 Duration.ofSeconds(5),
                 "test-key",
-                httpClient
+                httpClient,
+                tflPayloadParser
             )
         )
 
@@ -44,6 +55,21 @@ fun createRailDataHttp(
     subscriptionKey: String,
     httpClient: HttpClient
 ): RailData =
+    createRailDataHttp(
+        baseUrl,
+        requestTimeout,
+        subscriptionKey,
+        httpClient,
+        TflPayloadParserHttp(transportJson())
+    )
+
+fun createRailDataHttp(
+    baseUrl: String,
+    requestTimeout: Duration,
+    subscriptionKey: String,
+    httpClient: HttpClient,
+    tflPayloadParser: TflPayloadParser
+): RailData =
     RailDataHttp(
         TflHttpClientConfig(
             baseUrl,
@@ -51,5 +77,5 @@ fun createRailDataHttp(
             subscriptionKey
         ),
         httpClient,
-        TflPayloadParserHttp(transportJson())
+        tflPayloadParser
     )

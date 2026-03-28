@@ -22,8 +22,8 @@ class RealRailSnapshotAssemblerTest {
             testStation("940GZZCRWCR", "West Croydon Tram Stop", 51.378785, -0.102882, setOf("tram"))
         )
     )
-    private val assembler: RailSnapshotAssembler =
-        RealRailSnapshotAssembler(RealRailLocationEstimator())
+    private val railLocationEstimator = StubRailLocationEstimator()
+    private val assembler: RailSnapshotAssembler = RealRailSnapshotAssembler(railLocationEstimator)
 
     @Test
     fun `assemble deduplicates the same train across station boards`() {

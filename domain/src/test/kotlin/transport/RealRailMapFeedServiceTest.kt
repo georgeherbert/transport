@@ -1,11 +1,9 @@
 package transport
 
-import dev.forkhandles.result4k.Failure
-import dev.forkhandles.result4k.Success
 import java.time.Duration
 import java.time.Instant
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.drop
@@ -20,30 +18,21 @@ import strikt.assertions.isEqualTo
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class RealRailMapFeedServiceTest {
-    private val railLineProjectionFactory: RailLineProjectionFactory =
-        RealRailLineProjectionFactory()
+    private val generatedAt = Instant.parse("2026-03-22T20:50:00Z")
+    private val clock = FakeClock(generatedAt)
+    private val railMapService = StubRailMapService()
+    private val railMapMotionEngine = StubRailMapMotionEngine()
 
     @Test
     fun `start polls immediately and serves the cached snapshot`() =
         runTest {
-            val clock = FakeClock(Instant.parse("2026-03-22T20:50:00Z"))
-            val callCount = AtomicInteger(0)
-            val railMapFeedService: RailMapFeedService =
-                RealRailMapFeedService(
-                    StubRailMapService { forceRefresh ->
-                        callCount.incrementAndGet()
-                        Success(sampleRailMapSnapshot(clock.instant(), forceRefresh))
-                    },
-                    RealRailMapMotionEngine(railLineProjectionFactory),
-                    clock,
-                    Duration.ofSeconds(20),
-                    backgroundScope
-                )
+            railMapService.returns(true, sampleRailMapSnapshot(clock.instant(), true))
+            val railMapFeedService = railMapFeedService(backgroundScope)
 
             railMapFeedService.start()
             val result = railMapFeedService.getRailMap(false)
 
-            expectThat(callCount.get()).isEqualTo(1)
+            expectThat(railMapService.refreshRequests.toList()).isEqualTo(listOf(true))
             expectThat(result).isSuccess().get { cached }.isEqualTo(true)
             expectThat(result).isSuccess().get { generatedAt }.isEqualTo(clock.instant())
         }
@@ -51,21 +40,9 @@ class RealRailMapFeedServiceTest {
     @Test
     fun `failed poll emits an error update and preserves the last cached snapshot`() =
         runTest {
-            val clock = FakeClock(Instant.parse("2026-03-22T20:50:00Z"))
-            val callCount = AtomicInteger(0)
-            val railMapFeedService: RailMapFeedService =
-                RealRailMapFeedService(
-                    StubRailMapService { forceRefresh ->
-                        when (callCount.getAndIncrement()) {
-                            0 -> Success(sampleRailMapSnapshot(clock.instant(), forceRefresh))
-                            else -> Failure(TransportError.UpstreamHttpFailure("/Mode/tube/Arrivals", 503, "down"))
-                        }
-                    },
-                    RealRailMapMotionEngine(railLineProjectionFactory),
-                    clock,
-                    Duration.ofSeconds(20),
-                    backgroundScope
-                )
+            railMapService.thenReturns(sampleRailMapSnapshot(clock.instant(), true))
+            railMapService.thenFailsWith(TransportError.UpstreamHttpFailure("/Mode/tube/Arrivals", 503, "down"))
+            val railMapFeedService = railMapFeedService(backgroundScope)
 
             railMapFeedService.start()
             val errorUpdate = async {
@@ -87,8 +64,6 @@ class RealRailMapFeedServiceTest {
     @Test
     fun `animation ticks emit train-only updates`() =
         runTest {
-            val generatedAt = Instant.parse("2026-03-22T20:50:00Z")
-            val clock = FakeClock(generatedAt)
             val initialSnapshot = sampleRailMapSnapshot(generatedAt, false)
             val animatedSnapshot = initialSnapshot.copy(
                 trains = initialSnapshot.trains.map { train ->
@@ -98,25 +73,9 @@ class RealRailMapFeedServiceTest {
                     )
                 }
             )
-            val railMapFeedService: RailMapFeedService =
-                RealRailMapFeedService(
-                    StubRailMapService { forceRefresh ->
-                        Success(sampleRailMapSnapshot(generatedAt, forceRefresh))
-                    },
-                    StubRailMapMotionEngine(
-                        { snapshot -> snapshot },
-                        { snapshot, currentTime ->
-                            if (currentTime > snapshot.generatedAt) {
-                                animatedSnapshot
-                            } else {
-                                snapshot
-                            }
-                        }
-                    ),
-                    clock,
-                    Duration.ofSeconds(20),
-                    backgroundScope
-                )
+            railMapService.returns(true, sampleRailMapSnapshot(generatedAt, true))
+            railMapMotionEngine.advanceReturnsAfter(generatedAt, animatedSnapshot)
+            val railMapFeedService = railMapFeedService(backgroundScope)
 
             val animatedUpdate = async {
                 railMapFeedService.updates().drop(1).first()
@@ -141,30 +100,29 @@ class RealRailMapFeedServiceTest {
     @Test
     fun `force refresh requests are throttled to the poll interval`() =
         runTest {
-            val clock = FakeClock(Instant.parse("2026-03-22T20:50:00Z"))
-            val callCount = AtomicInteger(0)
-            val railMapFeedService: RailMapFeedService =
-                RealRailMapFeedService(
-                    StubRailMapService { forceRefresh ->
-                        callCount.incrementAndGet()
-                        Success(sampleRailMapSnapshot(clock.instant(), forceRefresh))
-                    },
-                    RealRailMapMotionEngine(railLineProjectionFactory),
-                    clock,
-                    Duration.ofSeconds(20),
-                    backgroundScope
-                )
+            railMapService.returns(true, sampleRailMapSnapshot(clock.instant(), true))
+            val railMapFeedService = railMapFeedService(backgroundScope)
 
             railMapFeedService.start()
             railMapFeedService.getRailMap(true)
 
-            expectThat(callCount.get()).isEqualTo(1)
+            expectThat(railMapService.refreshRequests.toList()).isEqualTo(listOf(true))
 
             clock.advanceBy(Duration.ofSeconds(20))
             railMapFeedService.getRailMap(true)
 
-            expectThat(callCount.get()).isEqualTo(2)
+            expectThat(railMapService.refreshRequests.toList()).isEqualTo(listOf(true, true))
         }
+
+    private fun railMapFeedService(coroutineScope: CoroutineScope): RailMapFeedService =
+        RealRailMapFeedService(
+            railMapService,
+            railMapMotionEngine,
+            clock,
+            Duration.ofSeconds(20),
+            coroutineScope
+        )
+
     private fun sampleRailMapSnapshot(
         generatedAt: Instant,
         cached: Boolean

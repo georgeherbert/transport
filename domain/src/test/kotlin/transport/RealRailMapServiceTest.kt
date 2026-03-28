@@ -1,7 +1,5 @@
 package transport
 
-import dev.forkhandles.result4k.Failure
-import dev.forkhandles.result4k.Success
 import java.time.Duration
 import java.time.Instant
 import kotlin.test.Test
@@ -12,23 +10,16 @@ import strikt.assertions.hasSize
 import strikt.assertions.isA
 
 class RealRailMapServiceTest {
-    private val railLineProjectionFactory: RailLineProjectionFactory =
-        RealRailLineProjectionFactory()
-    private val railMapProjector: RailMapProjector =
-        RealRailMapProjector(RealIdentityRailPathSmoother(), railLineProjectionFactory)
+    private val railSnapshotService = StubRailSnapshotService()
+    private val railLineMapService = StubRailLineMapService()
+    private val railMapProjector = StubRailMapProjector()
+    private val service = RealRailMapService(railSnapshotService, railLineMapService, railMapProjector)
 
     @Test
     fun `getRailMap combines snapshot and line geometry`() {
         runBlocking {
-            val service = RealRailMapService(
-                StubRailSnapshotService { forceRefresh ->
-                    Success(sampleSnapshot())
-                },
-                StubRailLineMapService {
-                    Success(sampleLineMap())
-                },
-                railMapProjector
-            )
+            railSnapshotService.returns(sampleSnapshot())
+            railLineMapService.returns(sampleLineMap())
 
             val result = service.getRailMap(true)
 
@@ -40,15 +31,8 @@ class RealRailMapServiceTest {
     @Test
     fun `getRailMap returns snapshot failures unchanged`() {
         runBlocking {
-            val service = RealRailMapService(
-                StubRailSnapshotService { forceRefresh ->
-                    Failure(TransportError.SnapshotUnavailable("TfL unavailable"))
-                },
-                StubRailLineMapService {
-                    Success(sampleLineMap())
-                },
-                railMapProjector
-            )
+            railSnapshotService.failsWith(TransportError.SnapshotUnavailable("TfL unavailable"))
+            railLineMapService.returns(sampleLineMap())
 
             val result = service.getRailMap(true)
 

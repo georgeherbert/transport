@@ -13,6 +13,26 @@ import strikt.assertions.isEqualTo
 import strikt.assertions.isNotNull
 
 class RailDataHttpTest {
+    private val tflPayloadParser = StubTflPayloadParser()
+
+    @Test
+    fun `fetchPredictions delegates the response body to the parser seam`() {
+        tflPayloadParser.returnsPredictions(emptyList())
+
+        withRailDataHttpTestContext(tflPayloadParser) {
+            val body = """[{"ignored":true}]"""
+
+            respond("/Mode/tube/Arrivals", 200, body)
+
+            val result = railData.fetchPredictions(TransportModeName("tube"))
+
+            expectThat(result).isSuccess().hasSize(0)
+            expectThat(tflPayloadParser.predictionRequests).hasSize(1)
+            expectThat(tflPayloadParser.predictionRequests.first().endpoint).isEqualTo("/Mode/tube/Arrivals")
+            expectThat(tflPayloadParser.predictionRequests.first().body).isEqualTo(body)
+        }
+    }
+
     @Test
     fun `fetchModeStations filters non station stop points and expands line memberships`() =
         withRailDataHttpTestContext {

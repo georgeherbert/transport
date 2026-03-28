@@ -1,7 +1,5 @@
 package transport
 
-import dev.forkhandles.result4k.Failure
-import dev.forkhandles.result4k.Success
 import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.prepareGet
@@ -13,7 +11,6 @@ import io.ktor.utils.io.readLine
 import java.time.Duration
 import java.time.Instant
 import kotlin.test.Test
-import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.int
@@ -24,20 +21,14 @@ import strikt.assertions.contains
 import strikt.assertions.isEqualTo
 
 class ApiTest {
-    private val serviceResponseMapper: ServiceResponseMapper = ServiceResponseMapperHttp()
-    private val railMapFeedService: RailMapFeedService =
-        StubRailMapFeedService(
-            {},
-            { forceRefresh ->
-                Success(sampleMap(true))
-            },
-            { null },
-            emptyFlow()
-        )
+    private val serviceResponseMapper: ServiceResponseMapper = StubServiceResponseMapper()
+    private val railMapFeedService = StubRailMapFeedService()
 
     @Test
     fun `root serves the react app shell`() {
         testApplication {
+            railMapFeedService.returns(sampleMap(true))
+
             application {
                 transportModule(
                     railMapFeedService,
@@ -56,6 +47,8 @@ class ApiTest {
     @Test
     fun `api only exposes frontend routes`() {
         testApplication {
+            railMapFeedService.returns(sampleMap(true))
+
             application {
                 transportModule(
                     railMapFeedService,
@@ -81,16 +74,12 @@ class ApiTest {
     @Test
     fun `api maps transport errors to http response`() {
         testApplication {
+            railMapFeedService.failsWith(TransportError.SnapshotUnavailable("TfL unavailable"))
+            railMapFeedService.reportsCurrentError(TransportError.SnapshotUnavailable("TfL unavailable"))
+
             application {
                 transportModule(
-                    StubRailMapFeedService(
-                        {},
-                        { forceRefresh ->
-                            Failure(TransportError.SnapshotUnavailable("TfL unavailable"))
-                        },
-                        { TransportError.SnapshotUnavailable("TfL unavailable") },
-                        emptyFlow()
-                    ),
+                    railMapFeedService,
                     serviceResponseMapper,
                     transportJson()
                 )
@@ -106,6 +95,8 @@ class ApiTest {
     @Test
     fun `api returns cached projected rail map payload`() {
         testApplication {
+            railMapFeedService.returns(sampleMap(true))
+
             application {
                 transportModule(
                     railMapFeedService,
@@ -128,6 +119,8 @@ class ApiTest {
     @Test
     fun `api streams the current cached rail map snapshot`() {
         testApplication {
+            railMapFeedService.returns(sampleMap(true))
+
             application {
                 transportModule(
                     railMapFeedService,
@@ -155,16 +148,14 @@ class ApiTest {
     @Test
     fun `api streams the current upstream error`() {
         testApplication {
+            railMapFeedService.failsWith(TransportError.UpstreamHttpFailure("/Mode/tube/Arrivals", 503, "down"))
+            railMapFeedService.reportsCurrentError(
+                TransportError.UpstreamHttpFailure("/Mode/tube/Arrivals", 503, "down")
+            )
+
             application {
                 transportModule(
-                    StubRailMapFeedService(
-                        {},
-                        { forceRefresh ->
-                            Failure(TransportError.UpstreamHttpFailure("/Mode/tube/Arrivals", 503, "down"))
-                        },
-                        { TransportError.UpstreamHttpFailure("/Mode/tube/Arrivals", 503, "down") },
-                        emptyFlow()
-                    ),
+                    railMapFeedService,
                     serviceResponseMapper,
                     transportJson()
                 )
@@ -186,18 +177,16 @@ class ApiTest {
     @Test
     fun `api streams train-only position updates after the initial snapshot`() {
         testApplication {
+            railMapFeedService.returns(sampleMap(true))
+            railMapFeedService.emitsUpdates(
+                flowOf(
+                    RailMapFeedUpdate.TrainPositionsUpdated(sampleTrainPositions())
+                )
+            )
+
             application {
                 transportModule(
-                    StubRailMapFeedService(
-                        {},
-                        { forceRefresh ->
-                            Success(sampleMap(true))
-                        },
-                        { null },
-                        flowOf(
-                            RailMapFeedUpdate.TrainPositionsUpdated(sampleTrainPositions())
-                        )
-                    ),
+                    railMapFeedService,
                     serviceResponseMapper,
                     transportJson()
                 )

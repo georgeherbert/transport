@@ -15,7 +15,9 @@ fun main() {
     val json = transportJson()
     val serviceResponseMapper = ServiceResponseMapperHttp()
     val httpClient = createTflHttpClient(transportServiceConfig.requestTimeout)
-    val railLineProjectionFactory: RailLineProjectionFactory = RealRailLineProjectionFactory()
+    val railLinePathProjectionFactory: RailLinePathProjectionFactory = RealRailLinePathProjectionFactory()
+    val railLineProjectionFactory: RailLineProjectionFactory =
+        RealRailLineProjectionFactory(railLinePathProjectionFactory)
     val services = createTransportServices(transportServiceConfig, json, httpClient)
     val feedScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val railMapMotionEngine: RailMapMotionEngine = RealRailMapMotionEngine(railLineProjectionFactory)
@@ -78,7 +80,9 @@ private fun createTransportServices(
         val railLocationEstimator = RealRailLocationEstimator()
         val railSnapshotAssembler = RealRailSnapshotAssembler(railLocationEstimator)
         val railPathSmoother: RailPathSmoother = RealIdentityRailPathSmoother()
-        val railLineProjectionFactory: RailLineProjectionFactory = RealRailLineProjectionFactory()
+        val railLinePathProjectionFactory: RailLinePathProjectionFactory = RealRailLinePathProjectionFactory()
+        val railLineProjectionFactory: RailLineProjectionFactory =
+            RealRailLineProjectionFactory(railLinePathProjectionFactory)
         val railMapProjector = RealRailMapProjector(railPathSmoother, railLineProjectionFactory)
         val railSnapshotService = RealRailSnapshotService(
             railData,
