@@ -1,4 +1,6 @@
 import {
+  type CSSProperties,
+  type ReactNode,
   memo,
   startTransition,
   useDeferredValue,
@@ -7,17 +9,112 @@ import {
   useRef,
   useState
 } from 'react'
-import L from 'leaflet'
+import L, { type DivIcon, type LeafletMouseEvent, type Map as LeafletMap, type Point } from 'leaflet'
 import { MapContainer, Marker, Pane, Polyline, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
+import { reconcileServices, reconcileStations } from './snapshotReconciler'
+import {
+  railMapDynamicStateFromUnknown,
+  railMapSnapshotFromUnknown,
+  transportErrorMessageFromUnknown
+} from './transportApi'
+import type {
+  Coordinate,
+  FeaturePickerFeature,
+  FeaturePickerState,
+  FutureStationArrival,
+  PlottedRailService,
+  RailLine,
+  RailMapDynamicState,
+  RailMapSnapshot,
+  RailService,
+  RailStation,
+  SelectedLineId,
+  SelectedMapFeature,
+  StationArrival
+} from './types'
 
-const londonCenter = [51.5072, -0.1276]
+type MapStatus = 'error' | 'live' | 'loading' | 'refreshing' | 'stale'
+type AccentStyle = CSSProperties & { '--accent-color': string }
+
+interface LineOption {
+  id: string
+  name: string
+}
+
+interface VisibleLinePath {
+  id: string
+  lineId: string
+  coordinates: Coordinate[]
+}
+
+interface PopupCardProps {
+  title: string
+  accentColor?: string | null
+  kicker?: string | null
+  children: ReactNode
+}
+
+interface PopupRowProps {
+  label: string
+  value: string
+}
+
+interface LineBadgesProps {
+  lineIds: string[]
+}
+
+interface StatusItemProps {
+  label: string
+  value: number | string
+}
+
+interface MapZoomStateProps {
+  onZoomStart: () => void
+  onZoomEnd: () => void
+}
+
+interface ServiceMarkerProps {
+  service: PlottedRailService
+  isSelected: boolean
+  onSelect: (feature: SelectedMapFeature, event: LeafletMouseEvent, map: LeafletMap) => void
+  onDeselect: () => void
+}
+
+interface StationMarkerProps {
+  station: RailStation
+  selectedLineId: SelectedLineId
+  isSelected: boolean
+  onSelect: (feature: SelectedMapFeature, event: LeafletMouseEvent, map: LeafletMap) => void
+  onDeselect: () => void
+}
+
+interface StaticMapLayersProps {
+  mapSnapshot: RailMapSnapshot | null
+  selectedLineId: SelectedLineId
+  visibleStations: RailStation[]
+  selectedStationId: string | null
+  onStationClick: (feature: SelectedMapFeature, event: LeafletMouseEvent, map: LeafletMap) => void
+  onDeselectStation: (stationId: string) => void
+}
+
+interface OverlapFeaturePickerProps {
+  featurePicker: FeaturePickerState
+  onChoose: (feature: FeaturePickerFeature) => void
+  onDismiss: () => void
+}
+
+interface ClickableFeature extends FeaturePickerFeature {
+  point: Point
+}
+
+const londonCenter: [number, number] = [51.5072, -0.1276]
 const basemapUrl = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
 const basemapAttribution =
   '&copy; <a href="https://carto.com/attributions" target="_blank" rel="noreferrer">CARTO</a> ' +
   '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>'
 
-const linePalette = {
+const linePalette: Record<string, string> = {
   bakerloo: '#9b5a20',
   central: '#d7261b',
   circle: '#f4c430',
@@ -39,27 +136,27 @@ const linePalette = {
   windrush: '#d64034'
 }
 
-const serviceIconCache = new Map()
-const stationIconCache = new Map()
+const serviceIconCache = new Map<string, DivIcon>()
+const stationIconCache = new Map<string, DivIcon>()
 const serviceServiceOverlapRadiusPixels = 16
 const serviceStationOverlapRadiusPixels = 14
 const stationStationOverlapRadiusPixels = 10
 const servicePopupAnchorPixels = -18
-const featurePickerPopupOffset = [0, -12]
+const featurePickerPopupOffset: [number, number] = [0, -12]
 
 function App() {
-  const [mapSnapshot, setMapSnapshot] = useState(null)
-  const [status, setStatus] = useState('loading')
+  const [mapSnapshot, setMapSnapshot] = useState<RailMapSnapshot | null>(null)
+  const [status, setStatus] = useState<MapStatus>('loading')
   const [errorMessage, setErrorMessage] = useState('')
-  const [selectedLineId, setSelectedLineId] = useState('all')
-  const [selectedMapFeature, setSelectedMapFeature] = useState(null)
-  const [featurePicker, setFeaturePicker] = useState(null)
-  const pendingSnapshotRef = useRef(null)
-  const pendingServicePositionsRef = useRef(null)
-  const servicePositionsAnimationFrameRef = useRef(null)
+  const [selectedLineId, setSelectedLineId] = useState<SelectedLineId>('all')
+  const [selectedMapFeature, setSelectedMapFeature] = useState<SelectedMapFeature | null>(null)
+  const [featurePicker, setFeaturePicker] = useState<FeaturePickerState | null>(null)
+  const pendingSnapshotRef = useRef<RailMapSnapshot | null>(null)
+  const pendingServicePositionsRef = useRef<RailMapDynamicState | null>(null)
+  const servicePositionsAnimationFrameRef = useRef<number | null>(null)
   const isZoomingRef = useRef(false)
-  const plottedServicesRef = useRef([])
-  const visibleStationsRef = useRef([])
+  const plottedServicesRef = useRef<PlottedRailService[]>([])
+  const visibleStationsRef = useRef<RailStation[]>([])
 
   const clearQueuedServicePositions = useEffectEvent(() => {
     pendingServicePositionsRef.current = null
@@ -87,7 +184,7 @@ function App() {
     })
   })
 
-  const applySnapshotUpdate = useEffectEvent(snapshot => {
+  const applySnapshotUpdate = useEffectEvent((snapshot: RailMapSnapshot) => {
     if (isZoomingRef.current) {
       pendingSnapshotRef.current = snapshot
       return
@@ -103,7 +200,7 @@ function App() {
     })
   })
 
-  const applyErrorUpdate = useEffectEvent(message => {
+  const applyErrorUpdate = useEffectEvent((message: string) => {
     clearQueuedSnapshot()
     clearQueuedServicePositions()
 
@@ -127,6 +224,9 @@ function App() {
           return currentSnapshot
         }
 
+        const stations = reconcileStations(currentSnapshot.stations, servicePositions.stations)
+        const services = reconcileServices(currentSnapshot.services, servicePositions.services)
+
         return {
           ...currentSnapshot,
           source: servicePositions.source,
@@ -137,8 +237,8 @@ function App() {
           stationsFailed: servicePositions.stationsFailed,
           partial: servicePositions.partial,
           serviceCount: servicePositions.serviceCount,
-          stations: servicePositions.stations,
-          services: servicePositions.services
+          stations,
+          services
         }
       })
       setErrorMessage('')
@@ -163,7 +263,7 @@ function App() {
     return true
   })
 
-  const queueServicePositionsUpdate = useEffectEvent(servicePositions => {
+  const queueServicePositionsUpdate = useEffectEvent((servicePositions: RailMapDynamicState) => {
     pendingServicePositionsRef.current = servicePositions
 
     if (isZoomingRef.current) {
@@ -209,13 +309,15 @@ function App() {
           Accept: 'application/json'
         }
       })
-      const payload = await response.json()
+      const payload: unknown = await response.json()
 
       if (!response.ok) {
-        throw new Error(payload.message ?? 'Unable to load the projected rail map.')
+        throw new Error(
+          transportErrorMessageFromUnknown(payload, 'Unable to load the projected rail map.')
+        )
       }
 
-      applySnapshotUpdate(payload)
+      applySnapshotUpdate(railMapSnapshotFromUnknown(payload))
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Unable to load the projected rail map.'
@@ -228,17 +330,19 @@ function App() {
     requestCachedMap()
     const eventSource = new EventSource('/api/rail/map/stream')
 
-    eventSource.addEventListener('snapshot', event => {
-      applySnapshotUpdate(JSON.parse(event.data))
+    eventSource.addEventListener('snapshot', (event: MessageEvent<string>) => {
+      applySnapshotUpdate(railMapSnapshotFromUnknown(JSON.parse(event.data)))
     })
 
-    eventSource.addEventListener('service_positions', event => {
-      queueServicePositionsUpdate(JSON.parse(event.data))
+    eventSource.addEventListener('service_positions', (event: MessageEvent<string>) => {
+      queueServicePositionsUpdate(railMapDynamicStateFromUnknown(JSON.parse(event.data)))
     })
 
-    eventSource.addEventListener('transport_error', event => {
+    eventSource.addEventListener('transport_error', (event: MessageEvent<string>) => {
       const payload = JSON.parse(event.data)
-      applyErrorUpdate(payload.message ?? 'Unable to load the projected rail map.')
+      applyErrorUpdate(
+        transportErrorMessageFromUnknown(payload, 'Unable to load the projected rail map.')
+      )
     })
 
     eventSource.onerror = () => {
@@ -261,7 +365,7 @@ function App() {
 
   const lineOptions = buildLineOptions(mapSnapshot)
   const visibleServices = buildVisibleServices(mapSnapshot, deferredSelectedLineId)
-  const plottedServices = visibleServices.filter(service => service.coordinate != null)
+  const plottedServices = visibleServices.filter(isPlottedService)
   const visibleStations = buildVisibleStations(mapSnapshot, deferredSelectedLineId)
   plottedServicesRef.current = plottedServices
   visibleStationsRef.current = visibleStations
@@ -269,14 +373,14 @@ function App() {
     selectedMapFeature?.kind === 'station' ? selectedMapFeature.id : null
   const selectedServiceId =
     selectedMapFeature?.kind === 'service' ? selectedMapFeature.id : null
-  const chooseMapFeature = feature => {
+  const chooseMapFeature = (feature: FeaturePickerFeature) => {
     setFeaturePicker(null)
     setSelectedMapFeature({
       kind: feature.kind,
       id: feature.id
     })
   }
-  const handleFeatureClick = (clickedFeature, event, map) => {
+  const handleFeatureClick = (clickedFeature: SelectedMapFeature, event: LeafletMouseEvent, map: LeafletMap) => {
     event.originalEvent?.stopPropagation()
 
     const overlappingFeatures = overlappingFeaturesForFeature(
@@ -374,10 +478,10 @@ function App() {
                 visibleStations={visibleStations}
                 selectedStationId={selectedStationId}
                 onStationClick={handleFeatureClick}
-                onDeselectStation={stationId =>
-                  setSelectedMapFeature(currentFeature =>
-                    currentFeature?.kind === 'station' && currentFeature.id === stationId
-                      ? null
+                  onDeselectStation={(stationId: string) =>
+                    setSelectedMapFeature(currentFeature =>
+                      currentFeature?.kind === 'station' && currentFeature.id === stationId
+                        ? null
                       : currentFeature
                   )
                 }
@@ -414,7 +518,7 @@ function App() {
   )
 }
 
-function StatusItem({ label, value }) {
+function StatusItem({ label, value }: StatusItemProps) {
   return (
     <div className="status-item">
       <span>{label}</span>
@@ -423,7 +527,7 @@ function StatusItem({ label, value }) {
   )
 }
 
-function MapZoomState({ onZoomStart, onZoomEnd }) {
+function MapZoomState({ onZoomStart, onZoomEnd }: MapZoomStateProps) {
   useMapEvents({
     zoomstart: onZoomStart,
     zoomend: onZoomEnd
@@ -432,14 +536,14 @@ function MapZoomState({ onZoomStart, onZoomEnd }) {
   return null
 }
 
-function PopupCard({ title, accentColor, kicker, children }) {
+function PopupCard({ title, accentColor, kicker, children }: PopupCardProps) {
   return (
     <div className="map-popup">
       <div className="map-popup-header">
         {accentColor != null ? (
           <span
             className="map-popup-accent"
-            style={{ '--accent-color': accentColor }}
+            style={accentStyle(accentColor)}
           ></span>
         ) : null}
         <div className="map-popup-heading">
@@ -452,7 +556,7 @@ function PopupCard({ title, accentColor, kicker, children }) {
   )
 }
 
-function PopupRow({ label, value }) {
+function PopupRow({ label, value }: PopupRowProps) {
   return (
     <div className="map-popup-row">
       <span className="map-popup-label">{label}</span>
@@ -461,7 +565,7 @@ function PopupRow({ label, value }) {
   )
 }
 
-function LineBadges({ lineIds }) {
+function LineBadges({ lineIds }: LineBadgesProps) {
   const orderedLineIds = sortedLineIds(lineIds)
 
   return (
@@ -470,7 +574,7 @@ function LineBadges({ lineIds }) {
         <span className="map-popup-badge" key={lineId}>
           <span
             className="map-popup-badge-swatch"
-            style={{ '--accent-color': colorForLine(lineId) }}
+            style={accentStyle(colorForLine(lineId))}
           ></span>
           {prettifyLineId(lineId)}
         </span>
@@ -480,8 +584,8 @@ function LineBadges({ lineIds }) {
 }
 
 const ServiceMarker = memo(
-  function ServiceMarker({ service, isSelected, onSelect, onDeselect }) {
-    const markerRef = useRef(null)
+  function ServiceMarker({ service, isSelected, onSelect, onDeselect }: ServiceMarkerProps) {
+    const markerRef = useRef<L.Marker | null>(null)
     const map = useMap()
 
     useEffect(() => {
@@ -492,24 +596,39 @@ const ServiceMarker = memo(
       markerRef.current?.openPopup()
     }, [isSelected])
 
+    useEffect(() => {
+      const marker = markerRef.current
+
+      if (marker == null) {
+        return
+      }
+
+      const handleClick = (event: LeafletMouseEvent) => {
+        onSelect(
+          {
+            kind: 'service',
+            id: service.serviceId
+          },
+          event,
+          map
+        )
+      }
+
+      marker.on('click', handleClick)
+      marker.on('popupclose', onDeselect)
+
+      return () => {
+        marker.off('click', handleClick)
+        marker.off('popupclose', onDeselect)
+      }
+    }, [map, onDeselect, onSelect, service.serviceId])
+
     return (
       <Marker
         ref={markerRef}
         position={[service.coordinate.lat, service.coordinate.lon]}
         icon={createServiceIcon(service)}
         pane="rail-services"
-        eventHandlers={{
-          click: event =>
-            onSelect(
-              {
-                kind: 'service',
-                id: service.serviceId
-              },
-              event,
-              map
-            ),
-          popupclose: onDeselect
-        }}
       >
         {isSelected ? (
           <Popup>
@@ -551,8 +670,8 @@ const ServiceMarker = memo(
 )
 
 const StationMarker = memo(
-  function StationMarker({ station, selectedLineId, isSelected, onSelect, onDeselect }) {
-    const markerRef = useRef(null)
+  function StationMarker({ station, selectedLineId, isSelected, onSelect, onDeselect }: StationMarkerProps) {
+    const markerRef = useRef<L.Marker | null>(null)
     const map = useMap()
 
     useEffect(() => {
@@ -563,24 +682,39 @@ const StationMarker = memo(
       markerRef.current?.openPopup()
     }, [isSelected])
 
+    useEffect(() => {
+      const marker = markerRef.current
+
+      if (marker == null) {
+        return
+      }
+
+      const handleClick = (event: LeafletMouseEvent) => {
+        onSelect(
+          {
+            kind: 'station',
+            id: station.id
+          },
+          event,
+          map
+        )
+      }
+
+      marker.on('click', handleClick)
+      marker.on('popupclose', onDeselect)
+
+      return () => {
+        marker.off('click', handleClick)
+        marker.off('popupclose', onDeselect)
+      }
+    }, [map, onDeselect, onSelect, station.id])
+
     return (
       <Marker
         ref={markerRef}
         position={[station.coordinate.lat, station.coordinate.lon]}
         icon={createStationIcon(station, selectedLineId)}
         pane="rail-stations"
-        eventHandlers={{
-          click: event =>
-            onSelect(
-              {
-                kind: 'station',
-                id: station.id
-              },
-              event,
-              map
-            ),
-          popupclose: onDeselect
-        }}
       >
         {isSelected ? (
           <Popup>
@@ -601,7 +735,7 @@ const StationMarker = memo(
                         <span className="map-popup-arrival-service">
                           <span
                             className="map-popup-arrival-line"
-                            style={{ '--accent-color': colorForLine(arrival.lineId) }}
+                            style={accentStyle(colorForLine(arrival.lineId))}
                           ></span>
                           <span className="map-popup-arrival-station">
                             {stationArrivalLabelFor(arrival)}
@@ -632,7 +766,7 @@ const StaticMapLayers = memo(
     selectedStationId,
     onStationClick,
     onDeselectStation
-  }) {
+  }: StaticMapLayersProps) {
     const visibleLinePaths = buildVisibleLinePaths(mapSnapshot, selectedLineId)
 
     return (
@@ -641,12 +775,10 @@ const StaticMapLayers = memo(
           <Polyline
             key={path.id}
             pane="rail-lines"
-            positions={path.coordinates.map(coordinate => [coordinate.lat, coordinate.lon])}
-            pathOptions={{
-              color: colorForLine(path.lineId),
-              weight: 4,
-              opacity: 0.65
-            }}
+            positions={path.coordinates.map(leafletPosition)}
+            color={colorForLine(path.lineId)}
+            weight={4}
+            opacity={0.65}
           />
         ))}
 
@@ -667,14 +799,28 @@ const StaticMapLayers = memo(
 )
 
 const OverlapFeaturePicker = memo(
-  function OverlapFeaturePicker({ featurePicker, onChoose, onDismiss }) {
+  function OverlapFeaturePicker({ featurePicker, onChoose, onDismiss }: OverlapFeaturePickerProps) {
+    const popupRef = useRef<L.Popup | null>(null)
+
+    useEffect(() => {
+      const popup = popupRef.current
+
+      if (popup == null) {
+        return
+      }
+
+      popup.on('remove', onDismiss)
+
+      return () => {
+        popup.off('remove', onDismiss)
+      }
+    }, [onDismiss])
+
     return (
       <Popup
+        ref={popupRef}
         offset={featurePickerPopupOffset}
         position={[featurePicker.lat, featurePicker.lon]}
-        eventHandlers={{
-          remove: onDismiss
-        }}
       >
         <PopupCard title="Select">
           <div className="map-popup-options">
@@ -695,7 +841,7 @@ const OverlapFeaturePicker = memo(
               >
                 <span
                   className={`map-popup-option-icon map-popup-option-icon--${feature.kind}`}
-                  style={feature.accentColor == null ? undefined : { '--accent-color': feature.accentColor }}
+                  style={feature.accentColor == null ? undefined : accentStyle(feature.accentColor)}
                 ></span>
                 <span className="map-popup-option-copy">
                   <span className="map-popup-option-title">{feature.title}</span>
@@ -711,7 +857,7 @@ const OverlapFeaturePicker = memo(
   areOverlapFeaturePickerPropsEqual
 )
 
-function buildLineOptions(mapSnapshot) {
+function buildLineOptions(mapSnapshot: RailMapSnapshot | null): LineOption[] {
   if (mapSnapshot == null) {
     return []
   }
@@ -724,7 +870,7 @@ function buildLineOptions(mapSnapshot) {
     .sort((leftLine, rightLine) => leftLine.name.localeCompare(rightLine.name))
 }
 
-function buildVisibleLinePaths(mapSnapshot, selectedLineId) {
+function buildVisibleLinePaths(mapSnapshot: RailMapSnapshot | null, selectedLineId: SelectedLineId): VisibleLinePath[] {
   if (mapSnapshot == null) {
     return []
   }
@@ -740,7 +886,7 @@ function buildVisibleLinePaths(mapSnapshot, selectedLineId) {
     )
 }
 
-function buildVisibleServices(mapSnapshot, selectedLineId) {
+function buildVisibleServices(mapSnapshot: RailMapSnapshot | null, selectedLineId: SelectedLineId): RailService[] {
   if (mapSnapshot == null) {
     return []
   }
@@ -749,7 +895,7 @@ function buildVisibleServices(mapSnapshot, selectedLineId) {
     .filter(service => selectedLineId === 'all' || service.lineId === selectedLineId)
 }
 
-function buildVisibleStations(mapSnapshot, selectedLineId) {
+function buildVisibleStations(mapSnapshot: RailMapSnapshot | null, selectedLineId: SelectedLineId): RailStation[] {
   if (mapSnapshot == null) {
     return []
   }
@@ -759,25 +905,29 @@ function buildVisibleStations(mapSnapshot, selectedLineId) {
     .sort((leftStation, rightStation) => leftStation.name.localeCompare(rightStation.name))
 }
 
-function overlappingFeaturesForFeature(map, clickedFeature, plottedServices, visibleStations) {
-  const clickableFeatures = [
-    ...plottedServices.map(service => ({
-      kind: 'service',
-      id: service.serviceId,
-      title: `${service.lineName} service`,
-      detail: destinationLabelForService(service),
-      accentColor: colorForLine(service.lineId),
-      point: map.latLngToContainerPoint([service.coordinate.lat, service.coordinate.lon])
-    })),
-    ...visibleStations.map(station => ({
-      kind: 'station',
-      id: station.id,
-      title: station.name,
-      detail: stationDetailLabelForPicker(station),
-      accentColor: null,
-      point: map.latLngToContainerPoint([station.coordinate.lat, station.coordinate.lon])
-    }))
-  ]
+function overlappingFeaturesForFeature(
+  map: LeafletMap,
+  clickedFeature: SelectedMapFeature,
+  plottedServices: PlottedRailService[],
+  visibleStations: RailStation[]
+): FeaturePickerFeature[] {
+  const serviceFeatures: ClickableFeature[] = plottedServices.map(service => ({
+    kind: 'service',
+    id: service.serviceId,
+    title: `${service.lineName} service`,
+    detail: destinationLabelForService(service),
+    accentColor: colorForLine(service.lineId),
+    point: map.latLngToContainerPoint(leafletPosition(service.coordinate))
+  }))
+  const stationFeatures: ClickableFeature[] = visibleStations.map(station => ({
+    kind: 'station',
+    id: station.id,
+    title: station.name,
+    detail: stationDetailLabelForPicker(station),
+    accentColor: null,
+    point: map.latLngToContainerPoint(leafletPosition(station.coordinate))
+  }))
+  const clickableFeatures: ClickableFeature[] = [...serviceFeatures, ...stationFeatures]
   const clickedFeatureMatch = clickableFeatures.find(feature =>
     feature.kind === clickedFeature.kind && feature.id === clickedFeature.id
   )
@@ -791,13 +941,13 @@ function overlappingFeaturesForFeature(map, clickedFeature, plottedServices, vis
     .map(({ point, ...feature }) => feature)
 }
 
-function featuresOverlap(leftFeature, rightFeature) {
+function featuresOverlap(leftFeature: ClickableFeature, rightFeature: ClickableFeature): boolean {
   const overlapRadiusPixels = overlapRadiusFor(leftFeature.kind, rightFeature.kind)
 
   return pointDistance(leftFeature.point, rightFeature.point) <= overlapRadiusPixels
 }
 
-function overlapRadiusFor(leftKind, rightKind) {
+function overlapRadiusFor(leftKind: FeaturePickerFeature['kind'], rightKind: FeaturePickerFeature['kind']): number {
   if (leftKind === 'service' && rightKind === 'service') {
     return serviceServiceOverlapRadiusPixels
   }
@@ -809,7 +959,7 @@ function overlapRadiusFor(leftKind, rightKind) {
   return serviceStationOverlapRadiusPixels
 }
 
-function prioritizedOverlapFeatures(features, clickedFeature) {
+function prioritizedOverlapFeatures(features: FeaturePickerFeature[], clickedFeature: SelectedMapFeature): FeaturePickerFeature[] {
   return [...features].sort((leftFeature, rightFeature) => {
     if (leftFeature.kind === clickedFeature.kind && leftFeature.id === clickedFeature.id) {
       return -1
@@ -827,14 +977,14 @@ function prioritizedOverlapFeatures(features, clickedFeature) {
   })
 }
 
-function pointDistance(leftPoint, rightPoint) {
+function pointDistance(leftPoint: Point, rightPoint: Point): number {
   const deltaX = leftPoint.x - rightPoint.x
   const deltaY = leftPoint.y - rightPoint.y
 
   return Math.sqrt((deltaX * deltaX) + (deltaY * deltaY))
 }
 
-function areStaticMapLayersEqual(previousProps, nextProps) {
+function areStaticMapLayersEqual(previousProps: StaticMapLayersProps, nextProps: StaticMapLayersProps): boolean {
   return (
     previousProps.selectedLineId === nextProps.selectedLineId &&
     previousProps.selectedStationId === nextProps.selectedStationId &&
@@ -843,46 +993,29 @@ function areStaticMapLayersEqual(previousProps, nextProps) {
   )
 }
 
-function areServiceMarkerPropsEqual(previousProps, nextProps) {
-  const previousService = previousProps.service
-  const nextService = nextProps.service
-
+function areServiceMarkerPropsEqual(previousProps: ServiceMarkerProps, nextProps: ServiceMarkerProps): boolean {
   return (
     previousProps.isSelected === nextProps.isSelected &&
-    previousService.serviceId === nextService.serviceId &&
-    previousService.lineId === nextService.lineId &&
-    previousService.lineName === nextService.lineName &&
-    previousService.currentLocation === nextService.currentLocation &&
-    previousService.destinationName === nextService.destinationName &&
-    previousService.towards === nextService.towards &&
-    previousService.coordinate?.lat === nextService.coordinate?.lat &&
-    previousService.coordinate?.lon === nextService.coordinate?.lon &&
-    previousService.headingDegrees === nextService.headingDegrees &&
-    futureArrivalsSignature(previousService.futureArrivals) === futureArrivalsSignature(nextService.futureArrivals)
+    previousProps.service === nextProps.service
   )
 }
 
-function areStationMarkerPropsEqual(previousProps, nextProps) {
-  const previousStation = previousProps.station
-  const nextStation = nextProps.station
-
+function areStationMarkerPropsEqual(previousProps: StationMarkerProps, nextProps: StationMarkerProps): boolean {
   return (
     previousProps.selectedLineId === nextProps.selectedLineId &&
     previousProps.isSelected === nextProps.isSelected &&
-    previousStation.id === nextStation.id &&
-    previousStation.name === nextStation.name &&
-    previousStation.coordinate.lat === nextStation.coordinate.lat &&
-    previousStation.coordinate.lon === nextStation.coordinate.lon &&
-    previousStation.lineIds.join('|') === nextStation.lineIds.join('|') &&
-    stationArrivalsSignature(previousStation.arrivals) === stationArrivalsSignature(nextStation.arrivals)
+    previousProps.station === nextProps.station
   )
 }
 
-function areOverlapFeaturePickerPropsEqual(previousProps, nextProps) {
+function areOverlapFeaturePickerPropsEqual(
+  previousProps: OverlapFeaturePickerProps,
+  nextProps: OverlapFeaturePickerProps
+): boolean {
   return previousProps.featurePicker === nextProps.featurePicker
 }
 
-function statusLabelFor(status) {
+function statusLabelFor(status: MapStatus): string {
   if (status === 'loading') {
     return 'Loading'
   }
@@ -902,7 +1035,7 @@ function statusLabelFor(status) {
   return 'Live'
 }
 
-function formatDateTime(value) {
+function formatDateTime(value: string): string {
   return new Intl.DateTimeFormat('en-GB', {
     hour: '2-digit',
     minute: '2-digit',
@@ -912,7 +1045,7 @@ function formatDateTime(value) {
   }).format(new Date(value))
 }
 
-function formatClockTime(value) {
+function formatClockTime(value: string): string {
   return new Intl.DateTimeFormat('en-GB', {
     hour: '2-digit',
     minute: '2-digit',
@@ -920,62 +1053,51 @@ function formatClockTime(value) {
   }).format(new Date(value))
 }
 
-function currentLocationLabelForService(service) {
+function currentLocationLabelForService(service: RailService): string {
   return service.currentLocation
 }
 
-function destinationLabelForService(service) {
+function destinationLabelForService(service: RailService): string {
   return service.destinationName ?? 'Destination unavailable'
 }
 
-function stationDetailLabelForPicker(station) {
+function stationDetailLabelForPicker(station: RailStation): string {
   return `${station.lineIds.length} ${station.lineIds.length === 1 ? 'line' : 'lines'}`
 }
 
-function stationArrivalLabelFor(arrival) {
+function stationArrivalLabelFor(arrival: StationArrival): string {
   return arrival.destinationName ?? 'Destination unavailable'
 }
 
-function prettifyLineId(lineId) {
+function prettifyLineId(lineId: string): string {
   return lineId
     .split('-')
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ')
 }
 
-function colorForLine(lineId) {
+function colorForLine(lineId: string): string {
   return linePalette[lineId] ?? '#1f6feb'
 }
 
-function sortedLineIds(lineIds) {
+function sortedLineIds(lineIds: string[]): string[] {
   return [...lineIds].sort((leftLineId, rightLineId) =>
     prettifyLineId(leftLineId).localeCompare(prettifyLineId(rightLineId))
   )
 }
 
-function futureArrivalsSignature(futureArrivals) {
-  return (futureArrivals ?? [])
-    .map(arrival => `${arrival.stationId ?? arrival.stationName}:${arrival.expectedArrival}`)
-    .join('|')
-}
-
-function stationArrivalsSignature(arrivals) {
-  return (arrivals ?? [])
-    .map(arrival => `${arrival.serviceId}:${arrival.expectedArrival}`)
-    .join('|')
-}
-
-function markerLabelForLine(lineId) {
+function markerLabelForLine(lineId: string): string {
   const words = prettifyLineId(lineId).split(' ')
+  const firstWord = words[0]
 
-  if (words.length === 1) {
-    return words[0].slice(0, 2).toUpperCase()
+  if (words.length === 1 && firstWord != null) {
+    return firstWord.slice(0, 2).toUpperCase()
   }
 
   return words.map(word => word.charAt(0)).join('').slice(0, 2).toUpperCase()
 }
 
-function markerTextColorForLine(lineId) {
+function markerTextColorForLine(lineId: string): string {
   const [red, green, blue] = rgbComponentsForHex(colorForLine(lineId))
   const luminance = (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255
 
@@ -986,7 +1108,7 @@ function markerTextColorForLine(lineId) {
   return '#ffffff'
 }
 
-function rgbComponentsForHex(hexColor) {
+function rgbComponentsForHex(hexColor: string): [number, number, number] {
   const normalizedHex = hexColor.replace('#', '')
 
   if (normalizedHex.length !== 6) {
@@ -1000,7 +1122,7 @@ function rgbComponentsForHex(hexColor) {
   ]
 }
 
-function createServiceIcon(service) {
+function createServiceIcon(service: PlottedRailService): DivIcon {
   const lineColor = colorForLine(service.lineId)
   const headingDegrees = roundedHeadingForIcon(service.headingDegrees)
   const markerLabel = markerLabelForLine(service.lineId)
@@ -1065,7 +1187,7 @@ function createServiceIcon(service) {
   return icon
 }
 
-function createStationIcon(station, selectedLineId) {
+function createStationIcon(station: RailStation, selectedLineId: SelectedLineId): DivIcon {
   const visibleLineIds =
     selectedLineId !== 'all' && station.lineIds.includes(selectedLineId)
       ? [selectedLineId]
@@ -1077,9 +1199,10 @@ function createStationIcon(station, selectedLineId) {
     return cachedIcon
   }
 
+  const singleVisibleLineId = visibleLineIds[0]
   const shapeMarkup =
-    visibleLineIds.length === 1
-      ? singleLineStationDot(visibleLineIds[0])
+    visibleLineIds.length === 1 && singleVisibleLineId != null
+      ? singleLineStationDot(singleVisibleLineId)
       : segmentedStationDot(visibleLineIds)
   const icon = L.divIcon({
     className: 'station-icon-shell',
@@ -1099,7 +1222,7 @@ function createStationIcon(station, selectedLineId) {
   return icon
 }
 
-function singleLineStationDot(lineId) {
+function singleLineStationDot(lineId: string): string {
   return `
     <circle
       cx="13"
@@ -1112,7 +1235,7 @@ function singleLineStationDot(lineId) {
   `
 }
 
-function segmentedStationDot(lineIds) {
+function segmentedStationDot(lineIds: string[]): string {
   return lineIds
     .map((lineId, index) => {
       const startAngle = (-Math.PI / 2) + ((Math.PI * 2 * index) / lineIds.length)
@@ -1123,7 +1246,7 @@ function segmentedStationDot(lineIds) {
     .join('')
 }
 
-function stationSegmentPath(startAngle, endAngle, fillColor) {
+function stationSegmentPath(startAngle: number, endAngle: number, fillColor: string): string {
   const radius = 8.4
   const center = 13
   const startPoint = polarPoint(center, center, radius, startAngle)
@@ -1141,23 +1264,42 @@ function stationSegmentPath(startAngle, endAngle, fillColor) {
   `
 }
 
-function polarPoint(centerX, centerY, radius, angleInRadians) {
+function polarPoint(
+  centerX: number,
+  centerY: number,
+  radius: number,
+  angleInRadians: number
+): { x: string; y: string } {
   return {
     x: (centerX + radius * Math.cos(angleInRadians)).toFixed(3),
     y: (centerY + radius * Math.sin(angleInRadians)).toFixed(3)
   }
 }
 
-function iconCacheKeyForService(lineId, headingDegrees, headingHidden) {
+function iconCacheKeyForService(lineId: string, headingDegrees: number, headingHidden: boolean): string {
   return `${lineId}:${headingHidden ? 'hidden' : headingDegrees}`
 }
 
-function roundedHeadingForIcon(headingDegrees) {
+function roundedHeadingForIcon(headingDegrees: number | null): number {
   if (headingDegrees == null) {
     return 0
   }
 
   return Math.round(headingDegrees)
+}
+
+function accentStyle(accentColor: string): AccentStyle {
+  return {
+    '--accent-color': accentColor
+  }
+}
+
+function isPlottedService(service: RailService): service is PlottedRailService {
+  return service.coordinate != null
+}
+
+function leafletPosition(coordinate: Coordinate): [number, number] {
+  return [coordinate.lat, coordinate.lon]
 }
 
 export default App

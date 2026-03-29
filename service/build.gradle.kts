@@ -81,9 +81,25 @@ val buildUi = tasks.register<Exec>("buildUi") {
     inputs.file(uiDirectory.file("index.html"))
     inputs.file(uiDirectory.file("package.json"))
     inputs.file(uiDirectory.file("package-lock.json"))
-    inputs.file(uiDirectory.file("vite.config.js"))
+    inputs.file(uiDirectory.file("tsconfig.json"))
+    inputs.file(uiDirectory.file("vite.config.ts"))
     inputs.dir(uiDirectory.dir("src"))
     outputs.dir(uiDirectory.dir("dist"))
+}
+
+val testUi = tasks.register<Exec>("testUi") {
+    dependsOn(installUiDependencies)
+    workingDir = uiDirectory.asFile
+    environment("PATH", System.getenv("PATH").orEmpty())
+    commandLine("npm", "run", "test")
+    inputs.file(uiDirectory.file("package.json"))
+    inputs.file(uiDirectory.file("package-lock.json"))
+    inputs.file(uiDirectory.file("tsconfig.json"))
+    inputs.dir(uiDirectory.dir("src"))
+}
+
+tasks.named<Test>("test") {
+    dependsOn(testUi)
 }
 
 tasks.processResources {

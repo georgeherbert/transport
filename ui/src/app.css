@@ -178,7 +178,7 @@ body {
 .service-icon-shell {
   background: transparent;
   border: 0;
-  transition: transform 220ms linear;
+  transition: transform 280ms linear;
   will-change: transform;
 }
 
