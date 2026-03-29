@@ -34,7 +34,7 @@ class RealRailMapProjectorTest {
                 ),
                 listOf(
                     RailLineSequence(
-                        TrainDirection("outbound"),
+                        ServiceDirection("outbound"),
                         listOf(nextStop)
                     )
                 )
@@ -56,7 +56,7 @@ class RealRailMapProjectorTest {
                 ),
                 listOf(
                     RailLineSequence(
-                        TrainDirection("outbound"),
+                        ServiceDirection("outbound"),
                         listOf(nextStop)
                     )
                 )
@@ -103,15 +103,15 @@ class RealRailMapProjectorTest {
             StationQueryCount(1),
             StationFailureCount(0),
             false,
-            LiveTrainCount(1),
+            LiveServiceCount(1),
             listOf(LineId("victoria")),
             listOf(
-                LiveRailTrain(
-                    TrainId("victoria|257"),
+                LiveRailService(
+                    ServiceId("victoria|257"),
                     VehicleId("257"),
                     listOf(LineId("victoria")),
                     listOf(LineName("Victoria")),
-                    TrainDirection("outbound"),
+                    ServiceDirection("outbound"),
                     DestinationName("Walthamstow Central Underground Station"),
                     TowardsDescription("Walthamstow Central"),
                     LocationDescription("Approaching Green Park"),
@@ -138,8 +138,8 @@ class RealRailMapProjectorTest {
         seamPathSmoother.returns(smoothedLineMap)
         seamProjection.projectsStation(nextStop.coordinate, GeoCoordinate(51.507100, -0.142500))
         seamProjection.projectsNextStopAnchor(
-            TrainId("victoria|257"),
-            TrainMapProjection(
+            ServiceId("victoria|257"),
+            ServiceMapProjection(
                 GeoCoordinate(51.507200, -0.142400),
                 HeadingDegrees(32.0)
             )
@@ -155,9 +155,9 @@ class RealRailMapProjectorTest {
         expectThat(projected.stations.first().coordinate).isEqualTo(GeoCoordinate(51.507100, -0.142500))
         expectThat(projected.stations.first().arrivals).hasSize(1)
         expectThat(projected.stations.first().arrivals.first().lineId).isEqualTo(LineId("victoria"))
-        expectThat(projected.trains).hasSize(1)
-        expectThat(projected.trains.first().coordinate).isEqualTo(GeoCoordinate(51.507200, -0.142400))
-        expectThat(projected.trains.first().heading).isEqualTo(HeadingDegrees(32.0))
+        expectThat(projected.services).hasSize(1)
+        expectThat(projected.services.first().coordinate).isEqualTo(GeoCoordinate(51.507200, -0.142400))
+        expectThat(projected.services.first().heading).isEqualTo(HeadingDegrees(32.0))
     }
 
     @Test
@@ -239,7 +239,7 @@ class RealRailMapProjectorTest {
     }
 
     @Test
-    fun `project anchors trains at the next stop when no departure has been observed yet`() {
+    fun `project anchors services at the next stop when no departure has been observed yet`() {
         val snapshot = LiveRailSnapshot(
             transportSourceName,
             Instant.parse("2026-03-22T00:49:20Z"),
@@ -248,15 +248,15 @@ class RealRailMapProjectorTest {
             StationQueryCount(1),
             StationFailureCount(0),
             false,
-            LiveTrainCount(1),
+            LiveServiceCount(1),
             listOf(LineId("victoria")),
             listOf(
-                LiveRailTrain(
-                    TrainId("victoria|257"),
+                LiveRailService(
+                    ServiceId("victoria|257"),
                     VehicleId("257"),
                     listOf(LineId("victoria")),
                     listOf(LineName("Victoria")),
-                    TrainDirection("outbound"),
+                    ServiceDirection("outbound"),
                     DestinationName("Walthamstow Central Underground Station"),
                     TowardsDescription("Walthamstow Central"),
                     LocationDescription("Bravo Underground Station"),
@@ -298,7 +298,7 @@ class RealRailMapProjectorTest {
                     ),
                     listOf(
                         RailLineSequence(
-                            TrainDirection("outbound"),
+                            ServiceDirection("outbound"),
                             listOf(
                                 StationReference(
                                     StationId("A"),
@@ -327,13 +327,13 @@ class RealRailMapProjectorTest {
         expectThat(projected.lines).hasSize(1)
         expectThat(projected.stations).hasSize(3)
         expectThat(projected.lines.first().paths.first().coordinates.size).isGreaterThan(3)
-        expectThat(projected.trains).hasSize(1)
-        expectThat(projected.trains.first().coordinate).isEqualTo(GeoCoordinate(51.0, -0.2))
-        expectThat(projected.trains.first().heading).isNotNull()
+        expectThat(projected.services).hasSize(1)
+        expectThat(projected.services.first().coordinate).isEqualTo(GeoCoordinate(51.0, -0.2))
+        expectThat(projected.services.first().heading).isNotNull()
     }
 
     @Test
-    fun `project leaves trains unplotted when next stop is unknown even if a location coordinate exists`() {
+    fun `project leaves services unplotted when next stop is unknown even if a location coordinate exists`() {
         val snapshot = LiveRailSnapshot(
             transportSourceName,
             Instant.parse("2026-03-22T00:49:20Z"),
@@ -342,15 +342,15 @@ class RealRailMapProjectorTest {
             StationQueryCount(1),
             StationFailureCount(0),
             false,
-            LiveTrainCount(1),
+            LiveServiceCount(1),
             listOf(LineId("victoria")),
             listOf(
-                LiveRailTrain(
-                    TrainId("victoria|258"),
+                LiveRailService(
+                    ServiceId("victoria|258"),
                     VehicleId("258"),
                     listOf(LineId("victoria")),
                     listOf(LineName("Victoria")),
-                    TrainDirection("outbound"),
+                    ServiceDirection("outbound"),
                     DestinationName("Walthamstow Central Underground Station"),
                     TowardsDescription("Walthamstow Central"),
                     LocationDescription("Between Alpha and Bravo"),
@@ -388,7 +388,7 @@ class RealRailMapProjectorTest {
                     ),
                     listOf(
                         RailLineSequence(
-                            TrainDirection("outbound"),
+                            ServiceDirection("outbound"),
                             listOf(
                                 StationReference(
                                     StationId("A"),
@@ -414,12 +414,12 @@ class RealRailMapProjectorTest {
 
         val projected = projector.project(snapshot, lineMap)
 
-        expectThat(projected.trains.first().coordinate).isNull()
-        expectThat(projected.trains.first().heading).isNull()
+        expectThat(projected.services.first().coordinate).isNull()
+        expectThat(projected.services.first().heading).isNull()
     }
 
     @Test
-    fun `project anchors trains at the next stop when the next stop is first in the sequence`() {
+    fun `project anchors services at the next stop when the next stop is first in the sequence`() {
         val snapshot = LiveRailSnapshot(
             transportSourceName,
             Instant.parse("2026-03-22T00:49:20Z"),
@@ -428,15 +428,15 @@ class RealRailMapProjectorTest {
             StationQueryCount(1),
             StationFailureCount(0),
             false,
-            LiveTrainCount(1),
+            LiveServiceCount(1),
             listOf(LineId("victoria")),
             listOf(
-                LiveRailTrain(
-                    TrainId("victoria|259"),
+                LiveRailService(
+                    ServiceId("victoria|259"),
                     VehicleId("259"),
                     listOf(LineId("victoria")),
                     listOf(LineName("Victoria")),
-                    TrainDirection("outbound"),
+                    ServiceDirection("outbound"),
                     DestinationName("Walthamstow Central Underground Station"),
                     TowardsDescription("Walthamstow Central"),
                     LocationDescription("Alpha Underground Station"),
@@ -478,7 +478,7 @@ class RealRailMapProjectorTest {
                     ),
                     listOf(
                         RailLineSequence(
-                            TrainDirection("outbound"),
+                            ServiceDirection("outbound"),
                             listOf(
                                 StationReference(
                                     StationId("A"),
@@ -504,12 +504,12 @@ class RealRailMapProjectorTest {
 
         val projected = projector.project(snapshot, lineMap)
 
-        expectThat(projected.trains.first().coordinate).isEqualTo(GeoCoordinate(51.0, -0.3))
-        expectThat(projected.trains.first().heading).isNotNull()
+        expectThat(projected.services.first().coordinate).isEqualTo(GeoCoordinate(51.0, -0.3))
+        expectThat(projected.services.first().heading).isNotNull()
     }
 
     @Test
-    fun `project anchors trains at the next stop even when direction is unknown`() {
+    fun `project anchors services at the next stop even when direction is unknown`() {
         val snapshot = LiveRailSnapshot(
             transportSourceName,
             Instant.parse("2026-03-22T00:49:20Z"),
@@ -518,11 +518,11 @@ class RealRailMapProjectorTest {
             StationQueryCount(1),
             StationFailureCount(0),
             false,
-            LiveTrainCount(1),
+            LiveServiceCount(1),
             listOf(LineId("victoria")),
             listOf(
-                LiveRailTrain(
-                    TrainId("victoria|260"),
+                LiveRailService(
+                    ServiceId("victoria|260"),
                     VehicleId("260"),
                     listOf(LineId("victoria")),
                     listOf(LineName("Victoria")),
@@ -568,7 +568,7 @@ class RealRailMapProjectorTest {
                     ),
                     listOf(
                         RailLineSequence(
-                            TrainDirection("outbound"),
+                            ServiceDirection("outbound"),
                             listOf(
                                 StationReference(
                                     StationId("A"),
@@ -594,8 +594,8 @@ class RealRailMapProjectorTest {
 
         val projected = projector.project(snapshot, lineMap)
 
-        expectThat(projected.trains.first().coordinate).isEqualTo(GeoCoordinate(51.0, -0.2))
-        expectThat(projected.trains.first().heading).isNull()
+        expectThat(projected.services.first().coordinate).isEqualTo(GeoCoordinate(51.0, -0.2))
+        expectThat(projected.services.first().heading).isNull()
     }
 
     @Test
@@ -608,7 +608,7 @@ class RealRailMapProjectorTest {
             StationQueryCount(1),
             StationFailureCount(0),
             false,
-            LiveTrainCount(0),
+            LiveServiceCount(0),
             emptyList(),
             emptyList()
         )
@@ -627,7 +627,7 @@ class RealRailMapProjectorTest {
                     ),
                     listOf(
                         RailLineSequence(
-                            TrainDirection("outbound"),
+                            ServiceDirection("outbound"),
                             listOf(
                                 StationReference(
                                     StationId("A"),
@@ -656,7 +656,7 @@ class RealRailMapProjectorTest {
                     ),
                     listOf(
                         RailLineSequence(
-                            TrainDirection("outbound"),
+                            ServiceDirection("outbound"),
                             listOf(
                                 StationReference(
                                     StationId("C"),
@@ -680,7 +680,7 @@ class RealRailMapProjectorTest {
                     ),
                     listOf(
                         RailLineSequence(
-                            TrainDirection("outbound"),
+                            ServiceDirection("outbound"),
                             listOf(
                                 StationReference(
                                     StationId("D"),
@@ -704,7 +704,7 @@ class RealRailMapProjectorTest {
                     ),
                     listOf(
                         RailLineSequence(
-                            TrainDirection("outbound"),
+                            ServiceDirection("outbound"),
                             listOf(
                                 StationReference(
                                     StationId("E"),
@@ -728,7 +728,7 @@ class RealRailMapProjectorTest {
                     ),
                     listOf(
                         RailLineSequence(
-                            TrainDirection("outbound"),
+                            ServiceDirection("outbound"),
                             listOf(
                                 StationReference(
                                     StationId("F"),
@@ -754,7 +754,7 @@ class RealRailMapProjectorTest {
     }
 
     @Test
-    fun `project snaps station based trains onto the closest branch of the selected line`() {
+    fun `project snaps station based services onto the closest branch of the selected line`() {
         val snapshot = LiveRailSnapshot(
             transportSourceName,
             Instant.parse("2026-03-22T00:49:20Z"),
@@ -763,15 +763,15 @@ class RealRailMapProjectorTest {
             StationQueryCount(1),
             StationFailureCount(0),
             false,
-            LiveTrainCount(1),
+            LiveServiceCount(1),
             listOf(LineId("victoria")),
             listOf(
-                LiveRailTrain(
-                    TrainId("victoria|300"),
+                LiveRailService(
+                    ServiceId("victoria|300"),
                     VehicleId("300"),
                     listOf(LineId("victoria")),
                     listOf(LineName("Victoria")),
-                    TrainDirection("outbound"),
+                    ServiceDirection("outbound"),
                     DestinationName("Walthamstow Central Underground Station"),
                     TowardsDescription("Walthamstow Central"),
                     LocationDescription("Approaching Downstream Underground Station"),
@@ -820,7 +820,7 @@ class RealRailMapProjectorTest {
                     ),
                     listOf(
                         RailLineSequence(
-                            TrainDirection("outbound"),
+                            ServiceDirection("outbound"),
                             listOf(
                                 StationReference(
                                     StationId("C"),
@@ -841,13 +841,13 @@ class RealRailMapProjectorTest {
 
         val projected = projector.project(snapshot, lineMap)
 
-        expectThat(projected.trains.first().coordinate).isEqualTo(GeoCoordinate(51.6, 0.6))
-        expectThat(projected.trains.first().heading).isNotNull().get { value }.isGreaterThan(30.0)
-        expectThat(projected.trains.first().heading).isNotNull().get { value }.isLessThan(60.0)
+        expectThat(projected.services.first().coordinate).isEqualTo(GeoCoordinate(51.6, 0.6))
+        expectThat(projected.services.first().heading).isNotNull().get { value }.isGreaterThan(30.0)
+        expectThat(projected.services.first().heading).isNotNull().get { value }.isLessThan(60.0)
     }
 
     @Test
-    fun `project uses map projection for heading so diagonal trains align with rendered paths`() {
+    fun `project uses map projection for heading so diagonal services align with rendered paths`() {
         val snapshot = LiveRailSnapshot(
             transportSourceName,
             Instant.parse("2026-03-22T00:49:20Z"),
@@ -856,15 +856,15 @@ class RealRailMapProjectorTest {
             StationQueryCount(1),
             StationFailureCount(0),
             false,
-            LiveTrainCount(1),
+            LiveServiceCount(1),
             listOf(LineId("victoria")),
             listOf(
-                LiveRailTrain(
-                    TrainId("victoria|401"),
+                LiveRailService(
+                    ServiceId("victoria|401"),
                     VehicleId("401"),
                     listOf(LineId("victoria")),
                     listOf(LineName("Victoria")),
-                    TrainDirection("outbound"),
+                    ServiceDirection("outbound"),
                     DestinationName("Downstream Underground Station"),
                     TowardsDescription("Downstream"),
                     LocationDescription("Approaching Downstream Underground Station"),
@@ -905,7 +905,7 @@ class RealRailMapProjectorTest {
                     ),
                     listOf(
                         RailLineSequence(
-                            TrainDirection("outbound"),
+                            ServiceDirection("outbound"),
                             listOf(
                                 StationReference(
                                     StationId("A"),
@@ -926,9 +926,9 @@ class RealRailMapProjectorTest {
 
         val projected = projector.project(snapshot, lineMap)
 
-        expectThat(projected.trains.first().coordinate).isEqualTo(GeoCoordinate(51.6, 0.6))
-        expectThat(projected.trains.first().heading).isNotNull().get { value }.isGreaterThan(30.0)
-        expectThat(projected.trains.first().heading).isNotNull().get { value }.isLessThan(35.0)
+        expectThat(projected.services.first().coordinate).isEqualTo(GeoCoordinate(51.6, 0.6))
+        expectThat(projected.services.first().heading).isNotNull().get { value }.isGreaterThan(30.0)
+        expectThat(projected.services.first().heading).isNotNull().get { value }.isLessThan(35.0)
     }
 
     @Test
@@ -961,7 +961,7 @@ class RealRailMapProjectorTest {
                     ),
                     listOf(
                         RailLineSequence(
-                            TrainDirection("outbound"),
+                            ServiceDirection("outbound"),
                             listOf(
                                 repeatedLoopStation,
                                 StationReference(
@@ -986,7 +986,7 @@ class RealRailMapProjectorTest {
         val projection =
             lineProjection.projectBetweenStationsAtProgress(previousStation, repeatedLoopStation, 0.5)
 
-        expectThat(projection).isNotNull().get(TrainMapProjection::coordinate).isEqualTo(GeoCoordinate(51.0, -0.35))
+        expectThat(projection).isNotNull().get(ServiceMapProjection::coordinate).isEqualTo(GeoCoordinate(51.0, -0.35))
     }
 
     @Test

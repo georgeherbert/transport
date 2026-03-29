@@ -28,13 +28,13 @@ value class StationId(val value: String)
 value class StationName(val value: String)
 
 @JvmInline
-value class TrainId(val value: String)
+value class ServiceId(val value: String)
 
 @JvmInline
 value class VehicleId(val value: String)
 
 @JvmInline
-value class TrainDirection(val value: String)
+value class ServiceDirection(val value: String)
 
 @JvmInline
 value class DestinationName(val value: String)
@@ -55,7 +55,7 @@ value class StationQueryCount(val value: Int)
 value class StationFailureCount(val value: Int)
 
 @JvmInline
-value class LiveTrainCount(val value: Int)
+value class LiveServiceCount(val value: Int)
 
 @JvmInline
 value class PredictionCount(val value: Int)

@@ -9,11 +9,11 @@ import strikt.assertions.get
 import strikt.assertions.hasSize
 import strikt.assertions.isA
 
-class RealRailMapServiceTest {
+class RealRailMapQueryTest {
     private val railSnapshotService = StubRailSnapshotService()
     private val railLineMapService = StubRailLineMapService()
     private val railMapProjector = StubRailMapProjector()
-    private val service = RealRailMapService(railSnapshotService, railLineMapService, railMapProjector)
+    private val service = RealRailMapQuery(railSnapshotService, railLineMapService, railMapProjector)
 
     @Test
     fun `getRailMap combines snapshot and line geometry`() {
@@ -24,7 +24,7 @@ class RealRailMapServiceTest {
             val result = service.getRailMap(true)
 
             expectThat(result).isSuccess().get { lines }.hasSize(1)
-            expectThat(result).isSuccess().get { trains }.hasSize(1)
+            expectThat(result).isSuccess().get { services }.hasSize(1)
         }
     }
 
@@ -49,15 +49,15 @@ class RealRailMapServiceTest {
             StationQueryCount(1),
             StationFailureCount(0),
             false,
-            LiveTrainCount(1),
+            LiveServiceCount(1),
             listOf(LineId("victoria")),
             listOf(
-                LiveRailTrain(
-                    TrainId("victoria|257"),
+                LiveRailService(
+                    ServiceId("victoria|257"),
                     VehicleId("257"),
                     listOf(LineId("victoria")),
                     listOf(LineName("Victoria")),
-                    TrainDirection("outbound"),
+                    ServiceDirection("outbound"),
                     DestinationName("Walthamstow Central Underground Station"),
                     TowardsDescription("Walthamstow Central"),
                     LocationDescription("At Alpha"),

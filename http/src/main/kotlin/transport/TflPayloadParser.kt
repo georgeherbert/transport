@@ -123,7 +123,7 @@ class TflPayloadParserHttp(
                             StationName(arrival.stationName),
                             LineId(arrival.lineId),
                             LineName(arrival.lineName),
-                            arrival.direction.toValue(::TrainDirection),
+                            arrival.direction.toValue(::ServiceDirection),
                             arrival.destinationName.toValue(::DestinationName),
                             observedAt,
                             arrival.currentLocation.toValue(::LocationDescription),
@@ -163,7 +163,7 @@ class TflPayloadParserHttp(
     ): TransportResult<RailLineSequenceRecord> =
         stopPointSequence.direction
             .takeIf(String::isNotBlank)
-            ?.let(::TrainDirection)
+            ?.let(::ServiceDirection)
             ?.let { direction ->
                 Success(
                     RailLineSequenceRecord(

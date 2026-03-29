@@ -41,26 +41,26 @@ class StubRailMapProjector : RailMapProjector {
             request.snapshot.stationsQueried,
             request.snapshot.stationsFailed,
             request.snapshot.partial,
-            request.snapshot.trainCount,
+            request.snapshot.serviceCount,
             request.lineMap.lines,
             emptyList(),
-            request.snapshot.trains.mapNotNull { train ->
-                train.lineIds.firstOrNull()?.let { lineId ->
-                    RailMapTrain(
-                        train.trainId,
-                        train.vehicleId,
+            request.snapshot.services.mapNotNull { service ->
+                service.lineIds.firstOrNull()?.let { lineId ->
+                    RailMapService(
+                        service.serviceId,
+                        service.vehicleId,
                         lineId,
-                        train.lineNames.firstOrNull() ?: LineName(lineId.value),
-                        train.direction,
-                        train.destinationName,
-                        train.towards,
-                        train.currentLocation,
-                        train.nextStop,
+                        service.lineNames.firstOrNull() ?: LineName(lineId.value),
+                        service.direction,
+                        service.destinationName,
+                        service.towards,
+                        service.currentLocation,
+                        service.nextStop,
                         null,
                         null,
-                        train.expectedArrival,
-                        train.observedAt,
-                        train.futureArrivals
+                        service.expectedArrival,
+                        service.observedAt,
+                        service.futureArrivals
                     )
                 }
             }

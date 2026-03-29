@@ -23,7 +23,7 @@ fun main() {
     val railMapMotionEngine: RailMapMotionEngine = RealRailMapMotionEngine(railLineProjectionFactory)
     val railMapFeedService: RailMapFeedService =
         RealRailMapFeedService(
-            services.railMapService,
+            services.railMapQuery,
             railMapMotionEngine,
             Clock.systemUTC(),
             transportServiceConfig.railMapPollInterval,
@@ -96,7 +96,7 @@ private fun createTransportServices(
         TransportServices(
             railSnapshotService,
             railLineMapService,
-            RealRailMapService(
+            RealRailMapQuery(
                 railSnapshotService,
                 railLineMapService,
                 railMapProjector
@@ -107,5 +107,5 @@ private fun createTransportServices(
 private data class TransportServices(
     val railSnapshotService: RailSnapshotService,
     val railLineMapService: RailLineMapService,
-    val railMapService: RailMapService
+    val railMapQuery: RailMapQuery
 )

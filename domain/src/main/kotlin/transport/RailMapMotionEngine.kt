@@ -11,15 +11,15 @@ interface RailMapMotionEngine {
 class RealRailMapMotionEngine(
     private val railLineProjectionFactory: RailLineProjectionFactory
 ) : RailMapMotionEngine {
-    private val trainStates = linkedMapOf<TrainId, TrainMotionState>()
+    private val trainStates = linkedMapOf<ServiceId, ServiceMotionState>()
 
     override fun observe(snapshot: RailMapSnapshot) =
         run {
             val lineIndex = snapshot.lines.associateBy(RailLine::id)
-            val activeTrainIds = snapshot.trains.map(RailMapTrain::trainId).toSet()
+            val activeTrainIds = snapshot.services.map(RailMapService::serviceId).toSet()
 
-            snapshot.trains.forEach { train ->
-                observeTrain(train, lineIndex[train.lineId], snapshot.generatedAt)
+            snapshot.services.forEach { service ->
+                observeService(service, lineIndex[service.lineId], snapshot.generatedAt)
             }
 
             trainStates.keys.retainAll(activeTrainIds)
@@ -41,74 +41,74 @@ class RealRailMapMotionEngine(
                 snapshot.stationsQueried,
                 snapshot.stationsFailed,
                 snapshot.partial,
-                snapshot.trainCount,
+                snapshot.serviceCount,
                 snapshot.lines,
                 snapshot.stations,
-                snapshot.trains.map { train ->
-                    advanceTrain(train, projectedLines[train.lineId], currentTime)
+                snapshot.services.map { service ->
+                    advanceService(service, projectedLines[service.lineId], currentTime)
                 }
             )
         }
 
-    private fun observeTrain(
-        train: RailMapTrain,
+    private fun observeService(
+        service: RailMapService,
         line: RailLine?,
         observedAt: Instant
     ) {
-        when (val nextStop = train.nextStop) {
-            null -> trainStates.remove(train.trainId)
-            else -> observeTrainWithNextStop(train, line, observedAt, nextStop)
+        when (val nextStop = service.nextStop) {
+            null -> trainStates.remove(service.serviceId)
+            else -> observeServiceWithNextStop(service, line, observedAt, nextStop)
         }
     }
 
-    private fun observeTrainWithNextStop(
-        train: RailMapTrain,
+    private fun observeServiceWithNextStop(
+        service: RailMapService,
         line: RailLine?,
         observedAt: Instant,
         nextStop: StationReference
     ) {
-        trainStates[train.trainId] =
-            observedTrainState(train, line, observedAt, nextStop)
+        trainStates[service.serviceId] =
+            observedServiceState(service, line, observedAt, nextStop)
     }
 
-    private fun observedTrainState(
-        train: RailMapTrain,
+    private fun observedServiceState(
+        service: RailMapService,
         line: RailLine?,
         observedAt: Instant,
         nextStop: StationReference
     ) =
-        trainStates[train.trainId]
+        trainStates[service.serviceId]
             ?.let { previousState ->
                 when {
                     previousState.currentNextStop.id == nextStop.id ->
-                        updatedTrainState(train, line, nextStop, previousState)
+                        updatedServiceState(service, line, nextStop, previousState)
                     else ->
-                        transitionedTrainState(train, line, observedAt, nextStop, previousState)
+                        transitionedServiceState(service, line, observedAt, nextStop, previousState)
                 }
             }
-            ?: initialTrainState(train, nextStop)
+            ?: initialServiceState(service, nextStop)
 
-    private fun initialTrainState(
-        train: RailMapTrain,
+    private fun initialServiceState(
+        service: RailMapService,
         nextStop: StationReference
     ) =
-        TrainMotionState(
-            train.direction,
+        ServiceMotionState(
+            service.direction,
             null,
             null,
             nextStop
         )
 
-    private fun updatedTrainState(
-        train: RailMapTrain,
+    private fun updatedServiceState(
+        service: RailMapService,
         line: RailLine?,
         nextStop: StationReference,
-        previousState: TrainMotionState
-    ): TrainMotionState {
-        val currentDirection = train.direction ?: previousState.direction
+        previousState: ServiceMotionState
+    ): ServiceMotionState {
+        val currentDirection = service.direction ?: previousState.direction
         val retainedDeparture = retainedDeparture(previousState, line, currentDirection, nextStop)
 
-        return TrainMotionState(
+        return ServiceMotionState(
             currentDirection,
             retainedDeparture?.station,
             retainedDeparture?.departedAt,
@@ -116,24 +116,24 @@ class RealRailMapMotionEngine(
         )
     }
 
-    private fun transitionedTrainState(
-        train: RailMapTrain,
+    private fun transitionedServiceState(
+        service: RailMapService,
         line: RailLine?,
         observedAt: Instant,
         nextStop: StationReference,
-        previousState: TrainMotionState
-    ): TrainMotionState {
-        val currentDirection = train.direction ?: previousState.direction
+        previousState: ServiceMotionState
+    ): ServiceMotionState {
+        val currentDirection = service.direction ?: previousState.direction
         val departure =
             previousState.currentNextStop
                 .takeIf { previousNextStop ->
                     hasAdjacentStopPair(line, currentDirection, previousNextStop.id, nextStop.id)
                 }
                 ?.let { previousNextStop ->
-                    TrainDepartureState(previousNextStop, observedAt)
+                    ServiceDepartureState(previousNextStop, observedAt)
                 }
 
-        return TrainMotionState(
+        return ServiceMotionState(
             currentDirection,
             departure?.station,
             departure?.departedAt,
@@ -142,9 +142,9 @@ class RealRailMapMotionEngine(
     }
 
     private fun retainedDeparture(
-        previousState: TrainMotionState,
+        previousState: ServiceMotionState,
         line: RailLine?,
-        direction: TrainDirection?,
+        direction: ServiceDirection?,
         nextStop: StationReference
     ) =
         departureState(previousState)
@@ -152,33 +152,33 @@ class RealRailMapMotionEngine(
                 hasAdjacentStopPair(line, direction, departure.station.id, nextStop.id)
             }
 
-    private fun advanceTrain(
-        train: RailMapTrain,
+    private fun advanceService(
+        service: RailMapService,
         projectedLine: RailLineProjection?,
         currentTime: Instant
-    ): RailMapTrain {
-        val projection = projectedTrainPosition(train, projectedLine, currentTime)
+    ): RailMapService {
+        val projection = projectedServicePosition(service, projectedLine, currentTime)
 
         return if (projection == null) {
-            train
+            service
         } else {
-            train.copy(
+            service.copy(
                 coordinate = projection.coordinate,
                 heading = projection.heading
             )
         }
     }
 
-    private fun projectedTrainPosition(
-        train: RailMapTrain,
+    private fun projectedServicePosition(
+        service: RailMapService,
         projectedLine: RailLineProjection?,
         currentTime: Instant
-    ): TrainMapProjection? {
-        val trainState = trainStates[train.trainId]
+    ): ServiceMapProjection? {
+        val trainState = trainStates[service.serviceId]
         val departure = trainState?.let(::departureState)
-        val currentNextStop = train.nextStop
+        val currentNextStop = service.nextStop
         val travelDuration =
-            train.expectedArrival
+            service.expectedArrival
                 ?.let { expectedArrival ->
                     departure?.let { departed -> travelDuration(departed, expectedArrival) }
                 }
@@ -201,23 +201,23 @@ class RealRailMapMotionEngine(
         }
     }
 
-    private fun departureState(state: TrainMotionState) =
+    private fun departureState(state: ServiceMotionState) =
         state.departedFrom
             ?.let { departedFrom ->
                 state.departedAt?.let { departedAt ->
-                    TrainDepartureState(departedFrom, departedAt)
+                    ServiceDepartureState(departedFrom, departedAt)
                 }
             }
 
     private fun travelDuration(
-        departed: TrainDepartureState,
+        departed: ServiceDepartureState,
         expectedArrival: Instant
     ) =
         Duration.between(departed.departedAt, expectedArrival)
             .takeUnless { duration -> duration.isNegative || duration.isZero }
 
     private fun elapsedSinceDeparture(
-        departed: TrainDepartureState,
+        departed: ServiceDepartureState,
         currentTime: Instant
     ) =
         Duration.between(departed.departedAt, currentTime)
@@ -231,7 +231,7 @@ class RealRailMapMotionEngine(
 
     private fun hasAdjacentStopPair(
         line: RailLine?,
-        direction: TrainDirection?,
+        direction: ServiceDirection?,
         fromStationId: StationId,
         toStationId: StationId
     ): Boolean =
@@ -243,7 +243,7 @@ class RealRailMapMotionEngine(
 
     private fun isAdjacentStopPair(
         line: RailLine,
-        direction: TrainDirection?,
+        direction: ServiceDirection?,
         fromStationId: StationId,
         toStationId: StationId
     ): Boolean =
@@ -258,7 +258,7 @@ class RealRailMapMotionEngine(
 
     private fun matchingSequences(
         line: RailLine,
-        direction: TrainDirection?
+        direction: ServiceDirection?
     ) =
         when {
             line.sequences.isEmpty() -> emptyList()
@@ -271,14 +271,14 @@ class RealRailMapMotionEngine(
         }
 }
 
-data class TrainMotionState(
-    val direction: TrainDirection?,
+data class ServiceMotionState(
+    val direction: ServiceDirection?,
     val departedFrom: StationReference?,
     val departedAt: Instant?,
     val currentNextStop: StationReference
 )
 
-data class TrainDepartureState(
+data class ServiceDepartureState(
     val station: StationReference,
     val departedAt: Instant
 )

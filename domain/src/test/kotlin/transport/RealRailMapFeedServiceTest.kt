@@ -20,19 +20,19 @@ import strikt.assertions.isEqualTo
 class RealRailMapFeedServiceTest {
     private val generatedAt = Instant.parse("2026-03-22T20:50:00Z")
     private val clock = FakeClock(generatedAt)
-    private val railMapService = StubRailMapService()
+    private val railMapQuery = StubRailMapQuery()
     private val railMapMotionEngine = StubRailMapMotionEngine()
 
     @Test
     fun `start polls immediately and serves the cached snapshot`() =
         runTest {
-            railMapService.returns(true, sampleRailMapSnapshot(clock.instant(), true))
+            railMapQuery.returns(true, sampleRailMapSnapshot(clock.instant(), true))
             val railMapFeedService = railMapFeedService(backgroundScope)
 
             railMapFeedService.start()
             val result = railMapFeedService.getRailMap(false)
 
-            expectThat(railMapService.refreshRequests.toList()).isEqualTo(listOf(true))
+            expectThat(railMapQuery.refreshRequests.toList()).isEqualTo(listOf(true))
             expectThat(result).isSuccess().get { cached }.isEqualTo(true)
             expectThat(result).isSuccess().get { generatedAt }.isEqualTo(clock.instant())
         }
@@ -40,8 +40,8 @@ class RealRailMapFeedServiceTest {
     @Test
     fun `failed poll emits an error update and preserves the last cached snapshot`() =
         runTest {
-            railMapService.thenReturns(sampleRailMapSnapshot(clock.instant(), true))
-            railMapService.thenFailsWith(TransportError.UpstreamHttpFailure("/Mode/tube/Arrivals", 503, "down"))
+            railMapQuery.thenReturns(sampleRailMapSnapshot(clock.instant(), true))
+            railMapQuery.thenFailsWith(TransportError.UpstreamHttpFailure("/Mode/tube/Arrivals", 503, "down"))
             val railMapFeedService = railMapFeedService(backgroundScope)
 
             railMapFeedService.start()
@@ -62,18 +62,18 @@ class RealRailMapFeedServiceTest {
         }
 
     @Test
-    fun `animation ticks emit train-only updates`() =
+    fun `animation ticks emit service-only updates`() =
         runTest {
             val initialSnapshot = sampleRailMapSnapshot(generatedAt, false)
             val animatedSnapshot = initialSnapshot.copy(
-                trains = initialSnapshot.trains.map { train ->
-                    train.copy(
+                services = initialSnapshot.services.map { service ->
+                    service.copy(
                         coordinate = GeoCoordinate(51.507247, -0.141507),
                         heading = HeadingDegrees(45.0)
                     )
                 }
             )
-            railMapService.returns(true, sampleRailMapSnapshot(generatedAt, true))
+            railMapQuery.returns(true, sampleRailMapSnapshot(generatedAt, true))
             railMapMotionEngine.advanceReturnsAfter(generatedAt, animatedSnapshot)
             val railMapFeedService = railMapFeedService(backgroundScope)
 
@@ -89,9 +89,9 @@ class RealRailMapFeedServiceTest {
             val update = animatedUpdate.await()
 
             expectThat(update)
-                .isA<RailMapFeedUpdate.TrainPositionsUpdated>()
-                .get(RailMapFeedUpdate.TrainPositionsUpdated::trainPositions)
-                .get(RailMapTrainPositions::stations)
+                .isA<RailMapFeedUpdate.ServicePositionsUpdated>()
+                .get(RailMapFeedUpdate.ServicePositionsUpdated::servicePositions)
+                .get(RailMapServicePositions::stations)
                 .get(0)
                 .get(MapStation::arrivals)
                 .get(0)
@@ -99,34 +99,34 @@ class RealRailMapFeedServiceTest {
                 .isEqualTo(LineId("victoria"))
 
             expectThat(update)
-                .isA<RailMapFeedUpdate.TrainPositionsUpdated>()
-                .get(RailMapFeedUpdate.TrainPositionsUpdated::trainPositions)
-                .get(RailMapTrainPositions::trains)
+                .isA<RailMapFeedUpdate.ServicePositionsUpdated>()
+                .get(RailMapFeedUpdate.ServicePositionsUpdated::servicePositions)
+                .get(RailMapServicePositions::services)
                 .get(0)
-                .get(RailMapTrain::coordinate)
+                .get(RailMapService::coordinate)
                 .isEqualTo(GeoCoordinate(51.507247, -0.141507))
         }
 
     @Test
     fun `force refresh requests are throttled to the poll interval`() =
         runTest {
-            railMapService.returns(true, sampleRailMapSnapshot(clock.instant(), true))
+            railMapQuery.returns(true, sampleRailMapSnapshot(clock.instant(), true))
             val railMapFeedService = railMapFeedService(backgroundScope)
 
             railMapFeedService.start()
             railMapFeedService.getRailMap(true)
 
-            expectThat(railMapService.refreshRequests.toList()).isEqualTo(listOf(true))
+            expectThat(railMapQuery.refreshRequests.toList()).isEqualTo(listOf(true))
 
             clock.advanceBy(Duration.ofSeconds(20))
             railMapFeedService.getRailMap(true)
 
-            expectThat(railMapService.refreshRequests.toList()).isEqualTo(listOf(true, true))
+            expectThat(railMapQuery.refreshRequests.toList()).isEqualTo(listOf(true, true))
         }
 
     private fun railMapFeedService(coroutineScope: CoroutineScope): RailMapFeedService =
         RealRailMapFeedService(
-            railMapService,
+            railMapQuery,
             railMapMotionEngine,
             clock,
             Duration.ofSeconds(20),
@@ -145,7 +145,7 @@ class RealRailMapFeedServiceTest {
             StationQueryCount(1),
             StationFailureCount(0),
             false,
-            LiveTrainCount(1),
+            LiveServiceCount(1),
             listOf(
                 RailLine(
                     LineId("victoria"),
@@ -169,7 +169,7 @@ class RealRailMapFeedServiceTest {
                     listOf(LineId("victoria")),
                     listOf(
                         StationArrival(
-                            TrainId("victoria|257"),
+                            ServiceId("victoria|257"),
                             LineId("victoria"),
                             LineName("Victoria"),
                             DestinationName("Walthamstow Central Underground Station"),
@@ -179,12 +179,12 @@ class RealRailMapFeedServiceTest {
                 )
             ),
             listOf(
-                RailMapTrain(
-                    TrainId("victoria|257"),
+                RailMapService(
+                    ServiceId("victoria|257"),
                     VehicleId("257"),
                     LineId("victoria"),
                     LineName("Victoria"),
-                    TrainDirection("outbound"),
+                    ServiceDirection("outbound"),
                     DestinationName("Walthamstow Central Underground Station"),
                     TowardsDescription("Walthamstow Central"),
                     LocationDescription("Approaching Green Park"),

@@ -26,7 +26,7 @@ class RealRailSnapshotAssemblerTest {
     private val assembler: RailSnapshotAssembler = RealRailSnapshotAssembler(railLocationEstimator)
 
     @Test
-    fun `assemble deduplicates the same train across station boards`() {
+    fun `assemble deduplicates the same service across station boards`() {
         val predictions = listOf(
             RailPredictionRecord(
                 VehicleId("257"),
@@ -34,7 +34,7 @@ class RealRailSnapshotAssemblerTest {
                 StationName("King's Cross St. Pancras Underground Station"),
                 LineId("victoria"),
                 LineName("Victoria"),
-                TrainDirection("outbound"),
+                ServiceDirection("outbound"),
                 DestinationName("Walthamstow Central Underground Station"),
                 Instant.parse("2026-03-22T00:49:20Z"),
                 LocationDescription("Between Victoria and Green Park"),
@@ -48,7 +48,7 @@ class RealRailSnapshotAssemblerTest {
                 StationName("Warren Street Underground Station"),
                 LineId("victoria"),
                 LineName("Victoria"),
-                TrainDirection("outbound"),
+                ServiceDirection("outbound"),
                 DestinationName("Walthamstow Central Underground Station"),
                 Instant.parse("2026-03-22T00:49:20Z"),
                 LocationDescription("Approaching Warren Street"),
@@ -66,14 +66,14 @@ class RealRailSnapshotAssemblerTest {
             StationFailureCount(0)
         )
 
-        expectThat(snapshot.trains).hasSize(1)
-        expectThat(snapshot.trains.first().trainId).isEqualTo(TrainId("victoria|257"))
-        expectThat(snapshot.trains.first().location.type).isEqualTo(LocationType.STATION_BOARD)
-        expectThat(snapshot.trains.first().nextStop!!.id).isEqualTo(StationId("940GZZLUWSM"))
-        expectThat(snapshot.trains.first().sourcePredictions).isEqualTo(PredictionCount(2))
-        expectThat(snapshot.trains.first().futureArrivals).hasSize(2)
-        expectThat(snapshot.trains.first().futureArrivals.first().stationName).isEqualTo(StationName("Warren Street Underground Station"))
-        expectThat(snapshot.trains.first().futureArrivals.last().stationName).isEqualTo(StationName("King's Cross St. Pancras Underground Station"))
+        expectThat(snapshot.services).hasSize(1)
+        expectThat(snapshot.services.first().serviceId).isEqualTo(ServiceId("victoria|257"))
+        expectThat(snapshot.services.first().location.type).isEqualTo(LocationType.STATION_BOARD)
+        expectThat(snapshot.services.first().nextStop!!.id).isEqualTo(StationId("940GZZLUWSM"))
+        expectThat(snapshot.services.first().sourcePredictions).isEqualTo(PredictionCount(2))
+        expectThat(snapshot.services.first().futureArrivals).hasSize(2)
+        expectThat(snapshot.services.first().futureArrivals.first().stationName).isEqualTo(StationName("Warren Street Underground Station"))
+        expectThat(snapshot.services.first().futureArrivals.last().stationName).isEqualTo(StationName("King's Cross St. Pancras Underground Station"))
     }
 
     @Test
@@ -117,12 +117,12 @@ class RealRailSnapshotAssemblerTest {
             StationFailureCount(0)
         )
 
-        expectThat(snapshot.trains).hasSize(2)
-        expectThat(snapshot.trains.map(LiveRailTrain::trainId)).contains(
-            TrainId("hammersmith-city|175"),
-            TrainId("metropolitan|175")
+        expectThat(snapshot.services).hasSize(2)
+        expectThat(snapshot.services.map(LiveRailService::serviceId)).contains(
+            ServiceId("hammersmith-city|175"),
+            ServiceId("metropolitan|175")
         )
-        expectThat(snapshot.trains.map(LiveRailTrain::lineIds)).contains(
+        expectThat(snapshot.services.map(LiveRailService::lineIds)).contains(
             listOf(LineId("hammersmith-city")),
             listOf(LineId("metropolitan"))
         )
@@ -139,7 +139,7 @@ class RealRailSnapshotAssemblerTest {
                     StationName("King's Cross St. Pancras Underground Station"),
                     LineId("victoria"),
                     LineName("Victoria"),
-                    TrainDirection("outbound"),
+                    ServiceDirection("outbound"),
                     DestinationName("Walthamstow Central Underground Station"),
                     Instant.parse("2026-03-22T00:49:20Z"),
                     LocationDescription("Approaching Warren Street"),
@@ -153,8 +153,8 @@ class RealRailSnapshotAssemblerTest {
             StationFailureCount(0)
         )
 
-        expectThat(snapshot.trains).hasSize(1)
-        expectThat(snapshot.trains.first().expectedArrival).isEqualTo(Instant.parse("2026-03-22T00:51:20Z"))
+        expectThat(snapshot.services).hasSize(1)
+        expectThat(snapshot.services.first().expectedArrival).isEqualTo(Instant.parse("2026-03-22T00:51:20Z"))
     }
 
     @Test
@@ -182,10 +182,10 @@ class RealRailSnapshotAssemblerTest {
             StationFailureCount(0)
         )
 
-        expectThat(snapshot.trains).hasSize(1)
-        expectThat(snapshot.trains.first().lineIds).contains(LineId("elizabeth"))
-        expectThat(snapshot.trains.first().currentLocation).isEqualTo(LocationDescription("Abbey Wood"))
-        expectThat(snapshot.trains.first().nextStop).isNotNull().get { id }.isEqualTo(StationId("910GABWDXR"))
+        expectThat(snapshot.services).hasSize(1)
+        expectThat(snapshot.services.first().lineIds).contains(LineId("elizabeth"))
+        expectThat(snapshot.services.first().currentLocation).isEqualTo(LocationDescription("Abbey Wood"))
+        expectThat(snapshot.services.first().nextStop).isNotNull().get { id }.isEqualTo(StationId("910GABWDXR"))
     }
 
     @Test
@@ -199,7 +199,7 @@ class RealRailSnapshotAssemblerTest {
                     StationName("West Croydon Tram Stop"),
                     LineId("tram"),
                     LineName("Tram"),
-                    TrainDirection("outbound"),
+                    ServiceDirection("outbound"),
                     DestinationName("West Croydon"),
                     Instant.parse("2026-03-22T16:31:56Z"),
                     null,
@@ -213,9 +213,9 @@ class RealRailSnapshotAssemblerTest {
             StationFailureCount(0)
         )
 
-        expectThat(snapshot.trains).hasSize(1)
-        expectThat(snapshot.trains.first().lineIds).contains(LineId("tram"))
-        expectThat(snapshot.trains.first().currentLocation).isEqualTo(LocationDescription("West Croydon Tram Stop"))
-        expectThat(snapshot.trains.first().location.type).isEqualTo(LocationType.STATION_BOARD)
+        expectThat(snapshot.services).hasSize(1)
+        expectThat(snapshot.services.first().lineIds).contains(LineId("tram"))
+        expectThat(snapshot.services.first().currentLocation).isEqualTo(LocationDescription("West Croydon Tram Stop"))
+        expectThat(snapshot.services.first().location.type).isEqualTo(LocationType.STATION_BOARD)
     }
 }

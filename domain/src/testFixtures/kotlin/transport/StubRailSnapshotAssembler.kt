@@ -50,7 +50,7 @@ class StubRailSnapshotAssembler : RailSnapshotAssembler {
             request.stationsQueried,
             request.stationsFailed,
             request.stationsFailed.value > 0,
-            LiveTrainCount(request.predictions.size),
+            LiveServiceCount(request.predictions.size),
             supportedRailLineIds,
             emptyList()
         )

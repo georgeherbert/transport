@@ -2,7 +2,7 @@
 
 `transport` is a Kotlin service and React UI for viewing live London rail services on a projected map.
 
-It pulls TfL arrival-board data, assembles it into a rail snapshot, projects trains onto imported rail geometry, and serves the browser UI plus the minimal HTTP routes that UI needs.
+It pulls TfL arrival-board data, assembles it into a rail snapshot, projects services onto imported rail geometry, and serves the browser UI plus the minimal HTTP routes that UI needs.
 
 Supported modes:
 - Tube
@@ -80,7 +80,7 @@ There are no extra inspection or compatibility API routes.
 
 ## Movement Model
 
-The map does not use onboard GPS. Train positions are inferred from:
+The map does not use onboard GPS. Service positions are inferred from:
 
 - TfL arrival predictions
 - resolved next-stop station metadata
@@ -91,9 +91,9 @@ Current location text in the UI comes directly from TfL prediction data and is n
 
 Under the current projection rules:
 
-- if `nextStop` is unknown, the train is not plotted
-- if `nextStop` is known but no departure has been observed yet, the train is plotted at `nextStop`
-- once the train has been observed leaving station `A` for adjacent station `B`, it is interpolated between `A` and `B` using TfL's `expectedArrival` for `B`
+- if `nextStop` is unknown, the service is not plotted
+- if `nextStop` is known but no departure has been observed yet, the service is plotted at `nextStop`
+- once the service has been observed leaving station `A` for adjacent station `B`, it is interpolated between `A` and `B` using TfL's `expectedArrival` for `B`
 
 ## Development
 

@@ -25,17 +25,17 @@ class RealRailSnapshotAssembler(
     ): LiveRailSnapshot =
         predictions
             .filter(::isSupportedPrediction)
-            .groupBy(::trainIdentityKey)
+            .groupBy(::serviceIdentityKey)
             .values
-            .map { group -> buildTrain(railNetwork, group) }
+            .map { group -> buildService(railNetwork, group) }
             .sortedWith(
-                compareBy<LiveRailTrain>(
-                    { train -> train.lineNames.firstOrNull()?.value.orEmpty() },
-                    { train -> train.destinationName?.value.orEmpty() },
-                    { train -> train.trainId.value }
+                compareBy<LiveRailService>(
+                    { service -> service.lineNames.firstOrNull()?.value.orEmpty() },
+                    { service -> service.destinationName?.value.orEmpty() },
+                    { service -> service.serviceId.value }
                 )
             )
-            .let { trains ->
+            .let { services ->
                 LiveRailSnapshot(
                     transportSourceName,
                     generatedAt,
@@ -44,16 +44,16 @@ class RealRailSnapshotAssembler(
                     stationsQueried,
                     stationsFailed,
                     stationsFailed.value > 0,
-                    LiveTrainCount(trains.size),
+                    LiveServiceCount(services.size),
                     supportedRailLineIds,
-                    trains
+                    services
                 )
             }
 
-    private fun buildTrain(
+    private fun buildService(
         railNetwork: RailNetwork,
         predictions: List<RailPredictionRecord>
-    ): LiveRailTrain =
+    ): LiveRailService =
         predictions.minWith(nextStopPredictionComparator).let { nextStopRepresentative ->
             predictions.minWith(displayPredictionComparator).let { displayRepresentative ->
                 val boardStation = nextStopRepresentative.stationId?.let { stationId -> railNetwork.stationsById[stationId] }
@@ -65,8 +65,8 @@ class RealRailSnapshotAssembler(
                 )
                 val currentLocation = displayRepresentative.currentLocation ?: location.description
 
-                LiveRailTrain(
-                    trainIdFor(nextStopRepresentative),
+                LiveRailService(
+                    serviceIdFor(nextStopRepresentative),
                     nextStopRepresentative.vehicleId,
                     lineIds,
                     lineNames,
@@ -88,7 +88,7 @@ class RealRailSnapshotAssembler(
         prediction.lineId in supportedRailLineIds ||
             prediction.modeName in supportedRailModes
 
-    private fun trainIdentityKey(prediction: RailPredictionRecord): String =
+    private fun serviceIdentityKey(prediction: RailPredictionRecord): String =
         prediction.vehicleId?.let { vehicleId ->
             listOf(prediction.lineId?.value.orEmpty(), vehicleId.value).joinToString("|")
         } ?: listOf(
@@ -101,8 +101,8 @@ class RealRailSnapshotAssembler(
             prediction.expectedArrival?.toString()
         ).joinToString("|")
 
-    private fun trainIdFor(prediction: RailPredictionRecord): TrainId =
-        TrainId(trainIdentityKey(prediction))
+    private fun serviceIdFor(prediction: RailPredictionRecord): ServiceId =
+        ServiceId(serviceIdentityKey(prediction))
 
     private fun futureArrivals(predictions: List<RailPredictionRecord>) =
         predictions

@@ -83,7 +83,7 @@ class RealRailSnapshotServiceTest {
                 StationName("Green Park Underground Station"),
                 LineId("victoria"),
                 LineName("Victoria"),
-                TrainDirection("outbound"),
+                ServiceDirection("outbound"),
                 DestinationName("Walthamstow Central Underground Station"),
                 Instant.parse("2026-03-22T00:49:20Z"),
                 LocationDescription("Approaching Green Park"),

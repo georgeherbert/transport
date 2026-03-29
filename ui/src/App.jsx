@@ -39,9 +39,9 @@ const linePalette = {
   windrush: '#d64034'
 }
 
-const trainIconCache = new Map()
+const serviceIconCache = new Map()
 const stationIconCache = new Map()
-const trainHitRadiusPixels = 18
+const serviceHitRadiusPixels = 18
 const stationHitRadiusPixels = 10
 
 function App() {
@@ -51,22 +51,22 @@ function App() {
   const [selectedLineId, setSelectedLineId] = useState('all')
   const [selectedMapFeature, setSelectedMapFeature] = useState(null)
   const [featurePicker, setFeaturePicker] = useState(null)
-  const pendingTrainPositionsRef = useRef(null)
-  const trainPositionsAnimationFrameRef = useRef(null)
+  const pendingServicePositionsRef = useRef(null)
+  const servicePositionsAnimationFrameRef = useRef(null)
 
-  const clearQueuedTrainPositions = useEffectEvent(() => {
-    pendingTrainPositionsRef.current = null
+  const clearQueuedServicePositions = useEffectEvent(() => {
+    pendingServicePositionsRef.current = null
 
-    if (trainPositionsAnimationFrameRef.current == null) {
+    if (servicePositionsAnimationFrameRef.current == null) {
       return
     }
 
-    window.cancelAnimationFrame(trainPositionsAnimationFrameRef.current)
-    trainPositionsAnimationFrameRef.current = null
+    window.cancelAnimationFrame(servicePositionsAnimationFrameRef.current)
+    servicePositionsAnimationFrameRef.current = null
   })
 
   const applySnapshotUpdate = useEffectEvent(snapshot => {
-    clearQueuedTrainPositions()
+    clearQueuedServicePositions()
 
     startTransition(() => {
       setMapSnapshot(snapshot)
@@ -76,7 +76,7 @@ function App() {
   })
 
   const applyErrorUpdate = useEffectEvent(message => {
-    clearQueuedTrainPositions()
+    clearQueuedServicePositions()
 
     startTransition(() => {
       setErrorMessage(message)
@@ -84,11 +84,11 @@ function App() {
     })
   })
 
-  const flushQueuedTrainPositions = useEffectEvent(() => {
-    const trainPositions = pendingTrainPositionsRef.current
-    pendingTrainPositionsRef.current = null
+  const flushQueuedServicePositions = useEffectEvent(() => {
+    const servicePositions = pendingServicePositionsRef.current
+    pendingServicePositionsRef.current = null
 
-    if (trainPositions == null) {
+    if (servicePositions == null) {
       return
     }
 
@@ -100,16 +100,16 @@ function App() {
 
         return {
           ...currentSnapshot,
-          source: trainPositions.source,
-          generatedAt: trainPositions.generatedAt,
-          cached: trainPositions.cached,
-          cacheAgeSeconds: trainPositions.cacheAgeSeconds,
-          stationsQueried: trainPositions.stationsQueried,
-          stationsFailed: trainPositions.stationsFailed,
-          partial: trainPositions.partial,
-          trainCount: trainPositions.trainCount,
-          stations: trainPositions.stations,
-          trains: trainPositions.trains
+          source: servicePositions.source,
+          generatedAt: servicePositions.generatedAt,
+          cached: servicePositions.cached,
+          cacheAgeSeconds: servicePositions.cacheAgeSeconds,
+          stationsQueried: servicePositions.stationsQueried,
+          stationsFailed: servicePositions.stationsFailed,
+          partial: servicePositions.partial,
+          serviceCount: servicePositions.serviceCount,
+          stations: servicePositions.stations,
+          services: servicePositions.services
         }
       })
       setErrorMessage('')
@@ -117,16 +117,16 @@ function App() {
     })
   })
 
-  const queueTrainPositionsUpdate = useEffectEvent(trainPositions => {
-    pendingTrainPositionsRef.current = trainPositions
+  const queueServicePositionsUpdate = useEffectEvent(servicePositions => {
+    pendingServicePositionsRef.current = servicePositions
 
-    if (trainPositionsAnimationFrameRef.current != null) {
+    if (servicePositionsAnimationFrameRef.current != null) {
       return
     }
 
-    trainPositionsAnimationFrameRef.current = window.requestAnimationFrame(() => {
-      trainPositionsAnimationFrameRef.current = null
-      flushQueuedTrainPositions()
+    servicePositionsAnimationFrameRef.current = window.requestAnimationFrame(() => {
+      servicePositionsAnimationFrameRef.current = null
+      flushQueuedServicePositions()
     })
   })
 
@@ -166,8 +166,8 @@ function App() {
       applySnapshotUpdate(JSON.parse(event.data))
     })
 
-    eventSource.addEventListener('train_positions', event => {
-      queueTrainPositionsUpdate(JSON.parse(event.data))
+    eventSource.addEventListener('service_positions', event => {
+      queueServicePositionsUpdate(JSON.parse(event.data))
     })
 
     eventSource.addEventListener('transport_error', event => {
@@ -180,7 +180,7 @@ function App() {
     }
 
     return () => {
-      clearQueuedTrainPositions()
+      clearQueuedServicePositions()
       eventSource.close()
     }
   }, [])
@@ -193,13 +193,13 @@ function App() {
   }, [deferredSelectedLineId])
 
   const lineOptions = buildLineOptions(mapSnapshot)
-  const visibleTrains = buildVisibleTrains(mapSnapshot, deferredSelectedLineId)
-  const plottedTrains = visibleTrains.filter(train => train.coordinate != null)
+  const visibleServices = buildVisibleServices(mapSnapshot, deferredSelectedLineId)
+  const plottedServices = visibleServices.filter(service => service.coordinate != null)
   const visibleStations = buildVisibleStations(mapSnapshot, deferredSelectedLineId)
   const selectedStationId =
     selectedMapFeature?.kind === 'station' ? selectedMapFeature.id : null
-  const selectedTrainId =
-    selectedMapFeature?.kind === 'train' ? selectedMapFeature.id : null
+  const selectedServiceId =
+    selectedMapFeature?.kind === 'service' ? selectedMapFeature.id : null
   const chooseMapFeature = feature => {
     setFeaturePicker(null)
     setSelectedMapFeature({
@@ -213,7 +213,7 @@ function App() {
     const overlappingFeatures = overlappingFeaturesAtClick(
       map,
       event.containerPoint,
-      plottedTrains,
+      plottedServices,
       visibleStations
     )
 
@@ -235,7 +235,7 @@ function App() {
       <header className="topbar">
         <div className="topbar-copy">
           <h1>London Rail Network Live</h1>
-          <p>Live TfL train positions projected onto imported OpenStreetMap rail alignments.</p>
+          <p>Live TfL service positions projected onto imported OpenStreetMap rail alignments.</p>
         </div>
         <div className="topbar-actions">
           <span className="topbar-generated">
@@ -268,8 +268,8 @@ function App() {
 
             <div className="status-strip">
               <StatusItem label="Status" value={statusLabelFor(status)} />
-              <StatusItem label="Trains" value={mapSnapshot?.trainCount ?? '...'} />
-              <StatusItem label="Plotted" value={plottedTrains.length} />
+              <StatusItem label="Services" value={mapSnapshot?.serviceCount ?? '...'} />
+              <StatusItem label="Plotted" value={plottedServices.length} />
               <StatusItem label="Station gaps" value={mapSnapshot?.stationsFailed ?? '...'} />
             </div>
           </div>
@@ -286,7 +286,7 @@ function App() {
             >
               <Pane name="rail-lines" style={{ zIndex: 350 }} />
               <Pane name="rail-stations" style={{ zIndex: 610 }} />
-              <Pane name="rail-trains" style={{ zIndex: 620 }} />
+              <Pane name="rail-services" style={{ zIndex: 620 }} />
 
               <TileLayer
                 attribution={basemapAttribution}
@@ -309,15 +309,15 @@ function App() {
                 }
               />
 
-              {plottedTrains.map(train => (
-                <TrainMarker
-                  key={train.trainId}
-                  train={train}
-                  isSelected={selectedTrainId === train.trainId}
+              {plottedServices.map(service => (
+                <ServiceMarker
+                  key={service.serviceId}
+                  service={service}
+                  isSelected={selectedServiceId === service.serviceId}
                   onSelect={handleFeatureClick}
                   onDeselect={() =>
                     setSelectedMapFeature(currentFeature =>
-                      currentFeature?.kind === 'train' && currentFeature.id === train.trainId
+                      currentFeature?.kind === 'service' && currentFeature.id === service.serviceId
                         ? null
                         : currentFeature
                     )
@@ -396,8 +396,8 @@ function LineBadges({ lineIds }) {
   )
 }
 
-const TrainMarker = memo(
-  function TrainMarker({ train, isSelected, onSelect, onDeselect }) {
+const ServiceMarker = memo(
+  function ServiceMarker({ service, isSelected, onSelect, onDeselect }) {
     const markerRef = useRef(null)
     const map = useMap()
 
@@ -412,15 +412,15 @@ const TrainMarker = memo(
     return (
       <Marker
         ref={markerRef}
-        position={[train.coordinate.lat, train.coordinate.lon]}
-        icon={createTrainIcon(train)}
-        pane="rail-trains"
+        position={[service.coordinate.lat, service.coordinate.lon]}
+        icon={createServiceIcon(service)}
+        pane="rail-services"
         eventHandlers={{
           click: event =>
             onSelect(
               {
-                kind: 'train',
-                id: train.trainId
+                kind: 'service',
+                id: service.serviceId
               },
               event,
               map
@@ -431,20 +431,20 @@ const TrainMarker = memo(
         {isSelected ? (
           <Popup>
             <PopupCard
-              title={train.lineName}
-              accentColor={colorForLine(train.lineId)}
-              kicker="Train"
+              title={service.lineName}
+              accentColor={colorForLine(service.lineId)}
+              kicker="Service"
             >
-              <PopupRow label="Current Location" value={currentLocationLabelFor(train)} />
-              <PopupRow label="Destination" value={destinationLabelFor(train)} />
-              {train.towards != null ? (
-                <PopupRow label="Towards" value={train.towards} />
+              <PopupRow label="Current Location" value={currentLocationLabelForService(service)} />
+              <PopupRow label="Destination" value={destinationLabelForService(service)} />
+              {service.towards != null ? (
+                <PopupRow label="Towards" value={service.towards} />
               ) : null}
-              {train.futureArrivals != null && train.futureArrivals.length > 0 ? (
+              {service.futureArrivals != null && service.futureArrivals.length > 0 ? (
                 <div className="map-popup-section">
                   <span className="map-popup-label">Arrivals</span>
                   <div className="map-popup-arrivals">
-                    {train.futureArrivals.map(arrival => (
+                    {service.futureArrivals.map(arrival => (
                       <div
                         className="map-popup-arrival-row"
                         key={`${arrival.stationId ?? arrival.stationName}:${arrival.expectedArrival}`}
@@ -464,7 +464,7 @@ const TrainMarker = memo(
       </Marker>
     )
   },
-  areTrainMarkerPropsEqual
+  areServiceMarkerPropsEqual
 )
 
 const StationMarker = memo(
@@ -513,7 +513,7 @@ const StationMarker = memo(
                     {station.arrivals.map(arrival => (
                       <div
                         className="map-popup-arrival-row"
-                        key={`${arrival.trainId}:${arrival.expectedArrival}`}
+                        key={`${arrival.serviceId}:${arrival.expectedArrival}`}
                       >
                         <span className="map-popup-arrival-service">
                           <span
@@ -656,13 +656,13 @@ function buildVisibleLinePaths(mapSnapshot, selectedLineId) {
     )
 }
 
-function buildVisibleTrains(mapSnapshot, selectedLineId) {
+function buildVisibleServices(mapSnapshot, selectedLineId) {
   if (mapSnapshot == null) {
     return []
   }
 
-  return mapSnapshot.trains
-    .filter(train => selectedLineId === 'all' || train.lineId === selectedLineId)
+  return mapSnapshot.services
+    .filter(service => selectedLineId === 'all' || service.lineId === selectedLineId)
 }
 
 function buildVisibleStations(mapSnapshot, selectedLineId) {
@@ -675,21 +675,21 @@ function buildVisibleStations(mapSnapshot, selectedLineId) {
     .sort((leftStation, rightStation) => leftStation.name.localeCompare(rightStation.name))
 }
 
-function overlappingFeaturesAtClick(map, containerPoint, plottedTrains, visibleStations) {
-  const trainMatches = plottedTrains
-    .filter(train =>
+function overlappingFeaturesAtClick(map, containerPoint, plottedServices, visibleStations) {
+  const serviceMatches = plottedServices
+    .filter(service =>
       withinHitRadius(
         containerPoint,
-        map.latLngToContainerPoint([train.coordinate.lat, train.coordinate.lon]),
-        trainHitRadiusPixels
+        map.latLngToContainerPoint([service.coordinate.lat, service.coordinate.lon]),
+        serviceHitRadiusPixels
       )
     )
-    .map(train => ({
-      kind: 'train',
-      id: train.trainId,
-      title: `${train.lineName} train`,
-      detail: destinationLabelFor(train),
-      accentColor: colorForLine(train.lineId)
+    .map(service => ({
+      kind: 'service',
+      id: service.serviceId,
+      title: `${service.lineName} service`,
+      detail: destinationLabelForService(service),
+      accentColor: colorForLine(service.lineId)
     }))
   const stationMatches = visibleStations
     .filter(station =>
@@ -707,7 +707,7 @@ function overlappingFeaturesAtClick(map, containerPoint, plottedTrains, visibleS
       accentColor: null
     }))
 
-  return [...trainMatches, ...stationMatches]
+  return [...serviceMatches, ...stationMatches]
 }
 
 function prioritizedOverlapFeatures(features, clickedFeature) {
@@ -721,7 +721,7 @@ function prioritizedOverlapFeatures(features, clickedFeature) {
     }
 
     if (leftFeature.kind !== rightFeature.kind) {
-      return leftFeature.kind === 'train' ? -1 : 1
+      return leftFeature.kind === 'service' ? -1 : 1
     }
 
     return leftFeature.title.localeCompare(rightFeature.title)
@@ -748,22 +748,22 @@ function areStaticMapLayersEqual(previousProps, nextProps) {
   )
 }
 
-function areTrainMarkerPropsEqual(previousProps, nextProps) {
-  const previousTrain = previousProps.train
-  const nextTrain = nextProps.train
+function areServiceMarkerPropsEqual(previousProps, nextProps) {
+  const previousService = previousProps.service
+  const nextService = nextProps.service
 
   return (
     previousProps.isSelected === nextProps.isSelected &&
-    previousTrain.trainId === nextTrain.trainId &&
-    previousTrain.lineId === nextTrain.lineId &&
-    previousTrain.lineName === nextTrain.lineName &&
-    previousTrain.currentLocation === nextTrain.currentLocation &&
-    previousTrain.destinationName === nextTrain.destinationName &&
-    previousTrain.towards === nextTrain.towards &&
-    previousTrain.coordinate?.lat === nextTrain.coordinate?.lat &&
-    previousTrain.coordinate?.lon === nextTrain.coordinate?.lon &&
-    previousTrain.headingDegrees === nextTrain.headingDegrees &&
-    futureArrivalsSignature(previousTrain.futureArrivals) === futureArrivalsSignature(nextTrain.futureArrivals)
+    previousService.serviceId === nextService.serviceId &&
+    previousService.lineId === nextService.lineId &&
+    previousService.lineName === nextService.lineName &&
+    previousService.currentLocation === nextService.currentLocation &&
+    previousService.destinationName === nextService.destinationName &&
+    previousService.towards === nextService.towards &&
+    previousService.coordinate?.lat === nextService.coordinate?.lat &&
+    previousService.coordinate?.lon === nextService.coordinate?.lon &&
+    previousService.headingDegrees === nextService.headingDegrees &&
+    futureArrivalsSignature(previousService.futureArrivals) === futureArrivalsSignature(nextService.futureArrivals)
   )
 }
 
@@ -825,12 +825,12 @@ function formatClockTime(value) {
   }).format(new Date(value))
 }
 
-function currentLocationLabelFor(train) {
-  return train.currentLocation
+function currentLocationLabelForService(service) {
+  return service.currentLocation
 }
 
-function destinationLabelFor(train) {
-  return train.destinationName ?? 'Destination unavailable'
+function destinationLabelForService(service) {
+  return service.destinationName ?? 'Destination unavailable'
 }
 
 function stationDetailLabelForPicker(station) {
@@ -866,7 +866,7 @@ function futureArrivalsSignature(futureArrivals) {
 
 function stationArrivalsSignature(arrivals) {
   return (arrivals ?? [])
-    .map(arrival => `${arrival.trainId}:${arrival.expectedArrival}`)
+    .map(arrival => `${arrival.serviceId}:${arrival.expectedArrival}`)
     .join('|')
 }
 
@@ -905,13 +905,13 @@ function rgbComponentsForHex(hexColor) {
   ]
 }
 
-function createTrainIcon(train) {
-  const lineColor = colorForLine(train.lineId)
-  const headingDegrees = roundedHeadingForIcon(train.headingDegrees)
-  const markerLabel = markerLabelForLine(train.lineId)
-  const markerTextColor = markerTextColorForLine(train.lineId)
+function createServiceIcon(service) {
+  const lineColor = colorForLine(service.lineId)
+  const headingDegrees = roundedHeadingForIcon(service.headingDegrees)
+  const markerLabel = markerLabelForLine(service.lineId)
+  const markerTextColor = markerTextColorForLine(service.lineId)
   const shapeMarkup =
-    train.headingDegrees == null
+    service.headingDegrees == null
       ? `
           <circle
             cx="22"
@@ -933,18 +933,18 @@ function createTrainIcon(train) {
             />
           </g>
         `
-  const cacheKey = iconCacheKeyForTrain(train.lineId, headingDegrees, train.headingDegrees == null)
-  const cachedIcon = trainIconCache.get(cacheKey)
+  const cacheKey = iconCacheKeyForService(service.lineId, headingDegrees, service.headingDegrees == null)
+  const cachedIcon = serviceIconCache.get(cacheKey)
 
   if (cachedIcon != null) {
     return cachedIcon
   }
 
   const icon = L.divIcon({
-    className: 'train-icon-shell',
+    className: 'service-icon-shell',
     html: `
-      <div class="train-marker">
-        <svg class="train-marker-shape" viewBox="0 0 44 44" aria-hidden="true">
+      <div class="service-marker">
+        <svg class="service-marker-shape" viewBox="0 0 44 44" aria-hidden="true">
           ${shapeMarkup}
           <text
             x="22"
@@ -966,7 +966,7 @@ function createTrainIcon(train) {
     popupAnchor: [0, -24]
   })
 
-  trainIconCache.set(cacheKey, icon)
+  serviceIconCache.set(cacheKey, icon)
   return icon
 }
 
@@ -1053,7 +1053,7 @@ function polarPoint(centerX, centerY, radius, angleInRadians) {
   }
 }
 
-function iconCacheKeyForTrain(lineId, headingDegrees, headingHidden) {
+function iconCacheKeyForService(lineId, headingDegrees, headingHidden) {
   return `${lineId}:${headingHidden ? 'hidden' : headingDegrees}`
 }
 

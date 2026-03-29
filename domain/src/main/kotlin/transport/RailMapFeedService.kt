@@ -27,12 +27,12 @@ interface RailMapFeedService {
 
 sealed interface RailMapFeedUpdate {
     data class SnapshotUpdated(val snapshot: RailMapSnapshot) : RailMapFeedUpdate
-    data class TrainPositionsUpdated(val trainPositions: RailMapTrainPositions) : RailMapFeedUpdate
+    data class ServicePositionsUpdated(val servicePositions: RailMapServicePositions) : RailMapFeedUpdate
     data class ErrorUpdated(val error: TransportError) : RailMapFeedUpdate
 }
 
 class RealRailMapFeedService(
-    private val railMapService: RailMapService,
+    private val railMapProvider: RailMapQuery,
     private val railMapMotionEngine: RailMapMotionEngine,
     private val clock: Clock,
     private val pollInterval: Duration,
@@ -93,7 +93,7 @@ class RealRailMapFeedService(
             if (lastAttempt == null || Duration.between(lastAttempt, now) >= pollInterval) {
                 lastRefreshAttemptAt.set(now)
 
-                when (val mapResult = railMapService.getRailMap(true)) {
+                when (val mapResult = railMapProvider.getRailMap(true)) {
                     is Success -> {
                         val observedSnapshot = railMapMotionEngine.observe(mapResult.value)
                         val cached = CachedRailMapSnapshot(observedSnapshot.generatedAt, observedSnapshot)
@@ -115,10 +115,10 @@ class RealRailMapFeedService(
             cachedSnapshot.get()?.let { cached ->
                 val currentTime = Instant.now(clock)
                 val animatedSnapshot = railMapMotionEngine.advance(cached.snapshot, currentTime)
-                if (animatedSnapshot.trains != cached.snapshot.trains) {
+                if (animatedSnapshot.services != cached.snapshot.services) {
                     updateFlow.tryEmit(
-                        RailMapFeedUpdate.TrainPositionsUpdated(
-                            cached.toTrainPositions(true, currentTime, animatedSnapshot)
+                        RailMapFeedUpdate.ServicePositionsUpdated(
+                            cached.toServicePositions(true, currentTime, animatedSnapshot)
                         )
                     )
                 }
@@ -159,21 +159,21 @@ data class CachedRailMapSnapshot(
             animatedSnapshot.stationsQueried,
             animatedSnapshot.stationsFailed,
             animatedSnapshot.partial,
-            animatedSnapshot.trainCount,
+            animatedSnapshot.serviceCount,
             animatedSnapshot.lines,
             animatedSnapshot.stations,
-            animatedSnapshot.trains
+            animatedSnapshot.services
         )
     }
 
-    fun toTrainPositions(
+    fun toServicePositions(
         cached: Boolean,
         currentTime: Instant,
         animatedSnapshot: RailMapSnapshot
-    ): RailMapTrainPositions {
+    ): RailMapServicePositions {
         val cacheAge = cacheAgeAt(currentTime, cached)
 
-        return RailMapTrainPositions(
+        return RailMapServicePositions(
             animatedSnapshot.source,
             animatedSnapshot.generatedAt,
             cached,
@@ -181,9 +181,9 @@ data class CachedRailMapSnapshot(
             animatedSnapshot.stationsQueried,
             animatedSnapshot.stationsFailed,
             animatedSnapshot.partial,
-            animatedSnapshot.trainCount,
+            animatedSnapshot.serviceCount,
             animatedSnapshot.stations,
-            animatedSnapshot.trains
+            animatedSnapshot.services
         )
     }
 

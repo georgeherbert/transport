@@ -29,10 +29,10 @@ class RealRailMapProjector(
                 snapshot.stationsQueried,
                 snapshot.stationsFailed,
                 snapshot.partial,
-                snapshot.trainCount,
+                snapshot.serviceCount,
                 smoothedLineMap.lines,
                 projectStations(snapshot, smoothedLineMap, projectedLines),
-                snapshot.trains.mapNotNull { train -> projectTrain(train, projectedLines) }
+                snapshot.services.mapNotNull { service -> projectTrain(service, projectedLines) }
             )
         }
 
@@ -87,17 +87,17 @@ class RealRailMapProjector(
             }
 
     private fun stationArrivalsByStationId(snapshot: LiveRailSnapshot) =
-        snapshot.trains
-            .flatMap { train ->
-                train.lineIds.firstOrNull()?.let { lineId ->
-                    train.lineNames.firstOrNull()?.let { lineName ->
-                        train.futureArrivals.mapNotNull { arrival ->
+        snapshot.services
+            .flatMap { service ->
+                service.lineIds.firstOrNull()?.let { lineId ->
+                    service.lineNames.firstOrNull()?.let { lineName ->
+                        service.futureArrivals.mapNotNull { arrival ->
                             arrival.stationId?.let { stationId ->
                                 stationId to StationArrival(
-                                    train.trainId,
+                                    service.serviceId,
                                     lineId,
                                     lineName,
-                                    train.destinationName,
+                                    service.destinationName,
                                     arrival.expectedArrival
                                 )
                             }
@@ -112,34 +112,34 @@ class RealRailMapProjector(
                         StationArrival::expectedArrival,
                         { arrival -> arrival.lineName.value },
                         { arrival -> arrival.destinationName?.value.orEmpty() },
-                        { arrival -> arrival.trainId.value }
+                        { arrival -> arrival.serviceId.value }
                     )
                 )
             }
 
     private fun projectTrain(
-        train: LiveRailTrain,
+        service: LiveRailService,
         projectedLines: Map<LineId, RailLineProjection>
     ) =
-        train.lineIds.firstOrNull()?.let { lineId ->
-            val lineName = train.lineNames.firstOrNull() ?: LineName(lineId.value)
-            val projection = projectedLines[lineId]?.projectNextStopAnchor(train)
+        service.lineIds.firstOrNull()?.let { lineId ->
+            val lineName = service.lineNames.firstOrNull() ?: LineName(lineId.value)
+            val projection = projectedLines[lineId]?.projectNextStopAnchor(service)
 
-            RailMapTrain(
-                train.trainId,
-                train.vehicleId,
+            RailMapService(
+                service.serviceId,
+                service.vehicleId,
                 lineId,
                 lineName,
-                train.direction,
-                train.destinationName,
-                train.towards,
-                train.currentLocation,
-                train.nextStop,
+                service.direction,
+                service.destinationName,
+                service.towards,
+                service.currentLocation,
+                service.nextStop,
                 projection?.coordinate,
                 projection?.heading,
-                train.expectedArrival,
-                train.observedAt,
-                train.futureArrivals
+                service.expectedArrival,
+                service.observedAt,
+                service.futureArrivals
             )
         }
 }

@@ -2,7 +2,7 @@ package transport
 
 interface ServiceResponseMapper {
     fun mapResponse(mapSnapshot: RailMapSnapshot): RailMapSnapshotJson
-    fun trainPositionsResponse(trainPositions: RailMapTrainPositions): RailMapTrainPositionsJson
+    fun servicePositionsResponse(servicePositions: RailMapServicePositions): RailMapServicePositionsJson
     fun errorResponse(error: TransportError): ApiErrorJson
 }
 
@@ -16,24 +16,24 @@ class ServiceResponseMapperHttp : ServiceResponseMapper {
             mapSnapshot.stationsQueried.value,
             mapSnapshot.stationsFailed.value,
             mapSnapshot.partial,
-            mapSnapshot.trainCount.value,
+            mapSnapshot.serviceCount.value,
             mapSnapshot.lines.map(::lineJson),
             mapSnapshot.stations.map(::mapStationJson),
-            mapSnapshot.trains.map(::mapTrainJson)
+            mapSnapshot.services.map(::mapServiceJson)
         )
 
-    override fun trainPositionsResponse(trainPositions: RailMapTrainPositions) =
-        RailMapTrainPositionsJson(
-            trainPositions.source.value,
-            trainPositions.generatedAt.toString(),
-            trainPositions.cached,
-            trainPositions.cacheAge.seconds,
-            trainPositions.stationsQueried.value,
-            trainPositions.stationsFailed.value,
-            trainPositions.partial,
-            trainPositions.trainCount.value,
-            trainPositions.stations.map(::mapStationJson),
-            trainPositions.trains.map(::mapTrainJson)
+    override fun servicePositionsResponse(servicePositions: RailMapServicePositions) =
+        RailMapServicePositionsJson(
+            servicePositions.source.value,
+            servicePositions.generatedAt.toString(),
+            servicePositions.cached,
+            servicePositions.cacheAge.seconds,
+            servicePositions.stationsQueried.value,
+            servicePositions.stationsFailed.value,
+            servicePositions.partial,
+            servicePositions.serviceCount.value,
+            servicePositions.stations.map(::mapStationJson),
+            servicePositions.services.map(::mapServiceJson)
         )
 
     override fun errorResponse(error: TransportError) =
@@ -64,21 +64,21 @@ class ServiceResponseMapperHttp : ServiceResponseMapper {
             }
         )
 
-    private fun mapTrainJson(train: RailMapTrain) =
-        RailMapTrainJson(
-            train.trainId.value,
-            train.vehicleId?.value,
-            train.lineId.value,
-            train.lineName.value,
-            train.direction?.value,
-            train.destinationName?.value,
-            train.towards?.value,
-            train.currentLocation.value,
-            train.coordinate?.let(::geoCoordinateJson),
-            train.heading?.value,
-            train.expectedArrival?.toString(),
-            train.observedAt?.toString(),
-            train.futureArrivals.map(::futureArrivalJson)
+    private fun mapServiceJson(service: RailMapService) =
+        RailMapServiceJson(
+            service.serviceId.value,
+            service.vehicleId?.value,
+            service.lineId.value,
+            service.lineName.value,
+            service.direction?.value,
+            service.destinationName?.value,
+            service.towards?.value,
+            service.currentLocation.value,
+            service.coordinate?.let(::geoCoordinateJson),
+            service.heading?.value,
+            service.expectedArrival?.toString(),
+            service.observedAt?.toString(),
+            service.futureArrivals.map(::futureArrivalJson)
         )
 
     private fun mapStationJson(station: MapStation) =
@@ -102,7 +102,7 @@ class ServiceResponseMapperHttp : ServiceResponseMapper {
 
     private fun stationArrivalJson(arrival: StationArrival) =
         StationArrivalJson(
-            arrival.trainId.value,
+            arrival.serviceId.value,
             arrival.lineId.value,
             arrival.lineName.value,
             arrival.destinationName?.value,

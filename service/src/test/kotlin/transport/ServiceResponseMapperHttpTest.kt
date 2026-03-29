@@ -24,7 +24,7 @@ class ServiceResponseMapperHttpTest {
                 StationQueryCount(1),
                 StationFailureCount(0),
                 false,
-                LiveTrainCount(1),
+                LiveServiceCount(1),
                 listOf(
                     RailLine(
                         LineId("victoria"),
@@ -48,7 +48,7 @@ class ServiceResponseMapperHttpTest {
                         listOf(LineId("victoria")),
                         listOf(
                             StationArrival(
-                                TrainId("victoria|257"),
+                                ServiceId("victoria|257"),
                                 LineId("victoria"),
                                 LineName("Victoria"),
                                 DestinationName("Walthamstow Central Underground Station"),
@@ -58,12 +58,12 @@ class ServiceResponseMapperHttpTest {
                     )
                 ),
                 listOf(
-                    RailMapTrain(
-                        TrainId("victoria|257"),
+                    RailMapService(
+                        ServiceId("victoria|257"),
                         VehicleId("257"),
                         LineId("victoria"),
                         LineName("Victoria"),
-                        TrainDirection("outbound"),
+                        ServiceDirection("outbound"),
                         DestinationName("Walthamstow Central Underground Station"),
                         TowardsDescription("Walthamstow Central"),
                         LocationDescription("Approaching Green Park"),
@@ -93,17 +93,17 @@ class ServiceResponseMapperHttpTest {
         expectThat(response.stations.first().name).isEqualTo("Green Park Underground Station")
         expectThat(response.stations.first().arrivals).hasSize(1)
         expectThat(response.stations.first().arrivals.first().lineId).isEqualTo("victoria")
-        expectThat(response.trains.first().lineId).isEqualTo("victoria")
-        expectThat(response.trains.first().coordinate).isNotNull().get { lat }.isEqualTo(51.506947)
-        expectThat(response.trains.first().headingDegrees).isEqualTo(42.0)
-        expectThat(response.trains.first().futureArrivals).hasSize(1)
-        expectThat(response.trains.first().futureArrivals.first().stationName).isEqualTo("Oxford Circus Underground Station")
+        expectThat(response.services.first().lineId).isEqualTo("victoria")
+        expectThat(response.services.first().coordinate).isNotNull().get { lat }.isEqualTo(51.506947)
+        expectThat(response.services.first().headingDegrees).isEqualTo(42.0)
+        expectThat(response.services.first().futureArrivals).hasSize(1)
+        expectThat(response.services.first().futureArrivals.first().stationName).isEqualTo("Oxford Circus Underground Station")
     }
 
     @Test
-    fun `trainPositionsResponse omits static map geometry`() {
-        val response = serviceResponseMapper.trainPositionsResponse(
-            RailMapTrainPositions(
+    fun `servicePositionsResponse omits static map geometry`() {
+        val response = serviceResponseMapper.servicePositionsResponse(
+            RailMapServicePositions(
                 transportSourceName,
                 Instant.parse("2026-03-22T00:49:20Z"),
                 true,
@@ -111,7 +111,7 @@ class ServiceResponseMapperHttpTest {
                 StationQueryCount(1),
                 StationFailureCount(0),
                 false,
-                LiveTrainCount(1),
+                LiveServiceCount(1),
                 listOf(
                     MapStation(
                         StationId("940GZZLUGPK"),
@@ -120,7 +120,7 @@ class ServiceResponseMapperHttpTest {
                         listOf(LineId("victoria")),
                         listOf(
                             StationArrival(
-                                TrainId("victoria|257"),
+                                ServiceId("victoria|257"),
                                 LineId("victoria"),
                                 LineName("Victoria"),
                                 DestinationName("Walthamstow Central Underground Station"),
@@ -130,12 +130,12 @@ class ServiceResponseMapperHttpTest {
                     )
                 ),
                 listOf(
-                    RailMapTrain(
-                        TrainId("victoria|257"),
+                    RailMapService(
+                        ServiceId("victoria|257"),
                         VehicleId("257"),
                         LineId("victoria"),
                         LineName("Victoria"),
-                        TrainDirection("outbound"),
+                        ServiceDirection("outbound"),
                         DestinationName("Walthamstow Central Underground Station"),
                         TowardsDescription("Walthamstow Central"),
                         LocationDescription("Approaching Green Park"),
@@ -163,9 +163,9 @@ class ServiceResponseMapperHttpTest {
         expectThat(response.cacheAgeSeconds).isEqualTo(15)
         expectThat(response.stations).hasSize(1)
         expectThat(response.stations.first().arrivals.first().lineName).isEqualTo("Victoria")
-        expectThat(response.trains).hasSize(1)
-        expectThat(response.trains.first().lineId).isEqualTo("victoria")
-        expectThat(response.trains.first().futureArrivals).hasSize(1)
+        expectThat(response.services).hasSize(1)
+        expectThat(response.services.first().lineId).isEqualTo("victoria")
+        expectThat(response.services.first().futureArrivals).hasSize(1)
     }
 
     @Test

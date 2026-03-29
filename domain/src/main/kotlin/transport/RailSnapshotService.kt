@@ -118,9 +118,9 @@ data class CachedLiveRailSnapshot(
             snapshot.stationsQueried,
             snapshot.stationsFailed,
             snapshot.partial,
-            snapshot.trainCount,
+            snapshot.serviceCount,
             snapshot.lines,
-            snapshot.trains
+            snapshot.services
         )
     }
 }

@@ -3,7 +3,7 @@ package transport
 import dev.forkhandles.result4k.Failure
 import dev.forkhandles.result4k.Success
 
-class StubRailMapService : RailMapService {
+class StubRailMapQuery : RailMapQuery {
     private var defaultResult: TransportResult<RailMapSnapshot> =
         Failure(TransportError.SnapshotUnavailable("No canned rail map snapshot."))
     private val resultsByRefresh = mutableMapOf<Boolean, TransportResult<RailMapSnapshot>>()

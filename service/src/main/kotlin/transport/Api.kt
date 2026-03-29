@@ -98,10 +98,10 @@ private suspend fun io.ktor.server.application.ApplicationCall.respondMapStream(
                     )
                     flush()
                 }
-                is RailMapFeedUpdate.TrainPositionsUpdated -> {
+                is RailMapFeedUpdate.ServicePositionsUpdated -> {
                     writeSseEvent(
-                        "train_positions",
-                        transportJson.encodeToString(serviceResponseMapper.trainPositionsResponse(update.trainPositions))
+                        "service_positions",
+                        transportJson.encodeToString(serviceResponseMapper.servicePositionsResponse(update.servicePositions))
                     )
                     flush()
                 }

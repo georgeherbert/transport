@@ -112,7 +112,7 @@ class ApiTest {
 
             expectThat(response.status).isEqualTo(HttpStatusCode.OK)
             expectThat(payload["cached"]?.jsonPrimitive?.content).isEqualTo("true")
-            expectThat(payload["trainCount"]?.jsonPrimitive?.int).isEqualTo(1)
+            expectThat(payload["serviceCount"]?.jsonPrimitive?.int).isEqualTo(1)
             expectThat(body).contains("\"stations\"")
             expectThat(body).contains("\"futureArrivals\"")
         }
@@ -142,7 +142,7 @@ class ApiTest {
 
                 expectThat(response.status).isEqualTo(HttpStatusCode.OK)
                 expectThat(eventLines.joinToString("\n")).contains("event: snapshot")
-                expectThat(payload["trainCount"]?.jsonPrimitive?.int).isEqualTo(1)
+                expectThat(payload["serviceCount"]?.jsonPrimitive?.int).isEqualTo(1)
             }
         }
     }
@@ -182,7 +182,7 @@ class ApiTest {
             railMapFeedService.returns(sampleMap(true))
             railMapFeedService.emitsUpdates(
                 flowOf(
-                    RailMapFeedUpdate.TrainPositionsUpdated(sampleTrainPositions())
+                    RailMapFeedUpdate.ServicePositionsUpdated(sampleServicePositions())
                 )
             )
 
@@ -205,11 +205,11 @@ class ApiTest {
                     .jsonObject
 
                 expectThat(response.status).isEqualTo(HttpStatusCode.OK)
-                expectThat(eventLines.joinToString("\n")).contains("event: train_positions")
-                expectThat(payload["trainCount"]?.jsonPrimitive?.int).isEqualTo(1)
+                expectThat(eventLines.joinToString("\n")).contains("event: service_positions")
+                expectThat(payload["serviceCount"]?.jsonPrimitive?.int).isEqualTo(1)
                 expectThat(payload.containsKey("lines")).isEqualTo(false)
                 expectThat(payload["stations"]?.jsonArray?.first()?.jsonObject?.containsKey("arrivals")).isEqualTo(true)
-                expectThat(payload["trains"]?.jsonArray?.first()?.jsonObject?.containsKey("futureArrivals")).isEqualTo(true)
+                expectThat(payload["services"]?.jsonArray?.first()?.jsonObject?.containsKey("futureArrivals")).isEqualTo(true)
             }
         }
     }
@@ -252,7 +252,7 @@ class ApiTest {
             StationQueryCount(1),
             StationFailureCount(0),
             false,
-            LiveTrainCount(1),
+            LiveServiceCount(1),
             listOf(
                 RailLine(
                     LineId("victoria"),
@@ -276,7 +276,7 @@ class ApiTest {
                     listOf(LineId("victoria")),
                     listOf(
                         StationArrival(
-                            TrainId("victoria|257"),
+                            ServiceId("victoria|257"),
                             LineId("victoria"),
                             LineName("Victoria"),
                             DestinationName("Walthamstow Central Underground Station"),
@@ -286,12 +286,12 @@ class ApiTest {
                 )
             ),
             listOf(
-                RailMapTrain(
-                    TrainId("victoria|257"),
+                RailMapService(
+                    ServiceId("victoria|257"),
                     VehicleId("257"),
                     LineId("victoria"),
                     LineName("Victoria"),
-                    TrainDirection("outbound"),
+                    ServiceDirection("outbound"),
                     DestinationName("Walthamstow Central Underground Station"),
                     TowardsDescription("Walthamstow Central"),
                     LocationDescription("Approaching Green Park"),
@@ -315,8 +315,8 @@ class ApiTest {
             )
         )
 
-    private fun sampleTrainPositions() =
-        RailMapTrainPositions(
+    private fun sampleServicePositions() =
+        RailMapServicePositions(
             transportSourceName,
             Instant.parse("2026-03-22T00:49:20Z"),
             true,
@@ -324,8 +324,8 @@ class ApiTest {
             StationQueryCount(1),
             StationFailureCount(0),
             false,
-            LiveTrainCount(1),
+            LiveServiceCount(1),
             sampleMap(true).stations,
-            sampleMap(true).trains
+            sampleMap(true).services
         )
 }

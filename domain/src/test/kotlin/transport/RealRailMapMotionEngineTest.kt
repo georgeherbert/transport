@@ -34,12 +34,12 @@ class RealRailMapMotionEngineTest {
 
         val animated = motionEngine.advance(secondSnapshot, Instant.parse("2026-03-22T20:51:30Z"))
 
-        expectThat(animated.trains.single().coordinate).isNotNull().get { lon }.isGreaterThan(-0.251)
-        expectThat(animated.trains.single().coordinate).isNotNull().get { lon }.isLessThan(-0.249)
+        expectThat(animated.services.single().coordinate).isNotNull().get { lon }.isGreaterThan(-0.251)
+        expectThat(animated.services.single().coordinate).isNotNull().get { lon }.isLessThan(-0.249)
     }
 
     @Test
-    fun `advance leaves trains anchored at the next stop until a departure is observed`() {
+    fun `advance leaves services anchored at the next stop until a departure is observed`() {
         val snapshot = snapshotFor(
             Instant.parse("2026-03-22T20:50:00Z"),
             "B",
@@ -49,7 +49,7 @@ class RealRailMapMotionEngineTest {
         val observed = motionEngine.observe(snapshot)
         val animated = motionEngine.advance(observed, Instant.parse("2026-03-22T20:50:30Z"))
 
-        expectThat(animated.trains.single().coordinate).isEqualTo(GeoCoordinate(51.0, -0.3))
+        expectThat(animated.services.single().coordinate).isEqualTo(GeoCoordinate(51.0, -0.3))
     }
 
     @Test
@@ -70,11 +70,11 @@ class RealRailMapMotionEngineTest {
 
         val animated = motionEngine.advance(secondSnapshot, Instant.parse("2026-03-22T20:53:00Z"))
 
-        expectThat(animated.trains.single().coordinate).isEqualTo(GeoCoordinate(51.0, -0.2))
+        expectThat(animated.services.single().coordinate).isEqualTo(GeoCoordinate(51.0, -0.2))
     }
 
     @Test
-    fun `advance leaves trains anchored at the next stop when the observed stop jump is not adjacent`() {
+    fun `advance leaves services anchored at the next stop when the observed stop jump is not adjacent`() {
         val firstSnapshot = snapshotFor(
             Instant.parse("2026-03-22T20:50:00Z"),
             "B",
@@ -90,7 +90,7 @@ class RealRailMapMotionEngineTest {
         val observed = motionEngine.observe(secondSnapshot)
         val animated = motionEngine.advance(observed, Instant.parse("2026-03-22T20:51:30Z"))
 
-        expectThat(animated.trains.single().coordinate).isEqualTo(GeoCoordinate(51.0, -0.1))
+        expectThat(animated.services.single().coordinate).isEqualTo(GeoCoordinate(51.0, -0.1))
     }
 
     private fun snapshotFor(
@@ -106,7 +106,7 @@ class RealRailMapMotionEngineTest {
             StationQueryCount(1),
             StationFailureCount(0),
             false,
-            LiveTrainCount(1),
+            LiveServiceCount(1),
             listOf(sampleLine()),
             listOf(
                 mapStation("B", -0.3),
@@ -134,7 +134,7 @@ class RealRailMapMotionEngineTest {
             ),
             listOf(
                 RailLineSequence(
-                    TrainDirection("outbound"),
+                    ServiceDirection("outbound"),
                     listOf(
                         stationReference("A", -0.4),
                         stationReference("B", -0.3),
@@ -162,12 +162,12 @@ class RealRailMapMotionEngineTest {
         nextStopId: String,
         expectedArrival: Instant
     ) =
-        RailMapTrain(
-            TrainId("victoria|train-1"),
+        RailMapService(
+            ServiceId("victoria|train-1"),
             VehicleId("train-1"),
             LineId("victoria"),
             LineName("Victoria"),
-            TrainDirection("outbound"),
+            ServiceDirection("outbound"),
             DestinationName("D Underground Station"),
             TowardsDescription("D"),
             LocationDescription("Structured next stop $nextStopId"),

@@ -2,19 +2,19 @@ package transport
 
 class StubServiceResponseMapper : ServiceResponseMapper {
     private var mapResponseValue: RailMapSnapshotJson? = null
-    private var trainPositionsResponseValue: RailMapTrainPositionsJson? = null
+    private var servicePositionsResponseValue: RailMapServicePositionsJson? = null
     private val errorResponses = mutableMapOf<String, ApiErrorJson>()
 
     val mapRequests = mutableListOf<RailMapSnapshot>()
-    val trainPositionsRequests = mutableListOf<RailMapTrainPositions>()
+    val servicePositionsRequests = mutableListOf<RailMapServicePositions>()
     val errorRequests = mutableListOf<TransportError>()
 
     fun mapsTo(response: RailMapSnapshotJson) {
         mapResponseValue = response
     }
 
-    fun mapsTrainPositionsTo(response: RailMapTrainPositionsJson) {
-        trainPositionsResponseValue = response
+    fun mapsServicePositionsTo(response: RailMapServicePositionsJson) {
+        servicePositionsResponseValue = response
     }
 
     fun mapsError(
@@ -30,10 +30,10 @@ class StubServiceResponseMapper : ServiceResponseMapper {
             mapResponseValue ?: defaultMapResponse(mapSnapshot)
         }
 
-    override fun trainPositionsResponse(trainPositions: RailMapTrainPositions) =
+    override fun servicePositionsResponse(servicePositions: RailMapServicePositions) =
         run {
-            trainPositionsRequests += trainPositions
-            trainPositionsResponseValue ?: defaultTrainPositionsResponse(trainPositions)
+            servicePositionsRequests += servicePositions
+            servicePositionsResponseValue ?: defaultServicePositionsResponse(servicePositions)
         }
 
     override fun errorResponse(error: TransportError) =
@@ -51,7 +51,7 @@ class StubServiceResponseMapper : ServiceResponseMapper {
             mapSnapshot.stationsQueried.value,
             mapSnapshot.stationsFailed.value,
             mapSnapshot.partial,
-            mapSnapshot.trainCount.value,
+            mapSnapshot.serviceCount.value,
             mapSnapshot.lines.map { line ->
                 RailLineJson(
                     line.id.value,
@@ -74,20 +74,20 @@ class StubServiceResponseMapper : ServiceResponseMapper {
                     station.arrivals.map(::stationArrivalJson)
                 )
             },
-            mapSnapshot.trains.map(::trainJson)
+            mapSnapshot.services.map(::serviceJson)
         )
 
-    private fun defaultTrainPositionsResponse(trainPositions: RailMapTrainPositions) =
-        RailMapTrainPositionsJson(
-            trainPositions.source.value,
-            trainPositions.generatedAt.toString(),
-            trainPositions.cached,
-            trainPositions.cacheAge.seconds,
-            trainPositions.stationsQueried.value,
-            trainPositions.stationsFailed.value,
-            trainPositions.partial,
-            trainPositions.trainCount.value,
-            trainPositions.stations.map { station ->
+    private fun defaultServicePositionsResponse(servicePositions: RailMapServicePositions) =
+        RailMapServicePositionsJson(
+            servicePositions.source.value,
+            servicePositions.generatedAt.toString(),
+            servicePositions.cached,
+            servicePositions.cacheAge.seconds,
+            servicePositions.stationsQueried.value,
+            servicePositions.stationsFailed.value,
+            servicePositions.partial,
+            servicePositions.serviceCount.value,
+            servicePositions.stations.map { station ->
                 MapStationJson(
                     station.id.value,
                     station.name.value,
@@ -96,26 +96,26 @@ class StubServiceResponseMapper : ServiceResponseMapper {
                     station.arrivals.map(::stationArrivalJson)
                 )
             },
-            trainPositions.trains.map(::trainJson)
+            servicePositions.services.map(::serviceJson)
         )
 
-    private fun trainJson(train: RailMapTrain) =
-        RailMapTrainJson(
-            train.trainId.value,
-            train.vehicleId?.value,
-            train.lineId.value,
-            train.lineName.value,
-            train.direction?.value,
-            train.destinationName?.value,
-            train.towards?.value,
-            train.currentLocation.value,
-            train.coordinate?.let { coordinate ->
+    private fun serviceJson(service: RailMapService) =
+        RailMapServiceJson(
+            service.serviceId.value,
+            service.vehicleId?.value,
+            service.lineId.value,
+            service.lineName.value,
+            service.direction?.value,
+            service.destinationName?.value,
+            service.towards?.value,
+            service.currentLocation.value,
+            service.coordinate?.let { coordinate ->
                 GeoCoordinateJson(coordinate.lat, coordinate.lon)
             },
-            train.heading?.value,
-            train.expectedArrival?.toString(),
-            train.observedAt?.toString(),
-            train.futureArrivals.map(::futureArrivalJson)
+            service.heading?.value,
+            service.expectedArrival?.toString(),
+            service.observedAt?.toString(),
+            service.futureArrivals.map(::futureArrivalJson)
         )
 
     private fun errorCode(error: TransportError) =
@@ -145,7 +145,7 @@ class StubServiceResponseMapper : ServiceResponseMapper {
 
     private fun stationArrivalJson(arrival: StationArrival) =
         StationArrivalJson(
-            arrival.trainId.value,
+            arrival.serviceId.value,
             arrival.lineId.value,
             arrival.lineName.value,
             arrival.destinationName?.value,

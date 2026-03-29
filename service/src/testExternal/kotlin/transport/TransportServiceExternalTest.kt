@@ -40,13 +40,13 @@ class TransportServiceExternalTest {
     }
 
     @Test
-    fun `live snapshot returns some live trains`() {
+    fun `live snapshot returns some live services`() {
         runBlocking {
             val result = snapshotService.getLiveSnapshot(true)
 
             expectThat(result)
                 .isSuccess()
-                .get { trains.size }
+                .get { services.size }
                 .isGreaterThan(0)
         }
     }

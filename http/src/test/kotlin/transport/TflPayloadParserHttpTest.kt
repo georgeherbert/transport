@@ -95,7 +95,7 @@ class TflPayloadParserHttpTest {
         expectThat(result).isSuccess().get { lineId }.isEqualTo(LineId("victoria"))
         expectThat(result).isSuccess().get { paths }.hasSize(1)
         expectThat(result).isSuccess().get { sequences }.hasSize(1)
-        expectThat(result).isSuccess().get { sequences.first().direction }.isEqualTo(TrainDirection("outbound"))
+        expectThat(result).isSuccess().get { sequences.first().direction }.isEqualTo(ServiceDirection("outbound"))
         expectThat(result).isSuccess().get { paths.first().coordinates.first() }.isEqualTo(GeoCoordinate(51.582965, -0.019885))
     }
 

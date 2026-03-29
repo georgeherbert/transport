@@ -4,15 +4,15 @@ class StubRailLineProjection(
     override val line: RailLine
 ) : RailLineProjection {
     private var defaultStationProjection: GeoCoordinate? = null
-    private var defaultBetweenStationsProjection: TrainMapProjection? = null
-    private var defaultNextStopAnchorProjection: TrainMapProjection? = null
+    private var defaultBetweenStationsProjection: ServiceMapProjection? = null
+    private var defaultNextStopAnchorProjection: ServiceMapProjection? = null
     private val stationProjections = mutableMapOf<GeoCoordinate, GeoCoordinate?>()
-    private val betweenStationProjections = mutableMapOf<SegmentProgressKey, TrainMapProjection?>()
-    private val nextStopAnchorProjections = mutableMapOf<TrainId, TrainMapProjection?>()
+    private val betweenStationProjections = mutableMapOf<SegmentProgressKey, ServiceMapProjection?>()
+    private val nextStopAnchorProjections = mutableMapOf<ServiceId, ServiceMapProjection?>()
 
     val stationRequests = mutableListOf<GeoCoordinate>()
     val betweenStationRequests = mutableListOf<BetweenStationsRequest>()
-    val nextStopAnchorRequests = mutableListOf<LiveRailTrain>()
+    val nextStopAnchorRequests = mutableListOf<LiveRailService>()
 
     fun projectsStationAs(projectedCoordinate: GeoCoordinate?) {
         defaultStationProjection = projectedCoordinate
@@ -25,7 +25,7 @@ class StubRailLineProjection(
         stationProjections[stationCoordinate] = projectedCoordinate
     }
 
-    fun projectsBetweenStationsAs(projection: TrainMapProjection?) {
+    fun projectsBetweenStationsAs(projection: ServiceMapProjection?) {
         defaultBetweenStationsProjection = projection
     }
 
@@ -33,20 +33,20 @@ class StubRailLineProjection(
         fromStation: StationReference,
         toStation: StationReference,
         progress: Double,
-        projection: TrainMapProjection?
+        projection: ServiceMapProjection?
     ) {
         betweenStationProjections[SegmentProgressKey(fromStation.id, toStation.id, progress)] = projection
     }
 
-    fun projectsNextStopAnchorAs(projection: TrainMapProjection?) {
+    fun projectsNextStopAnchorAs(projection: ServiceMapProjection?) {
         defaultNextStopAnchorProjection = projection
     }
 
     fun projectsNextStopAnchor(
-        trainId: TrainId,
-        projection: TrainMapProjection?
+        serviceId: ServiceId,
+        projection: ServiceMapProjection?
     ) {
-        nextStopAnchorProjections[trainId] = projection
+        nextStopAnchorProjections[serviceId] = projection
     }
 
     override fun projectStation(stationCoordinate: GeoCoordinate) =
@@ -75,11 +75,11 @@ class StubRailLineProjection(
             }
         }
 
-    override fun projectNextStopAnchor(train: LiveRailTrain) =
+    override fun projectNextStopAnchor(service: LiveRailService) =
         run {
-            nextStopAnchorRequests += train
-            if (nextStopAnchorProjections.containsKey(train.trainId)) {
-                nextStopAnchorProjections[train.trainId]
+            nextStopAnchorRequests += service
+            if (nextStopAnchorProjections.containsKey(service.serviceId)) {
+                nextStopAnchorProjections[service.serviceId]
             } else {
                 defaultNextStopAnchorProjection
             }

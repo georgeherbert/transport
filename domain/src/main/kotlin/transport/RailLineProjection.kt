@@ -20,9 +20,9 @@ interface RailLineProjection {
         fromStation: StationReference,
         toStation: StationReference,
         progress: Double
-    ): TrainMapProjection?
+    ): ServiceMapProjection?
 
-    fun projectNextStopAnchor(train: LiveRailTrain): TrainMapProjection?
+    fun projectNextStopAnchor(service: LiveRailService): ServiceMapProjection?
 }
 
 interface RailLinePathProjection {
@@ -70,16 +70,16 @@ class RealRailLineProjection(
         findBetweenStationsProjection(fromStation, toStation)
             ?.toTrainMapProjection(progress.coerceIn(0.0, 1.0))
 
-    override fun projectNextStopAnchor(train: LiveRailTrain): TrainMapProjection? {
-        val nextStop = train.nextStop
+    override fun projectNextStopAnchor(service: LiveRailService): ServiceMapProjection? {
+        val nextStop = service.nextStop
         val coordinate = nextStop?.let { stop -> projectStation(stop.coordinate) }
 
         return if (nextStop == null || coordinate == null) {
             null
         } else {
-            TrainMapProjection(
+            ServiceMapProjection(
                 coordinate,
-                stationAnchorHeading(train.direction, nextStop)
+                stationAnchorHeading(service.direction, nextStop)
             )
         }
     }
@@ -95,7 +95,7 @@ class RealRailLineProjection(
             .minByOrNull(BetweenStationsProjection::distanceSquared)
 
     private fun stationAnchorHeading(
-        direction: TrainDirection?,
+        direction: ServiceDirection?,
         nextStop: StationReference
     ) =
         matchingSequences(direction)
@@ -121,7 +121,7 @@ class RealRailLineProjection(
                 )
             }
 
-    private fun matchingSequences(direction: TrainDirection?) =
+    private fun matchingSequences(direction: ServiceDirection?) =
         if (line.sequences.isEmpty() || direction == null) {
             emptyList()
         } else {
@@ -394,7 +394,7 @@ data class StationMovementProjection(
     val distanceSquared: Double
 )
 
-data class TrainMapProjection(
+data class ServiceMapProjection(
     val coordinate: GeoCoordinate,
     val heading: HeadingDegrees?
 )
@@ -406,7 +406,7 @@ private data class ProjectionPair(
     val travelDistance: Double
 )
 
-private fun BetweenStationsProjection.toTrainMapProjection(progress: Double): TrainMapProjection? =
+private fun BetweenStationsProjection.toTrainMapProjection(progress: Double): ServiceMapProjection? =
     (fromProjection.distanceAlongPath +
         ((toProjection.distanceAlongPath - fromProjection.distanceAlongPath) * progress.coerceIn(0.0, 1.0)))
         .let { progressDistance ->
@@ -417,7 +417,7 @@ private fun BetweenStationsProjection.toTrainMapProjection(progress: Double): Tr
                     progress
                 )
 
-                TrainMapProjection(coordinate, heading)
+                ServiceMapProjection(coordinate, heading)
             }
         }
 

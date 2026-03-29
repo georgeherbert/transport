@@ -175,7 +175,7 @@ body {
   min-height: 76vh;
 }
 
-.train-icon-shell {
+.service-icon-shell {
   background: transparent;
   border: 0;
   transition: transform 220ms linear;
@@ -187,7 +187,7 @@ body {
   border: 0;
 }
 
-.train-marker {
+.service-marker {
   width: 44px;
   height: 44px;
 }
@@ -197,7 +197,7 @@ body {
   height: 22px;
 }
 
-.train-marker-shape {
+.service-marker-shape {
   display: block;
   width: 44px;
   height: 44px;
@@ -397,7 +397,7 @@ body {
   border: 2px solid #bcccdc;
 }
 
-.map-popup-option-icon--train {
+.map-popup-option-icon--service {
   border-color: var(--accent-color);
   background: var(--accent-color);
 }

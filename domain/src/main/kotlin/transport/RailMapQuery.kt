@@ -3,15 +3,15 @@ package transport
 import dev.forkhandles.result4k.flatMap
 import dev.forkhandles.result4k.map
 
-interface RailMapService {
+interface RailMapQuery {
     suspend fun getRailMap(forceRefresh: Boolean): TransportResult<RailMapSnapshot>
 }
 
-class RealRailMapService(
+class RealRailMapQuery(
     private val railSnapshotService: RailSnapshotService,
     private val railLineMapService: RailLineMapService,
     private val railMapProjector: RailMapProjector
-) : RailMapService {
+) : RailMapQuery {
     override suspend fun getRailMap(forceRefresh: Boolean) =
         railSnapshotService.getLiveSnapshot(forceRefresh)
             .flatMap { snapshot ->

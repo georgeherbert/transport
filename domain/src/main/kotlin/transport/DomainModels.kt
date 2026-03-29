@@ -13,9 +13,9 @@ data class LiveRailSnapshot(
     val stationsQueried: StationQueryCount,
     val stationsFailed: StationFailureCount,
     val partial: Boolean,
-    val trainCount: LiveTrainCount,
+    val serviceCount: LiveServiceCount,
     val lines: List<LineId>,
-    val trains: List<LiveRailTrain>
+    val services: List<LiveRailService>
 )
 
 data class RailMapSnapshot(
@@ -26,13 +26,13 @@ data class RailMapSnapshot(
     val stationsQueried: StationQueryCount,
     val stationsFailed: StationFailureCount,
     val partial: Boolean,
-    val trainCount: LiveTrainCount,
+    val serviceCount: LiveServiceCount,
     val lines: List<RailLine>,
     val stations: List<MapStation>,
-    val trains: List<RailMapTrain>
+    val services: List<RailMapService>
 )
 
-data class RailMapTrainPositions(
+data class RailMapServicePositions(
     val source: SourceName,
     val generatedAt: Instant,
     val cached: Boolean,
@@ -40,9 +40,9 @@ data class RailMapTrainPositions(
     val stationsQueried: StationQueryCount,
     val stationsFailed: StationFailureCount,
     val partial: Boolean,
-    val trainCount: LiveTrainCount,
+    val serviceCount: LiveServiceCount,
     val stations: List<MapStation>,
-    val trains: List<RailMapTrain>
+    val services: List<RailMapService>
 )
 
 data class RailLineMap(
@@ -61,7 +61,7 @@ data class RailLinePath(
 )
 
 data class RailLineSequence(
-    val direction: TrainDirection,
+    val direction: ServiceDirection,
     val stations: List<StationReference>
 )
 
@@ -74,19 +74,19 @@ data class MapStation(
 )
 
 data class StationArrival(
-    val trainId: TrainId,
+    val serviceId: ServiceId,
     val lineId: LineId,
     val lineName: LineName,
     val destinationName: DestinationName?,
     val expectedArrival: Instant
 )
 
-data class RailMapTrain(
-    val trainId: TrainId,
+data class RailMapService(
+    val serviceId: ServiceId,
     val vehicleId: VehicleId?,
     val lineId: LineId,
     val lineName: LineName,
-    val direction: TrainDirection?,
+    val direction: ServiceDirection?,
     val destinationName: DestinationName?,
     val towards: TowardsDescription?,
     val currentLocation: LocationDescription,
@@ -98,12 +98,12 @@ data class RailMapTrain(
     val futureArrivals: List<FutureStationArrival>
 )
 
-data class LiveRailTrain(
-    val trainId: TrainId,
+data class LiveRailService(
+    val serviceId: ServiceId,
     val vehicleId: VehicleId?,
     val lineIds: List<LineId>,
     val lineNames: List<LineName>,
-    val direction: TrainDirection?,
+    val direction: ServiceDirection?,
     val destinationName: DestinationName?,
     val towards: TowardsDescription?,
     val currentLocation: LocationDescription,
@@ -157,7 +157,7 @@ data class RailPredictionRecord(
     val stationName: StationName?,
     val lineId: LineId?,
     val lineName: LineName?,
-    val direction: TrainDirection?,
+    val direction: ServiceDirection?,
     val destinationName: DestinationName?,
     val observedAt: Instant?,
     val currentLocation: LocationDescription?,
@@ -183,7 +183,7 @@ data class RailLinePathRecord(
 )
 
 data class RailLineSequenceRecord(
-    val direction: TrainDirection,
+    val direction: ServiceDirection,
     val stations: List<StationReference>
 )
 
