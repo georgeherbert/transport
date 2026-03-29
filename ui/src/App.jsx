@@ -43,6 +43,8 @@ const serviceIconCache = new Map()
 const stationIconCache = new Map()
 const serviceHitRadiusPixels = 18
 const stationHitRadiusPixels = 10
+const servicePopupAnchorPixels = -18
+const featurePickerPopupOffset = [0, -12]
 
 function App() {
   const [mapSnapshot, setMapSnapshot] = useState(null)
@@ -663,6 +665,7 @@ const OverlapFeaturePicker = memo(
   function OverlapFeaturePicker({ featurePicker, onChoose, onDismiss }) {
     return (
       <Popup
+        offset={featurePickerPopupOffset}
         position={[featurePicker.lat, featurePicker.lon]}
         eventHandlers={{
           remove: onDismiss
@@ -1039,7 +1042,7 @@ function createServiceIcon(service) {
     `,
     iconSize: [44, 44],
     iconAnchor: [22, 22],
-    popupAnchor: [0, -24]
+    popupAnchor: [0, servicePopupAnchorPixels]
   })
 
   serviceIconCache.set(cacheKey, icon)
