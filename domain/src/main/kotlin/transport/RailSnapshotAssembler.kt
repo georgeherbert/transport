@@ -91,10 +91,12 @@ class RealRailSnapshotAssembler(
             prediction.modeName in supportedRailModes
 
     private fun serviceIdentityKey(prediction: RailPredictionRecord): String =
-        prediction.vehicleId.value
+        prediction.lineId?.let { lineId ->
+            "${lineId.value}:${prediction.vehicleId.value}"
+        } ?: prediction.vehicleId.value
 
     private fun serviceIdFor(prediction: RailPredictionRecord): ServiceId =
-        ServiceId(prediction.vehicleId.value)
+        ServiceId(serviceIdentityKey(prediction))
 
     private fun futureArrivals(predictions: List<RailPredictionRecord>) =
         predictions

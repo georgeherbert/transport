@@ -67,7 +67,7 @@ class RealRailSnapshotAssemblerTest {
         )
 
         expectThat(snapshot.services).hasSize(1)
-        expectThat(snapshot.services.first().serviceId).isEqualTo(ServiceId("257"))
+        expectThat(snapshot.services.first().serviceId).isEqualTo(ServiceId("victoria:257"))
         expectThat(snapshot.services.first().location.type).isEqualTo(LocationType.STATION_BOARD)
         expectThat(snapshot.services.first().nextStop!!.id).isEqualTo(StationId("940GZZLUWSM"))
         expectThat(snapshot.services.first().sourcePredictions).isEqualTo(PredictionCount(2))
@@ -77,7 +77,7 @@ class RealRailSnapshotAssemblerTest {
     }
 
     @Test
-    fun `assemble groups vehicle ids across different lines and keeps the earliest line first`() {
+    fun `assemble separates tube predictions that share a vehicle id across different lines`() {
         val predictions = listOf(
             RailPredictionRecord(
                 VehicleId("175"),
@@ -117,12 +117,61 @@ class RealRailSnapshotAssemblerTest {
             StationFailureCount(0)
         )
 
-        expectThat(snapshot.services).hasSize(1)
-        expectThat(snapshot.services.first().serviceId).isEqualTo(ServiceId("175"))
-        expectThat(snapshot.services.first().lineIds).isEqualTo(
+        expectThat(snapshot.services).hasSize(2)
+        expectThat(snapshot.services.map(LiveRailService::serviceId)).isEqualTo(
             listOf(
-                LineId("metropolitan"),
-                LineId("hammersmith-city")
+                ServiceId("hammersmith-city:175"),
+                ServiceId("metropolitan:175")
+            )
+        )
+    }
+
+    @Test
+    fun `assemble separates non tube predictions that share a vehicle id across different lines`() {
+        val predictions = listOf(
+            RailPredictionRecord(
+                VehicleId("202603298053838"),
+                null,
+                StationName("Clapham Junction Rail Station"),
+                LineId("windrush"),
+                LineName("Windrush"),
+                null,
+                DestinationName("Highbury & Islington Rail Station"),
+                Instant.parse("2026-03-22T00:49:20Z"),
+                LocationDescription("Clapham Junction Rail Station"),
+                null,
+                Instant.parse("2026-03-22T00:51:31Z"),
+                TransportModeName("overground")
+            ),
+            RailPredictionRecord(
+                VehicleId("202603298053838"),
+                null,
+                StationName("Dalston Junction Rail Station"),
+                LineId("mildmay"),
+                LineName("Mildmay"),
+                null,
+                DestinationName("Stratford (London) Rail Station"),
+                Instant.parse("2026-03-22T00:49:20Z"),
+                LocationDescription("Dalston Junction Rail Station"),
+                null,
+                Instant.parse("2026-03-22T00:51:32Z"),
+                TransportModeName("overground")
+            )
+        )
+
+        val snapshot = assembler.assemble(
+            railNetwork,
+            predictions,
+            Instant.parse("2026-03-22T00:49:20Z"),
+            StationQueryCount(1),
+            StationFailureCount(0)
+        )
+
+        expectThat(snapshot.services).hasSize(2)
+        expectThat(snapshot.services.map(LiveRailService::serviceId)).isEqualTo(
+            listOf(
+                ServiceId("mildmay:202603298053838"),
+                ServiceId("windrush:202603298053838")
             )
         )
     }
