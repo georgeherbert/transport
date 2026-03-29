@@ -1,7 +1,3 @@
-import org.gradle.api.tasks.Delete
-import org.gradle.api.tasks.Exec
-import org.gradle.api.tasks.testing.Test
-
 plugins {
     kotlin("jvm")
     application
@@ -66,7 +62,6 @@ application {
 
 val installUiDependencies = tasks.register<Exec>("installUiDependencies") {
     workingDir = uiDirectory.asFile
-    environment("PATH", System.getenv("PATH").orEmpty())
     commandLine("npm", "ci")
     inputs.file(uiDirectory.file("package.json"))
     inputs.file(uiDirectory.file("package-lock.json"))
@@ -76,7 +71,6 @@ val installUiDependencies = tasks.register<Exec>("installUiDependencies") {
 val buildUi = tasks.register<Exec>("buildUi") {
     dependsOn(installUiDependencies)
     workingDir = uiDirectory.asFile
-    environment("PATH", System.getenv("PATH").orEmpty())
     commandLine("npm", "run", "build")
     inputs.file(uiDirectory.file("index.html"))
     inputs.file(uiDirectory.file("package.json"))
@@ -90,7 +84,6 @@ val buildUi = tasks.register<Exec>("buildUi") {
 val testUi = tasks.register<Exec>("testUi") {
     dependsOn(installUiDependencies)
     workingDir = uiDirectory.asFile
-    environment("PATH", System.getenv("PATH").orEmpty())
     commandLine("npm", "run", "test")
     inputs.file(uiDirectory.file("package.json"))
     inputs.file(uiDirectory.file("package-lock.json"))

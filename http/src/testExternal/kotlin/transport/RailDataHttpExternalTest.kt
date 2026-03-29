@@ -1,32 +1,26 @@
 package transport
 
-import io.ktor.client.HttpClient
-import java.time.Duration
-import kotlin.test.AfterTest
-import kotlin.test.Test
+import io.ktor.client.*
 import kotlinx.coroutines.runBlocking
 import strikt.api.expectThat
-import strikt.assertions.get
 import strikt.assertions.isGreaterThan
+import kotlin.test.AfterTest
+import kotlin.test.Test
 
 class RailDataHttpExternalTest {
-    private val subscriptionKey = requiredEnvironmentVariable("TFL_SUBSCRIPTION_KEY")
-    private val httpClient: HttpClient = createTflHttpClient(Duration.ofSeconds(20))
+    private val subscriptionKey = System.getenv()
+        .requiredEnvironmentValue(EnvironmentVariables.tflSubscriptionKey)
+    private val httpClient: HttpClient = createTflHttpClient(ConfigValues.tflRequestTimeout)
     private val railData: RailData =
         RailDataHttp(
             TflHttpClientConfig(
-                "https://api.tfl.gov.uk",
-                Duration.ofSeconds(20),
+                ConfigValues.tflBaseUrl,
+                ConfigValues.tflRequestTimeout,
                 subscriptionKey
             ),
             httpClient,
             TflPayloadParserHttp(transportJson())
         )
-
-    private fun requiredEnvironmentVariable(name: String) =
-        System.getenv().getOrDefault(name, "").ifBlank {
-            throw IllegalArgumentException("Missing required environment variable $name.")
-        }
 
     @AfterTest
     fun tearDown() {

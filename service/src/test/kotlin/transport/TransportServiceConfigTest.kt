@@ -1,48 +1,44 @@
 package transport
 
-import kotlin.test.Test
 import strikt.api.expectCatching
 import strikt.api.expectThat
-import strikt.assertions.get
 import strikt.assertions.isA
 import strikt.assertions.isEqualTo
 import strikt.assertions.isFailure
+import kotlin.test.Test
 
 class TransportServiceConfigTest {
     @Test
     fun `loadTransportServiceConfig reads subscription key environment variable`() {
         val config = loadTransportServiceConfig(
             mapOf(
-                "TFL_SUBSCRIPTION_KEY" to "preferred-key"
+                EnvironmentVariables.tflSubscriptionKey.value to "preferred-key"
             )
         )
 
         expectThat(config.tflSubscriptionKey).isEqualTo("preferred-key")
-        expectThat(config.railMapPollInterval.seconds).isEqualTo(5)
+        expectThat(config.host).isEqualTo(ConfigValues.host)
+        expectThat(config.port).isEqualTo(ConfigValues.port)
+        expectThat(config.railMapPollInterval).isEqualTo(ConfigValues.railMapPollInterval)
+        expectThat(config.railSnapshotCacheTtl).isEqualTo(ConfigValues.railSnapshotCacheTtl)
+        expectThat(config.requestTimeout).isEqualTo(ConfigValues.tflRequestTimeout)
+        expectThat(config.tflBaseUrl).isEqualTo(ConfigValues.tflBaseUrl)
     }
 
     @Test
-    fun `loadTransportServiceConfig reads the rail map poll interval environment variable`() {
+    fun `loadTransportServiceConfig ignores unrelated configuration entries`() {
         val config = loadTransportServiceConfig(
             mapOf(
-                "TFL_SUBSCRIPTION_KEY" to "preferred-key",
-                "RAIL_MAP_POLL_INTERVAL_SECONDS" to "8"
+                EnvironmentVariables.tflSubscriptionKey.value to "preferred-key",
+                "IGNORED_CONFIG_A" to "127.0.0.1",
+                "IGNORED_CONFIG_B" to "9090",
+                "IGNORED_CONFIG_C" to "8"
             )
         )
 
-        expectThat(config.railMapPollInterval.seconds).isEqualTo(8)
-    }
-
-    @Test
-    fun `loadTransportServiceConfig reads the rail snapshot cache ttl environment variable`() {
-        val config = loadTransportServiceConfig(
-            mapOf(
-                "TFL_SUBSCRIPTION_KEY" to "preferred-key",
-                "RAIL_SNAPSHOT_CACHE_TTL_SECONDS" to "12"
-            )
-        )
-
-        expectThat(config.railSnapshotCacheTtl.seconds).isEqualTo(12)
+        expectThat(config.host).isEqualTo(ConfigValues.host)
+        expectThat(config.port).isEqualTo(ConfigValues.port)
+        expectThat(config.railMapPollInterval).isEqualTo(ConfigValues.railMapPollInterval)
     }
 
     @Test

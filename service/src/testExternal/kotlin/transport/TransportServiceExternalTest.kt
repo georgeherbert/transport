@@ -1,33 +1,18 @@
 package transport
 
-import java.time.Duration
-import kotlin.test.Test
 import kotlinx.coroutines.runBlocking
 import strikt.api.expectThat
-import strikt.assertions.get
 import strikt.assertions.isEqualTo
 import strikt.assertions.isGreaterThan
+import kotlin.test.Test
 
 class TransportServiceExternalTest {
-    private val subscriptionKey = requiredEnvironmentVariable("TFL_SUBSCRIPTION_KEY")
+    private val configuration = System.getenv()
     private val snapshotService: RailSnapshotService =
         createRailSnapshotService(
-            TransportServiceConfig(
-                "127.0.0.1",
-                8080,
-                Duration.ofSeconds(20),
-                Duration.ofSeconds(5),
-                Duration.ofSeconds(20),
-                "https://api.tfl.gov.uk",
-                subscriptionKey
-            ),
+            loadTransportServiceConfig(configuration),
             transportJson()
         )
-
-    private fun requiredEnvironmentVariable(name: String) =
-        System.getenv().getOrDefault(name, "").ifBlank {
-            throw IllegalArgumentException("Missing required environment variable $name.")
-        }
 
     @Test
     fun `live snapshot uses the bulk feed without partial station failures`() {

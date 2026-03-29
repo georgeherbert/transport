@@ -10,8 +10,6 @@ Supported modes:
 - London Overground
 - Tram
 
-`DLR` is currently excluded because the TfL feed does not provide stable vehicle ids, which means the service cannot track DLR vehicles deterministically over time.
-
 ## Architecture
 
 The repository follows a simple hexagonal layout:
@@ -28,20 +26,6 @@ The repository follows a simple hexagonal layout:
 - Node.js and npm
 - A TfL Unified API subscription key
 
-## Configuration
-
-The service reads configuration from environment variables:
-
-| Variable | Default | Notes |
-| --- | --- | --- |
-| `HOST` | `0.0.0.0` | Ktor bind host |
-| `PORT` | `8080` | Ktor bind port |
-| `RAIL_SNAPSHOT_CACHE_TTL_SECONDS` | `20` | Snapshot cache TTL |
-| `RAIL_MAP_POLL_INTERVAL_SECONDS` | `5` | Upstream refresh interval for the live rail map feed |
-| `TFL_REQUEST_TIMEOUT_SECONDS` | `10` | TfL HTTP request timeout |
-| `TFL_BASE_URL` | `https://api.tfl.gov.uk` | TfL API base URL |
-| `TFL_SUBSCRIPTION_KEY` | none | Required |
-
 ## Running
 
 Run the backend and packaged UI together:
@@ -52,31 +36,6 @@ export TFL_SUBSCRIPTION_KEY=your-key
 ```
 
 Then open `http://127.0.0.1:8080`.
-
-For frontend-only development:
-
-```bash
-export TFL_SUBSCRIPTION_KEY=your-key
-./gradlew :service:run
-cd ui
-npm ci
-npm run dev
-```
-
-The Vite dev server runs on `http://127.0.0.1:5173` and proxies `/api/rail/*` to the backend on port `8080`.
-
-## API
-
-Frontend HTTP routes:
-
-- `GET /`
-- `GET /api/rail/map`
-- `GET /api/rail/map/stream`
-- `GET /assets/*`
-
-The browser does one initial fetch of `GET /api/rail/map` and then consumes `GET /api/rail/map/stream` over Server-Sent Events.
-
-There are no extra inspection or compatibility API routes.
 
 ## Movement Model
 
