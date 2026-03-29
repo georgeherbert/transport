@@ -58,6 +58,8 @@ function App() {
   const pendingServicePositionsRef = useRef(null)
   const servicePositionsAnimationFrameRef = useRef(null)
   const isZoomingRef = useRef(false)
+  const plottedServicesRef = useRef([])
+  const visibleStationsRef = useRef([])
 
   const clearQueuedServicePositions = useEffectEvent(() => {
     pendingServicePositionsRef.current = null
@@ -261,6 +263,8 @@ function App() {
   const visibleServices = buildVisibleServices(mapSnapshot, deferredSelectedLineId)
   const plottedServices = visibleServices.filter(service => service.coordinate != null)
   const visibleStations = buildVisibleStations(mapSnapshot, deferredSelectedLineId)
+  plottedServicesRef.current = plottedServices
+  visibleStationsRef.current = visibleStations
   const selectedStationId =
     selectedMapFeature?.kind === 'station' ? selectedMapFeature.id : null
   const selectedServiceId =
@@ -278,8 +282,8 @@ function App() {
     const overlappingFeatures = overlappingFeaturesForFeature(
       map,
       clickedFeature,
-      plottedServices,
-      visibleStations
+      plottedServicesRef.current,
+      visibleStationsRef.current
     )
 
     if (overlappingFeatures.length > 1) {
