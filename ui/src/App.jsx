@@ -41,8 +41,9 @@ const linePalette = {
 
 const serviceIconCache = new Map()
 const stationIconCache = new Map()
-const serviceHitRadiusPixels = 18
-const stationHitRadiusPixels = 10
+const serviceServiceOverlapRadiusPixels = 16
+const serviceStationOverlapRadiusPixels = 14
+const stationStationOverlapRadiusPixels = 10
 const servicePopupAnchorPixels = -18
 const featurePickerPopupOffset = [0, -12]
 
@@ -274,9 +275,9 @@ function App() {
   const handleFeatureClick = (clickedFeature, event, map) => {
     event.originalEvent?.stopPropagation()
 
-    const overlappingFeatures = overlappingFeaturesAtClick(
+    const overlappingFeatures = overlappingFeaturesForFeature(
       map,
-      event.containerPoint,
+      clickedFeature,
       plottedServices,
       visibleStations
     )
@@ -754,39 +755,54 @@ function buildVisibleStations(mapSnapshot, selectedLineId) {
     .sort((leftStation, rightStation) => leftStation.name.localeCompare(rightStation.name))
 }
 
-function overlappingFeaturesAtClick(map, containerPoint, plottedServices, visibleStations) {
-  const serviceMatches = plottedServices
-    .filter(service =>
-      withinHitRadius(
-        containerPoint,
-        map.latLngToContainerPoint([service.coordinate.lat, service.coordinate.lon]),
-        serviceHitRadiusPixels
-      )
-    )
-    .map(service => ({
+function overlappingFeaturesForFeature(map, clickedFeature, plottedServices, visibleStations) {
+  const clickableFeatures = [
+    ...plottedServices.map(service => ({
       kind: 'service',
       id: service.serviceId,
       title: `${service.lineName} service`,
       detail: destinationLabelForService(service),
-      accentColor: colorForLine(service.lineId)
-    }))
-  const stationMatches = visibleStations
-    .filter(station =>
-      withinHitRadius(
-        containerPoint,
-        map.latLngToContainerPoint([station.coordinate.lat, station.coordinate.lon]),
-        stationHitRadiusPixels
-      )
-    )
-    .map(station => ({
+      accentColor: colorForLine(service.lineId),
+      point: map.latLngToContainerPoint([service.coordinate.lat, service.coordinate.lon])
+    })),
+    ...visibleStations.map(station => ({
       kind: 'station',
       id: station.id,
       title: station.name,
       detail: stationDetailLabelForPicker(station),
-      accentColor: null
+      accentColor: null,
+      point: map.latLngToContainerPoint([station.coordinate.lat, station.coordinate.lon])
     }))
+  ]
+  const clickedFeatureMatch = clickableFeatures.find(feature =>
+    feature.kind === clickedFeature.kind && feature.id === clickedFeature.id
+  )
 
-  return [...serviceMatches, ...stationMatches]
+  if (clickedFeatureMatch == null) {
+    return []
+  }
+
+  return clickableFeatures
+    .filter(feature => featuresOverlap(clickedFeatureMatch, feature))
+    .map(({ point, ...feature }) => feature)
+}
+
+function featuresOverlap(leftFeature, rightFeature) {
+  const overlapRadiusPixels = overlapRadiusFor(leftFeature.kind, rightFeature.kind)
+
+  return pointDistance(leftFeature.point, rightFeature.point) <= overlapRadiusPixels
+}
+
+function overlapRadiusFor(leftKind, rightKind) {
+  if (leftKind === 'service' && rightKind === 'service') {
+    return serviceServiceOverlapRadiusPixels
+  }
+
+  if (leftKind === 'station' && rightKind === 'station') {
+    return stationStationOverlapRadiusPixels
+  }
+
+  return serviceStationOverlapRadiusPixels
 }
 
 function prioritizedOverlapFeatures(features, clickedFeature) {
@@ -805,10 +821,6 @@ function prioritizedOverlapFeatures(features, clickedFeature) {
 
     return leftFeature.title.localeCompare(rightFeature.title)
   })
-}
-
-function withinHitRadius(clickedPoint, featurePoint, hitRadiusPixels) {
-  return pointDistance(clickedPoint, featurePoint) <= hitRadiusPixels
 }
 
 function pointDistance(leftPoint, rightPoint) {
