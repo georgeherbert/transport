@@ -34,6 +34,7 @@ class RealRailMapFeedServiceTest {
 
             expectThat(railMapQuery.refreshRequests.toList()).isEqualTo(listOf(true))
             expectThat(result).isSuccess().get { generatedAt }.isEqualTo(clock.instant())
+            expectThat(railMapMotionEngine.advanceRequests.last().currentTime).isEqualTo(clock.instant())
         }
 
     @Test
@@ -104,6 +105,8 @@ class RealRailMapFeedServiceTest {
                 .get(0)
                 .get(RailMapService::coordinate)
                 .isEqualTo(GeoCoordinate(51.507247, -0.141507))
+
+            expectThat(railMapMotionEngine.advanceRequests.last().currentTime).isEqualTo(clock.instant())
         }
 
     @Test

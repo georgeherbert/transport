@@ -1,16 +1,17 @@
 package transport
 
-import java.time.Clock
 import java.time.Duration
 import java.time.Instant
-import java.time.ZoneOffset
 import kotlin.test.Test
 import kotlinx.coroutines.runBlocking
 import strikt.api.expectThat
+import strikt.assertions.get
 import strikt.assertions.isA
 import strikt.assertions.isEqualTo
 
 class RealRailSnapshotServiceTest {
+    private val initialInstant = Instant.parse("2026-03-22T00:49:20Z")
+    private val clock = FakeClock(initialInstant)
     private val railNetwork = testRailNetwork(
         listOf(
             testStation("940GZZLUGPK", "Green Park Underground Station", 51.506947, -0.142787, setOf("victoria"))
@@ -23,23 +24,29 @@ class RealRailSnapshotServiceTest {
         railData,
         railMetadataRepository,
         railSnapshotAssembler,
-        Clock.fixed(Instant.parse("2026-03-22T00:49:20Z"), ZoneOffset.UTC),
+        clock,
         Duration.ofSeconds(20)
     )
 
     @Test
-    fun `getLiveSnapshot returns fresh snapshot then serves cached snapshot`() {
+    fun `getLiveSnapshot uses the injected clock for generatedAt and refreshes after the cache ttl`() {
         runBlocking {
             railData.returnsPredictions(TransportModeName("tube"), samplePredictions())
             railMetadataRepository.returns(railNetwork)
 
             val first = snapshotService.getLiveSnapshot(false)
-            val second = snapshotService.getLiveSnapshot(false)
+            clock.advanceBy(Duration.ofSeconds(19))
+            val cached = snapshotService.getLiveSnapshot(false)
+            clock.advanceBy(Duration.ofSeconds(2))
+            val refreshed = snapshotService.getLiveSnapshot(false)
 
-            expectThat(first).isSuccess()
-            expectThat(second).isSuccess()
-            expectThat(railSnapshotAssembler.requests.size).isEqualTo(1)
-            expectThat(railData.predictionRequests.size).isEqualTo(supportedRailModes.size)
+            expectThat(first).isSuccess().get { generatedAt }.isEqualTo(initialInstant)
+            expectThat(cached).isSuccess().get { generatedAt }.isEqualTo(initialInstant)
+            expectThat(refreshed).isSuccess().get { generatedAt }.isEqualTo(initialInstant.plusSeconds(21))
+            expectThat(railSnapshotAssembler.requests.map(AssembleRequest::generatedAt)).isEqualTo(
+                listOf(initialInstant, initialInstant.plusSeconds(21))
+            )
+            expectThat(railData.predictionRequests.size).isEqualTo(supportedRailModes.size * 2)
         }
     }
 
@@ -57,7 +64,7 @@ class RealRailSnapshotServiceTest {
 
             val refreshed = snapshotService.getLiveSnapshot(true)
 
-            expectThat(refreshed).isSuccess()
+            expectThat(refreshed).isSuccess().get { generatedAt }.isEqualTo(initialInstant)
             expectThat(railSnapshotAssembler.requests.size).isEqualTo(1)
         }
     }
