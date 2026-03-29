@@ -8,7 +8,7 @@ import {
   useState
 } from 'react'
 import L from 'leaflet'
-import { MapContainer, Marker, Pane, Polyline, Popup, TileLayer, useMap } from 'react-leaflet'
+import { MapContainer, Marker, Pane, Polyline, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 
 const londonCenter = [51.5072, -0.1276]
@@ -51,8 +51,10 @@ function App() {
   const [selectedLineId, setSelectedLineId] = useState('all')
   const [selectedMapFeature, setSelectedMapFeature] = useState(null)
   const [featurePicker, setFeaturePicker] = useState(null)
+  const pendingSnapshotRef = useRef(null)
   const pendingServicePositionsRef = useRef(null)
   const servicePositionsAnimationFrameRef = useRef(null)
+  const isZoomingRef = useRef(false)
 
   const clearQueuedServicePositions = useEffectEvent(() => {
     pendingServicePositionsRef.current = null
@@ -65,7 +67,28 @@ function App() {
     servicePositionsAnimationFrameRef.current = null
   })
 
+  const clearQueuedSnapshot = useEffectEvent(() => {
+    pendingSnapshotRef.current = null
+  })
+
+  const scheduleQueuedServicePositionsFlush = useEffectEvent(() => {
+    if (pendingServicePositionsRef.current == null || servicePositionsAnimationFrameRef.current != null) {
+      return
+    }
+
+    servicePositionsAnimationFrameRef.current = window.requestAnimationFrame(() => {
+      servicePositionsAnimationFrameRef.current = null
+      flushQueuedServicePositions()
+    })
+  })
+
   const applySnapshotUpdate = useEffectEvent(snapshot => {
+    if (isZoomingRef.current) {
+      pendingSnapshotRef.current = snapshot
+      return
+    }
+
+    clearQueuedSnapshot()
     clearQueuedServicePositions()
 
     startTransition(() => {
@@ -76,6 +99,7 @@ function App() {
   })
 
   const applyErrorUpdate = useEffectEvent(message => {
+    clearQueuedSnapshot()
     clearQueuedServicePositions()
 
     startTransition(() => {
@@ -117,17 +141,54 @@ function App() {
     })
   })
 
+  const flushQueuedSnapshot = useEffectEvent(() => {
+    const snapshot = pendingSnapshotRef.current
+    pendingSnapshotRef.current = null
+
+    if (snapshot == null) {
+      return false
+    }
+
+    startTransition(() => {
+      setMapSnapshot(snapshot)
+      setErrorMessage('')
+      setStatus('live')
+    })
+
+    return true
+  })
+
   const queueServicePositionsUpdate = useEffectEvent(servicePositions => {
     pendingServicePositionsRef.current = servicePositions
 
-    if (servicePositionsAnimationFrameRef.current != null) {
+    if (isZoomingRef.current) {
       return
     }
 
-    servicePositionsAnimationFrameRef.current = window.requestAnimationFrame(() => {
-      servicePositionsAnimationFrameRef.current = null
-      flushQueuedServicePositions()
-    })
+    scheduleQueuedServicePositionsFlush()
+  })
+
+  const pauseLiveMapUpdates = useEffectEvent(() => {
+    isZoomingRef.current = true
+
+    if (servicePositionsAnimationFrameRef.current == null) {
+      return
+    }
+
+    window.cancelAnimationFrame(servicePositionsAnimationFrameRef.current)
+    servicePositionsAnimationFrameRef.current = null
+  })
+
+  const resumeLiveMapUpdates = useEffectEvent(() => {
+    isZoomingRef.current = false
+
+    if (flushQueuedSnapshot()) {
+      window.requestAnimationFrame(() => {
+        scheduleQueuedServicePositionsFlush()
+      })
+    } else {
+      scheduleQueuedServicePositionsFlush()
+    }
   })
 
   const applyStreamDisconnect = useEffectEvent(() => {
@@ -180,6 +241,7 @@ function App() {
     }
 
     return () => {
+      clearQueuedSnapshot()
       clearQueuedServicePositions()
       eventSource.close()
     }
@@ -284,6 +346,11 @@ function App() {
               scrollWheelZoom={true}
               className="map"
             >
+              <MapZoomState
+                onZoomStart={pauseLiveMapUpdates}
+                onZoomEnd={resumeLiveMapUpdates}
+              />
+
               <Pane name="rail-lines" style={{ zIndex: 350 }} />
               <Pane name="rail-stations" style={{ zIndex: 610 }} />
               <Pane name="rail-services" style={{ zIndex: 620 }} />
@@ -347,6 +414,15 @@ function StatusItem({ label, value }) {
       <strong>{value}</strong>
     </div>
   )
+}
+
+function MapZoomState({ onZoomStart, onZoomEnd }) {
+  useMapEvents({
+    zoomstart: onZoomStart,
+    zoomend: onZoomEnd
+  })
+
+  return null
 }
 
 function PopupCard({ title, accentColor, kicker, children }) {
