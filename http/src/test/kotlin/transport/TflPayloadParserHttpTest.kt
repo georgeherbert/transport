@@ -319,7 +319,7 @@ class TflPayloadParserHttpTest {
     }
 
     @Test
-    fun `parsePredictions returns payload failure for invalid timestamps`() {
+    fun `parsePredictions returns payload failure for invalid expected arrivals`() {
         val result = tflPayloadParser.parsePredictions(
             """
             [
@@ -331,10 +331,10 @@ class TflPayloadParserHttpTest {
                 "lineId":"victoria",
                 "lineName":"Victoria",
                 "platformName":"Northbound - Platform 4",
-                "timestamp":"not-an-instant",
+                "timestamp":"2026-03-22T00:49:20Z",
                 "currentLocation":"Approaching Green Park",
                 "towards":"Walthamstow Central",
-                "expectedArrival":"2026-03-22T00:51:20Z",
+                "expectedArrival":"not-an-instant",
                 "timeToLive":"2026-03-22T00:51:20Z",
                 "modeName":"tube"
               }
@@ -347,7 +347,7 @@ class TflPayloadParserHttpTest {
             .isFailure()
             .isA<TransportError.UpstreamPayloadFailure>()
             .get(TransportError.UpstreamPayloadFailure::message)
-            .contains("Invalid instant field 'timestamp'")
+            .contains("Invalid instant field 'expectedArrival'")
     }
 
     @Test

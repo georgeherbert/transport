@@ -113,27 +113,23 @@ class TflPayloadParserHttp(
         }
 
     private fun parseArrival(arrival: TflArrivalJson, endpoint: String): TransportResult<RailPredictionRecord> =
-        parseInstant(arrival.timestamp, "timestamp", endpoint)
-            .flatMap { observedAt ->
-                parseInstant(arrival.expectedArrival, "expectedArrival", endpoint)
-                    .flatMap { expectedArrival ->
-                        requiredValue(arrival.vehicleId, "vehicleId", endpoint, ::VehicleId)
-                            .map { vehicleId ->
-                                RailPredictionRecord(
-                                    vehicleId,
-                                    StationId(arrival.naptanId),
-                                    StationName(arrival.stationName),
-                                    LineId(arrival.lineId),
-                                    LineName(arrival.lineName),
-                                    arrival.direction.toValue(::ServiceDirection),
-                                    arrival.destinationName.toValue(::DestinationName),
-                                    observedAt,
-                                    arrival.currentLocation.toValue(::LocationDescription),
-                                    arrival.towards.toValue(::TowardsDescription),
-                                    expectedArrival,
-                                    TransportModeName(arrival.modeName)
-                                )
-                            }
+        parseInstant(arrival.expectedArrival, "expectedArrival", endpoint)
+            .flatMap { expectedArrival ->
+                requiredValue(arrival.vehicleId, "vehicleId", endpoint, ::VehicleId)
+                    .map { vehicleId ->
+                        RailPredictionRecord(
+                            vehicleId,
+                            StationId(arrival.naptanId),
+                            StationName(arrival.stationName),
+                            LineId(arrival.lineId),
+                            LineName(arrival.lineName),
+                            arrival.direction.toValue(::ServiceDirection),
+                            arrival.destinationName.toValue(::DestinationName),
+                            arrival.currentLocation.toValue(::LocationDescription),
+                            arrival.towards.toValue(::TowardsDescription),
+                            expectedArrival,
+                            TransportModeName(arrival.modeName)
+                        )
                     }
             }
 

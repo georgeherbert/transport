@@ -1,6 +1,5 @@
 package transport
 
-import java.time.Duration
 import java.time.Instant
 import kotlin.test.Test
 import strikt.api.expectThat
@@ -36,7 +35,6 @@ class RealRailSnapshotAssemblerTest {
                 LineName("Victoria"),
                 ServiceDirection("outbound"),
                 DestinationName("Walthamstow Central Underground Station"),
-                Instant.parse("2026-03-22T00:49:20Z"),
                 LocationDescription("Between Victoria and Green Park"),
                 TowardsDescription("Walthamstow Central"),
                 Instant.parse("2026-03-22T00:57:32Z"),
@@ -50,7 +48,6 @@ class RealRailSnapshotAssemblerTest {
                 LineName("Victoria"),
                 ServiceDirection("outbound"),
                 DestinationName("Walthamstow Central Underground Station"),
-                Instant.parse("2026-03-22T00:49:20Z"),
                 LocationDescription("Approaching Warren Street"),
                 TowardsDescription("Walthamstow Central"),
                 Instant.parse("2026-03-22T00:51:20Z"),
@@ -62,7 +59,6 @@ class RealRailSnapshotAssemblerTest {
             railNetwork,
             predictions,
             Instant.parse("2026-03-22T00:49:20Z"),
-            StationQueryCount(2),
             StationFailureCount(0)
         )
 
@@ -70,7 +66,6 @@ class RealRailSnapshotAssemblerTest {
         expectThat(snapshot.services.first().serviceId).isEqualTo(ServiceId("victoria:257"))
         expectThat(snapshot.services.first().location.type).isEqualTo(LocationType.STATION_BOARD)
         expectThat(snapshot.services.first().nextStop!!.id).isEqualTo(StationId("940GZZLUWSM"))
-        expectThat(snapshot.services.first().sourcePredictions).isEqualTo(PredictionCount(2))
         expectThat(snapshot.services.first().futureArrivals).hasSize(2)
         expectThat(snapshot.services.first().futureArrivals.first().stationName).isEqualTo(StationName("Warren Street Underground Station"))
         expectThat(snapshot.services.first().futureArrivals.last().stationName).isEqualTo(StationName("King's Cross St. Pancras Underground Station"))
@@ -87,7 +82,6 @@ class RealRailSnapshotAssemblerTest {
                 LineName("Hammersmith & City"),
                 null,
                 DestinationName("Check Front of Train"),
-                Instant.parse("2026-03-22T00:49:20Z"),
                 LocationDescription("At Euston Square Platform 2"),
                 TowardsDescription("Check Front of Train"),
                 Instant.parse("2026-03-22T00:51:32Z"),
@@ -101,7 +95,6 @@ class RealRailSnapshotAssemblerTest {
                 LineName("Metropolitan"),
                 null,
                 DestinationName("Check Front of Train"),
-                Instant.parse("2026-03-22T00:49:20Z"),
                 LocationDescription("At Euston Square Platform 2"),
                 TowardsDescription("Check Front of Train"),
                 Instant.parse("2026-03-22T00:51:31Z"),
@@ -113,7 +106,6 @@ class RealRailSnapshotAssemblerTest {
             railNetwork,
             predictions,
             Instant.parse("2026-03-22T00:49:20Z"),
-            StationQueryCount(1),
             StationFailureCount(0)
         )
 
@@ -137,7 +129,6 @@ class RealRailSnapshotAssemblerTest {
                 LineName("Windrush"),
                 null,
                 DestinationName("Highbury & Islington Rail Station"),
-                Instant.parse("2026-03-22T00:49:20Z"),
                 LocationDescription("Clapham Junction Rail Station"),
                 null,
                 Instant.parse("2026-03-22T00:51:31Z"),
@@ -151,7 +142,6 @@ class RealRailSnapshotAssemblerTest {
                 LineName("Mildmay"),
                 null,
                 DestinationName("Stratford (London) Rail Station"),
-                Instant.parse("2026-03-22T00:49:20Z"),
                 LocationDescription("Dalston Junction Rail Station"),
                 null,
                 Instant.parse("2026-03-22T00:51:32Z"),
@@ -163,7 +153,6 @@ class RealRailSnapshotAssemblerTest {
             railNetwork,
             predictions,
             Instant.parse("2026-03-22T00:49:20Z"),
-            StationQueryCount(1),
             StationFailureCount(0)
         )
 
@@ -189,7 +178,6 @@ class RealRailSnapshotAssemblerTest {
                     LineName("Victoria"),
                     ServiceDirection("outbound"),
                     DestinationName("Walthamstow Central Underground Station"),
-                    Instant.parse("2026-03-22T00:49:20Z"),
                     LocationDescription("Approaching Warren Street"),
                     TowardsDescription("Walthamstow Central"),
                     Instant.parse("2026-03-22T00:51:20Z"),
@@ -197,7 +185,6 @@ class RealRailSnapshotAssemblerTest {
                 )
             ),
             Instant.parse("2026-03-22T00:49:50Z"),
-            StationQueryCount(1),
             StationFailureCount(0)
         )
 
@@ -218,7 +205,6 @@ class RealRailSnapshotAssemblerTest {
                     LineName("Elizabeth line"),
                     null,
                     DestinationName("Heathrow Terminal 5"),
-                    Instant.parse("2026-03-22T16:00:00Z"),
                     null,
                     null,
                     Instant.parse("2026-03-22T16:08:00Z"),
@@ -226,7 +212,6 @@ class RealRailSnapshotAssemblerTest {
                 )
             ),
             Instant.parse("2026-03-22T16:00:30Z"),
-            StationQueryCount(1),
             StationFailureCount(0)
         )
 
@@ -249,7 +234,6 @@ class RealRailSnapshotAssemblerTest {
                     LineName("Tram"),
                     ServiceDirection("outbound"),
                     DestinationName("West Croydon"),
-                    Instant.parse("2026-03-22T16:31:56Z"),
                     null,
                     TowardsDescription("West Croydon"),
                     Instant.parse("2026-03-22T16:32:00Z"),
@@ -257,7 +241,6 @@ class RealRailSnapshotAssemblerTest {
                 )
             ),
             Instant.parse("2026-03-22T16:31:56Z"),
-            StationQueryCount(1),
             StationFailureCount(0)
         )
 

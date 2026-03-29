@@ -1,16 +1,9 @@
 package transport
 
-import java.time.Duration
 import java.time.Instant
 
-val transportSourceName = SourceName("TfL Unified API")
-
 data class LiveRailSnapshot(
-    val source: SourceName,
     val generatedAt: Instant,
-    val cached: Boolean,
-    val cacheAge: Duration,
-    val stationsQueried: StationQueryCount,
     val stationsFailed: StationFailureCount,
     val partial: Boolean,
     val serviceCount: LiveServiceCount,
@@ -19,11 +12,7 @@ data class LiveRailSnapshot(
 )
 
 data class RailMapSnapshot(
-    val source: SourceName,
     val generatedAt: Instant,
-    val cached: Boolean,
-    val cacheAge: Duration,
-    val stationsQueried: StationQueryCount,
     val stationsFailed: StationFailureCount,
     val partial: Boolean,
     val serviceCount: LiveServiceCount,
@@ -33,11 +22,7 @@ data class RailMapSnapshot(
 )
 
 data class RailMapServicePositions(
-    val source: SourceName,
     val generatedAt: Instant,
-    val cached: Boolean,
-    val cacheAge: Duration,
-    val stationsQueried: StationQueryCount,
     val stationsFailed: StationFailureCount,
     val partial: Boolean,
     val serviceCount: LiveServiceCount,
@@ -76,14 +61,12 @@ data class MapStation(
 data class StationArrival(
     val serviceId: ServiceId,
     val lineId: LineId,
-    val lineName: LineName,
     val destinationName: DestinationName?,
     val expectedArrival: Instant
 )
 
 data class RailMapService(
     val serviceId: ServiceId,
-    val vehicleId: VehicleId,
     val lineId: LineId,
     val lineName: LineName,
     val direction: ServiceDirection?,
@@ -94,13 +77,11 @@ data class RailMapService(
     val coordinate: GeoCoordinate?,
     val heading: HeadingDegrees?,
     val expectedArrival: Instant?,
-    val observedAt: Instant?,
     val futureArrivals: List<FutureStationArrival>
 )
 
 data class LiveRailService(
     val serviceId: ServiceId,
-    val vehicleId: VehicleId,
     val lineIds: List<LineId>,
     val lineNames: List<LineName>,
     val direction: ServiceDirection?,
@@ -110,8 +91,6 @@ data class LiveRailService(
     val location: LocationEstimate,
     val nextStop: StationReference?,
     val expectedArrival: Instant?,
-    val observedAt: Instant?,
-    val sourcePredictions: PredictionCount,
     val futureArrivals: List<FutureStationArrival>
 )
 
@@ -159,7 +138,6 @@ data class RailPredictionRecord(
     val lineName: LineName?,
     val direction: ServiceDirection?,
     val destinationName: DestinationName?,
-    val observedAt: Instant?,
     val currentLocation: LocationDescription?,
     val towards: TowardsDescription?,
     val expectedArrival: Instant?,

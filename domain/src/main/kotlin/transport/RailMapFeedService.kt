@@ -74,7 +74,7 @@ class RealRailMapFeedService(
             }
 
             cachedSnapshot.get()?.let { cached ->
-                Success(cached.toSnapshot(clock, true, railMapMotionEngine))
+                Success(cached.toSnapshot(railMapMotionEngine, Instant.now(clock)))
             } ?: latestError.get()?.let { error ->
                 Failure(error)
             } ?: Failure(TransportError.SnapshotUnavailable("No cached rail map is available yet."))
@@ -96,7 +96,7 @@ class RealRailMapFeedService(
                 when (val mapResult = railMapProvider.getRailMap(true)) {
                     is Success -> {
                         val observedSnapshot = railMapMotionEngine.observe(mapResult.value)
-                        val cached = CachedRailMapSnapshot(observedSnapshot.generatedAt, observedSnapshot)
+                        val cached = CachedRailMapSnapshot(observedSnapshot)
                         cachedSnapshot.set(cached)
                         latestError.set(null)
                         updateFlow.tryEmit(RailMapFeedUpdate.SnapshotUpdated(observedSnapshot))
@@ -118,7 +118,7 @@ class RealRailMapFeedService(
                 if (animatedSnapshot.services != cached.snapshot.services) {
                     updateFlow.tryEmit(
                         RailMapFeedUpdate.ServicePositionsUpdated(
-                            cached.toServicePositions(true, currentTime, animatedSnapshot)
+                            cached.toServicePositions(animatedSnapshot)
                         )
                     )
                 }
@@ -132,67 +132,21 @@ class RealRailMapFeedService(
 }
 
 data class CachedRailMapSnapshot(
-    val generatedAt: Instant,
     val snapshot: RailMapSnapshot
 ) {
     fun toSnapshot(
-        clock: Clock,
-        cached: Boolean,
-        railMapMotionEngine: RailMapMotionEngine
-    ) =
-        toSnapshot(clock, cached, railMapMotionEngine, Instant.now(clock))
-
-    fun toSnapshot(
-        clock: Clock,
-        cached: Boolean,
         railMapMotionEngine: RailMapMotionEngine,
         currentTime: Instant
-    ): RailMapSnapshot {
-        val animatedSnapshot = railMapMotionEngine.advance(snapshot, currentTime)
-        val cacheAge = cacheAgeAt(currentTime, cached)
+    ): RailMapSnapshot =
+        railMapMotionEngine.advance(snapshot, currentTime)
 
-        return RailMapSnapshot(
-            animatedSnapshot.source,
+    fun toServicePositions(animatedSnapshot: RailMapSnapshot) =
+        RailMapServicePositions(
             animatedSnapshot.generatedAt,
-            cached,
-            cacheAge,
-            animatedSnapshot.stationsQueried,
-            animatedSnapshot.stationsFailed,
-            animatedSnapshot.partial,
-            animatedSnapshot.serviceCount,
-            animatedSnapshot.lines,
-            animatedSnapshot.stations,
-            animatedSnapshot.services
-        )
-    }
-
-    fun toServicePositions(
-        cached: Boolean,
-        currentTime: Instant,
-        animatedSnapshot: RailMapSnapshot
-    ): RailMapServicePositions {
-        val cacheAge = cacheAgeAt(currentTime, cached)
-
-        return RailMapServicePositions(
-            animatedSnapshot.source,
-            animatedSnapshot.generatedAt,
-            cached,
-            cacheAge,
-            animatedSnapshot.stationsQueried,
             animatedSnapshot.stationsFailed,
             animatedSnapshot.partial,
             animatedSnapshot.serviceCount,
             animatedSnapshot.stations,
             animatedSnapshot.services
         )
-    }
-
-    private fun cacheAgeAt(currentTime: Instant, cached: Boolean): Duration =
-        if (cached) {
-            Duration.between(generatedAt, currentTime).let { duration ->
-                if (duration.isNegative) Duration.ZERO else duration
-            }
-        } else {
-            Duration.ZERO
-        }
 }

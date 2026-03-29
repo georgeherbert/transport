@@ -33,7 +33,6 @@ class RealRailMapFeedServiceTest {
             val result = railMapFeedService.getRailMap(false)
 
             expectThat(railMapQuery.refreshRequests.toList()).isEqualTo(listOf(true))
-            expectThat(result).isSuccess().get { cached }.isEqualTo(true)
             expectThat(result).isSuccess().get { generatedAt }.isEqualTo(clock.instant())
         }
 
@@ -55,7 +54,7 @@ class RealRailMapFeedServiceTest {
             val result = railMapFeedService.getRailMap(false)
 
             expectThat(errorUpdate.await()).isA<RailMapFeedUpdate.ErrorUpdated>()
-            expectThat(result).isSuccess().get { cached }.isEqualTo(true)
+            expectThat(result).isSuccess().get { generatedAt }.isEqualTo(generatedAt)
             expectThat(railMapFeedService.currentError()).isEqualTo(
                 TransportError.UpstreamHttpFailure("/Mode/tube/Arrivals", 503, "down")
             )
@@ -138,11 +137,7 @@ class RealRailMapFeedServiceTest {
         cached: Boolean
     ) =
         RailMapSnapshot(
-            transportSourceName,
             generatedAt,
-            cached,
-            Duration.ZERO,
-            StationQueryCount(1),
             StationFailureCount(0),
             false,
             LiveServiceCount(1),
@@ -171,7 +166,6 @@ class RealRailMapFeedServiceTest {
                         StationArrival(
                             ServiceId("257"),
                             LineId("victoria"),
-                            LineName("Victoria"),
                             DestinationName("Walthamstow Central Underground Station"),
                             Instant.parse("2026-03-22T20:51:30Z")
                         )
@@ -181,7 +175,6 @@ class RealRailMapFeedServiceTest {
             listOf(
                 RailMapService(
                     ServiceId("257"),
-                    VehicleId("257"),
                     LineId("victoria"),
                     LineName("Victoria"),
                     ServiceDirection("outbound"),
@@ -196,7 +189,6 @@ class RealRailMapFeedServiceTest {
                     GeoCoordinate(51.506947, -0.142787),
                     HeadingDegrees(42.0),
                     Instant.parse("2026-03-22T20:51:30Z"),
-                    generatedAt,
                     listOf(
                         FutureStationArrival(
                             StationId("940GZZLUGPK"),

@@ -17,11 +17,7 @@ class ServiceResponseMapperHttpTest {
     fun `mapResponse maps projected rail map to serializable json`() {
         val response = serviceResponseMapper.mapResponse(
             RailMapSnapshot(
-                transportSourceName,
                 Instant.parse("2026-03-22T00:49:20Z"),
-                false,
-                Duration.ZERO,
-                StationQueryCount(1),
                 StationFailureCount(0),
                 false,
                 LiveServiceCount(1),
@@ -50,7 +46,6 @@ class ServiceResponseMapperHttpTest {
                             StationArrival(
                                 ServiceId("257"),
                                 LineId("victoria"),
-                                LineName("Victoria"),
                                 DestinationName("Walthamstow Central Underground Station"),
                                 Instant.parse("2026-03-22T00:50:50Z")
                             )
@@ -60,7 +55,6 @@ class ServiceResponseMapperHttpTest {
                 listOf(
                     RailMapService(
                         ServiceId("257"),
-                        VehicleId("257"),
                         LineId("victoria"),
                         LineName("Victoria"),
                         ServiceDirection("outbound"),
@@ -75,7 +69,6 @@ class ServiceResponseMapperHttpTest {
                         GeoCoordinate(51.506947, -0.142787),
                         HeadingDegrees(42.0),
                         Instant.parse("2026-03-22T00:50:50Z"),
-                        Instant.parse("2026-03-22T00:49:20Z"),
                         listOf(
                             FutureStationArrival(
                                 StationId("940GZZLUOXC"),
@@ -104,11 +97,7 @@ class ServiceResponseMapperHttpTest {
     fun `servicePositionsResponse omits static map geometry`() {
         val response = serviceResponseMapper.servicePositionsResponse(
             RailMapServicePositions(
-                transportSourceName,
                 Instant.parse("2026-03-22T00:49:20Z"),
-                true,
-                Duration.ofSeconds(15),
-                StationQueryCount(1),
                 StationFailureCount(0),
                 false,
                 LiveServiceCount(1),
@@ -122,7 +111,6 @@ class ServiceResponseMapperHttpTest {
                             StationArrival(
                                 ServiceId("257"),
                                 LineId("victoria"),
-                                LineName("Victoria"),
                                 DestinationName("Walthamstow Central Underground Station"),
                                 Instant.parse("2026-03-22T00:50:50Z")
                             )
@@ -132,7 +120,6 @@ class ServiceResponseMapperHttpTest {
                 listOf(
                     RailMapService(
                         ServiceId("257"),
-                        VehicleId("257"),
                         LineId("victoria"),
                         LineName("Victoria"),
                         ServiceDirection("outbound"),
@@ -147,7 +134,6 @@ class ServiceResponseMapperHttpTest {
                         GeoCoordinate(51.506947, -0.142787),
                         HeadingDegrees(42.0),
                         Instant.parse("2026-03-22T00:50:50Z"),
-                        Instant.parse("2026-03-22T00:49:20Z"),
                         listOf(
                             FutureStationArrival(
                                 StationId("940GZZLUOXC"),
@@ -160,9 +146,8 @@ class ServiceResponseMapperHttpTest {
             )
         )
 
-        expectThat(response.cacheAgeSeconds).isEqualTo(15)
         expectThat(response.stations).hasSize(1)
-        expectThat(response.stations.first().arrivals.first().lineName).isEqualTo("Victoria")
+        expectThat(response.stations.first().arrivals.first().lineId).isEqualTo("victoria")
         expectThat(response.services).hasSize(1)
         expectThat(response.services.first().lineId).isEqualTo("victoria")
         expectThat(response.services.first().futureArrivals).hasSize(1)

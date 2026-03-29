@@ -4,7 +4,6 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class TflStopPointJson(
-    val id: String,
     val naptanId: String,
     val commonName: String,
     val lat: Double,
@@ -23,29 +22,21 @@ data class TflStopPointsResponseJson(
 
 @Serializable
 data class TflIdentifierJson(
-    val id: String,
-    val name: String,
-    val uri: String,
-    val type: String
+    val id: String
 )
 
 @Serializable
 data class TflArrivalJson(
-    val id: String,
     val vehicleId: String? = null,
     val naptanId: String,
     val stationName: String,
     val lineId: String,
     val lineName: String,
-    val platformName: String,
     val direction: String? = null,
-    val destinationNaptanId: String? = null,
     val destinationName: String? = null,
-    val timestamp: String,
     val currentLocation: String? = null,
     val towards: String,
     val expectedArrival: String,
-    val timeToLive: String,
     val modeName: String
 )
 

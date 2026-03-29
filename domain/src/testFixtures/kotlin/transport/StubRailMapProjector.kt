@@ -34,11 +34,7 @@ class StubRailMapProjector : RailMapProjector {
 
     private fun defaultProjection(request: ProjectRequest) =
         RailMapSnapshot(
-            request.snapshot.source,
             request.snapshot.generatedAt,
-            request.snapshot.cached,
-            request.snapshot.cacheAge,
-            request.snapshot.stationsQueried,
             request.snapshot.stationsFailed,
             request.snapshot.partial,
             request.snapshot.serviceCount,
@@ -48,7 +44,6 @@ class StubRailMapProjector : RailMapProjector {
                 service.lineIds.firstOrNull()?.let { lineId ->
                     RailMapService(
                         service.serviceId,
-                        service.vehicleId,
                         lineId,
                         service.lineNames.firstOrNull() ?: LineName(lineId.value),
                         service.direction,
@@ -59,7 +54,6 @@ class StubRailMapProjector : RailMapProjector {
                         null,
                         null,
                         service.expectedArrival,
-                        service.observedAt,
                         service.futureArrivals
                     )
                 }

@@ -1,6 +1,5 @@
 package transport
 
-import java.time.Duration
 import java.time.Instant
 import kotlin.test.Test
 import strikt.api.expectThat
@@ -96,11 +95,7 @@ class RealRailMapProjectorTest {
     @Test
     fun `project uses the injected smoother and line projection seams`() {
         val snapshot = LiveRailSnapshot(
-            transportSourceName,
             Instant.parse("2026-03-22T00:49:20Z"),
-            false,
-            Duration.ZERO,
-            StationQueryCount(1),
             StationFailureCount(0),
             false,
             LiveServiceCount(1),
@@ -108,7 +103,6 @@ class RealRailMapProjectorTest {
             listOf(
                 LiveRailService(
                     ServiceId("257"),
-                    VehicleId("257"),
                     listOf(LineId("victoria")),
                     listOf(LineName("Victoria")),
                     ServiceDirection("outbound"),
@@ -123,8 +117,6 @@ class RealRailMapProjectorTest {
                     ),
                     nextStop,
                     Instant.parse("2026-03-22T00:50:50Z"),
-                    Instant.parse("2026-03-22T00:49:20Z"),
-                    PredictionCount(1),
                     listOf(
                         FutureStationArrival(
                             nextStop.id,
@@ -241,11 +233,7 @@ class RealRailMapProjectorTest {
     @Test
     fun `project anchors services at the next stop when no departure has been observed yet`() {
         val snapshot = LiveRailSnapshot(
-            transportSourceName,
             Instant.parse("2026-03-22T00:49:20Z"),
-            false,
-            Duration.ZERO,
-            StationQueryCount(1),
             StationFailureCount(0),
             false,
             LiveServiceCount(1),
@@ -253,7 +241,6 @@ class RealRailMapProjectorTest {
             listOf(
                 LiveRailService(
                     ServiceId("257"),
-                    VehicleId("257"),
                     listOf(LineId("victoria")),
                     listOf(LineName("Victoria")),
                     ServiceDirection("outbound"),
@@ -276,8 +263,6 @@ class RealRailMapProjectorTest {
                         GeoCoordinate(51.0, -0.2)
                     ),
                     Instant.parse("2026-03-22T00:50:50Z"),
-                    Instant.parse("2026-03-22T00:49:20Z"),
-                    PredictionCount(1),
                     emptyList()
                 )
             )
@@ -335,11 +320,7 @@ class RealRailMapProjectorTest {
     @Test
     fun `project leaves services unplotted when next stop is unknown even if a location coordinate exists`() {
         val snapshot = LiveRailSnapshot(
-            transportSourceName,
             Instant.parse("2026-03-22T00:49:20Z"),
-            false,
-            Duration.ZERO,
-            StationQueryCount(1),
             StationFailureCount(0),
             false,
             LiveServiceCount(1),
@@ -347,7 +328,6 @@ class RealRailMapProjectorTest {
             listOf(
                 LiveRailService(
                     ServiceId("258"),
-                    VehicleId("258"),
                     listOf(LineId("victoria")),
                     listOf(LineName("Victoria")),
                     ServiceDirection("outbound"),
@@ -366,8 +346,6 @@ class RealRailMapProjectorTest {
                     ),
                     null,
                     Instant.parse("2026-03-22T00:50:50Z"),
-                    Instant.parse("2026-03-22T00:49:20Z"),
-                    PredictionCount(1),
                     emptyList()
                 )
             )
@@ -421,11 +399,7 @@ class RealRailMapProjectorTest {
     @Test
     fun `project anchors services at the next stop when the next stop is first in the sequence`() {
         val snapshot = LiveRailSnapshot(
-            transportSourceName,
             Instant.parse("2026-03-22T00:49:20Z"),
-            false,
-            Duration.ZERO,
-            StationQueryCount(1),
             StationFailureCount(0),
             false,
             LiveServiceCount(1),
@@ -433,7 +407,6 @@ class RealRailMapProjectorTest {
             listOf(
                 LiveRailService(
                     ServiceId("259"),
-                    VehicleId("259"),
                     listOf(LineId("victoria")),
                     listOf(LineName("Victoria")),
                     ServiceDirection("outbound"),
@@ -456,8 +429,6 @@ class RealRailMapProjectorTest {
                         GeoCoordinate(51.0, -0.3)
                     ),
                     Instant.parse("2026-03-22T00:50:50Z"),
-                    Instant.parse("2026-03-22T00:49:20Z"),
-                    PredictionCount(1),
                     emptyList()
                 )
             )
@@ -511,11 +482,7 @@ class RealRailMapProjectorTest {
     @Test
     fun `project anchors services at the next stop even when direction is unknown`() {
         val snapshot = LiveRailSnapshot(
-            transportSourceName,
             Instant.parse("2026-03-22T00:49:20Z"),
-            false,
-            Duration.ZERO,
-            StationQueryCount(1),
             StationFailureCount(0),
             false,
             LiveServiceCount(1),
@@ -523,7 +490,6 @@ class RealRailMapProjectorTest {
             listOf(
                 LiveRailService(
                     ServiceId("260"),
-                    VehicleId("260"),
                     listOf(LineId("victoria")),
                     listOf(LineName("Victoria")),
                     null,
@@ -546,8 +512,6 @@ class RealRailMapProjectorTest {
                         GeoCoordinate(51.0, -0.2)
                     ),
                     Instant.parse("2026-03-22T00:50:50Z"),
-                    Instant.parse("2026-03-22T00:49:20Z"),
-                    PredictionCount(1),
                     emptyList()
                 )
             )
@@ -601,11 +565,7 @@ class RealRailMapProjectorTest {
     @Test
     fun `project includes configured map stations and excludes unsupported lines`() {
         val snapshot = LiveRailSnapshot(
-            transportSourceName,
             Instant.parse("2026-03-22T00:49:20Z"),
-            false,
-            Duration.ZERO,
-            StationQueryCount(1),
             StationFailureCount(0),
             false,
             LiveServiceCount(0),
@@ -756,11 +716,7 @@ class RealRailMapProjectorTest {
     @Test
     fun `project snaps station based services onto the closest branch of the selected line`() {
         val snapshot = LiveRailSnapshot(
-            transportSourceName,
             Instant.parse("2026-03-22T00:49:20Z"),
-            false,
-            Duration.ZERO,
-            StationQueryCount(1),
             StationFailureCount(0),
             false,
             LiveServiceCount(1),
@@ -768,7 +724,6 @@ class RealRailMapProjectorTest {
             listOf(
                 LiveRailService(
                     ServiceId("300"),
-                    VehicleId("300"),
                     listOf(LineId("victoria")),
                     listOf(LineName("Victoria")),
                     ServiceDirection("outbound"),
@@ -791,8 +746,6 @@ class RealRailMapProjectorTest {
                         GeoCoordinate(51.6, 0.6)
                     ),
                     Instant.parse("2026-03-22T00:49:50Z"),
-                    Instant.parse("2026-03-22T00:49:20Z"),
-                    PredictionCount(1),
                     emptyList()
                 )
             )
@@ -849,11 +802,7 @@ class RealRailMapProjectorTest {
     @Test
     fun `project uses map projection for heading so diagonal services align with rendered paths`() {
         val snapshot = LiveRailSnapshot(
-            transportSourceName,
             Instant.parse("2026-03-22T00:49:20Z"),
-            false,
-            Duration.ZERO,
-            StationQueryCount(1),
             StationFailureCount(0),
             false,
             LiveServiceCount(1),
@@ -861,7 +810,6 @@ class RealRailMapProjectorTest {
             listOf(
                 LiveRailService(
                     ServiceId("401"),
-                    VehicleId("401"),
                     listOf(LineId("victoria")),
                     listOf(LineName("Victoria")),
                     ServiceDirection("outbound"),
@@ -884,8 +832,6 @@ class RealRailMapProjectorTest {
                         GeoCoordinate(51.6, 0.6)
                     ),
                     Instant.parse("2026-03-22T00:50:05Z"),
-                    Instant.parse("2026-03-22T00:49:20Z"),
-                    PredictionCount(1),
                     emptyList()
                 )
             )

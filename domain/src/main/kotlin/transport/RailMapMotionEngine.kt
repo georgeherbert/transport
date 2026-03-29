@@ -34,11 +34,7 @@ class RealRailMapMotionEngine(
             }
 
             RailMapSnapshot(
-                snapshot.source,
                 snapshot.generatedAt,
-                snapshot.cached,
-                snapshot.cacheAge,
-                snapshot.stationsQueried,
                 snapshot.stationsFailed,
                 snapshot.partial,
                 snapshot.serviceCount,

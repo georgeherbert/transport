@@ -22,11 +22,7 @@ class RealRailMapProjector(
             }
 
             RailMapSnapshot(
-                snapshot.source,
                 snapshot.generatedAt,
-                snapshot.cached,
-                snapshot.cacheAge,
-                snapshot.stationsQueried,
                 snapshot.stationsFailed,
                 snapshot.partial,
                 snapshot.serviceCount,
@@ -90,17 +86,14 @@ class RealRailMapProjector(
         snapshot.services
             .flatMap { service ->
                 service.lineIds.firstOrNull()?.let { lineId ->
-                    service.lineNames.firstOrNull()?.let { lineName ->
-                        service.futureArrivals.mapNotNull { arrival ->
-                            arrival.stationId?.let { stationId ->
-                                stationId to StationArrival(
-                                    service.serviceId,
-                                    lineId,
-                                    lineName,
-                                    service.destinationName,
-                                    arrival.expectedArrival
-                                )
-                            }
+                    service.futureArrivals.mapNotNull { arrival ->
+                        arrival.stationId?.let { stationId ->
+                            stationId to StationArrival(
+                                service.serviceId,
+                                lineId,
+                                service.destinationName,
+                                arrival.expectedArrival
+                            )
                         }
                     }
                 } ?: emptyList()
@@ -110,7 +103,7 @@ class RealRailMapProjector(
                 entry.value.sortedWith(
                     compareBy<StationArrival>(
                         StationArrival::expectedArrival,
-                        { arrival -> arrival.lineName.value },
+                        { arrival -> arrival.lineId.value },
                         { arrival -> arrival.destinationName?.value.orEmpty() },
                         { arrival -> arrival.serviceId.value }
                     )
@@ -127,7 +120,6 @@ class RealRailMapProjector(
 
             RailMapService(
                 service.serviceId,
-                service.vehicleId,
                 lineId,
                 lineName,
                 service.direction,
@@ -138,7 +130,6 @@ class RealRailMapProjector(
                 projection?.coordinate,
                 projection?.heading,
                 service.expectedArrival,
-                service.observedAt,
                 service.futureArrivals
             )
         }

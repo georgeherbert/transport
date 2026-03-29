@@ -36,8 +36,9 @@ class RealRailSnapshotServiceTest {
             val first = snapshotService.getLiveSnapshot(false)
             val second = snapshotService.getLiveSnapshot(false)
 
-            expectThat(first).isSuccess().get { cached }.isEqualTo(false)
-            expectThat(second).isSuccess().get { cached }.isEqualTo(true)
+            expectThat(first).isSuccess()
+            expectThat(second).isSuccess()
+            expectThat(railSnapshotAssembler.requests.size).isEqualTo(1)
             expectThat(railData.predictionRequests.size).isEqualTo(supportedRailModes.size)
         }
     }
@@ -56,7 +57,8 @@ class RealRailSnapshotServiceTest {
 
             val refreshed = snapshotService.getLiveSnapshot(true)
 
-            expectThat(refreshed).isSuccess().get { cached }.isEqualTo(true)
+            expectThat(refreshed).isSuccess()
+            expectThat(railSnapshotAssembler.requests.size).isEqualTo(1)
         }
     }
 
@@ -85,7 +87,6 @@ class RealRailSnapshotServiceTest {
                 LineName("Victoria"),
                 ServiceDirection("outbound"),
                 DestinationName("Walthamstow Central Underground Station"),
-                Instant.parse("2026-03-22T00:49:20Z"),
                 LocationDescription("Approaching Green Park"),
                 TowardsDescription("Walthamstow Central"),
                 Instant.parse("2026-03-22T00:50:50Z"),

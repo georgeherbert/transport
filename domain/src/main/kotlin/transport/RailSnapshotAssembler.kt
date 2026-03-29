@@ -1,6 +1,5 @@
 package transport
 
-import java.time.Duration
 import java.time.Instant
 
 interface RailSnapshotAssembler {
@@ -8,7 +7,6 @@ interface RailSnapshotAssembler {
         railNetwork: RailNetwork,
         predictions: List<RailPredictionRecord>,
         generatedAt: Instant,
-        stationsQueried: StationQueryCount,
         stationsFailed: StationFailureCount
     ): LiveRailSnapshot
 }
@@ -20,7 +18,6 @@ class RealRailSnapshotAssembler(
         railNetwork: RailNetwork,
         predictions: List<RailPredictionRecord>,
         generatedAt: Instant,
-        stationsQueried: StationQueryCount,
         stationsFailed: StationFailureCount
     ): LiveRailSnapshot =
         predictions
@@ -37,11 +34,7 @@ class RealRailSnapshotAssembler(
             )
             .let { services ->
                 LiveRailSnapshot(
-                    transportSourceName,
                     generatedAt,
-                    false,
-                    Duration.ZERO,
-                    stationsQueried,
                     stationsFailed,
                     stationsFailed.value > 0,
                     LiveServiceCount(services.size),
@@ -69,7 +62,6 @@ class RealRailSnapshotAssembler(
 
                     LiveRailService(
                         ServiceId(baseServiceIdentityKey(nextStopRepresentative)),
-                        nextStopRepresentative.vehicleId,
                         lineIds,
                         lineNames,
                         nextStopRepresentative.direction ?: displayRepresentative.direction,
@@ -79,8 +71,6 @@ class RealRailSnapshotAssembler(
                         location,
                         boardStation?.toReference(),
                         nextStopRepresentative.expectedArrival,
-                        nextStopRepresentative.observedAt ?: displayRepresentative.observedAt,
-                        PredictionCount(predictions.size),
                         futureArrivals(predictions)
                     )
                 }

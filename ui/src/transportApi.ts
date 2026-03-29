@@ -47,11 +47,7 @@ function isRailMapSnapshot(value: unknown): value is RailMapSnapshot {
 function isRailMapDynamicState(value: unknown): value is RailMapDynamicState {
   return (
     isRecord(value) &&
-    isString(value.source) &&
     isString(value.generatedAt) &&
-    isBoolean(value.cached) &&
-    isFiniteNumber(value.cacheAgeSeconds) &&
-    isFiniteNumber(value.stationsQueried) &&
     isFiniteNumber(value.stationsFailed) &&
     isBoolean(value.partial) &&
     isFiniteNumber(value.serviceCount) &&
@@ -95,17 +91,13 @@ function isRailService(value: unknown): value is RailService {
   return (
     isRecord(value) &&
     isString(value.serviceId) &&
-    isString(value.vehicleId) &&
     isString(value.lineId) &&
     isString(value.lineName) &&
-    (value.direction == null || isString(value.direction)) &&
     (value.destinationName == null || isString(value.destinationName)) &&
     (value.towards == null || isString(value.towards)) &&
     isString(value.currentLocation) &&
     (value.coordinate == null || isCoordinate(value.coordinate)) &&
     (value.headingDegrees == null || isFiniteNumber(value.headingDegrees)) &&
-    (value.expectedArrival == null || isString(value.expectedArrival)) &&
-    isString(value.observedAt) &&
     (value.futureArrivals == null || isArrayOf(value.futureArrivals, isFutureStationArrival))
   )
 }

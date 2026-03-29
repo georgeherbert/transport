@@ -13,9 +13,6 @@ sealed interface TransportError {
 }
 
 @JvmInline
-value class SourceName(val value: String)
-
-@JvmInline
 value class LineId(val value: String)
 
 @JvmInline
@@ -49,16 +46,10 @@ value class LocationDescription(val value: String)
 value class TransportModeName(val value: String)
 
 @JvmInline
-value class StationQueryCount(val value: Int)
-
-@JvmInline
 value class StationFailureCount(val value: Int)
 
 @JvmInline
 value class LiveServiceCount(val value: Int)
-
-@JvmInline
-value class PredictionCount(val value: Int)
 
 @JvmInline
 value class HeadingDegrees(val value: Double)

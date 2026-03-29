@@ -28,17 +28,13 @@ export interface StationArrival {
 
 export interface RailService {
   serviceId: string
-  vehicleId: string
   lineId: string
   lineName: string
-  direction: string | null
   destinationName: string | null
   towards: string | null
   currentLocation: string
   coordinate: Coordinate | null
   headingDegrees: number | null
-  expectedArrival: string | null
-  observedAt: string
   futureArrivals: FutureStationArrival[] | null
 }
 
@@ -55,11 +51,7 @@ export interface RailStation {
 }
 
 export interface RailMapDynamicState {
-  source: string
   generatedAt: string
-  cached: boolean
-  cacheAgeSeconds: number
-  stationsQueried: number
   stationsFailed: number
   partial: boolean
   serviceCount: number

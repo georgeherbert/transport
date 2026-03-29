@@ -10,11 +10,7 @@ data class ApiErrorJson(
 
 @Serializable
 data class RailMapSnapshotJson(
-    val source: String,
     val generatedAt: String,
-    val cached: Boolean,
-    val cacheAgeSeconds: Long,
-    val stationsQueried: Int,
     val stationsFailed: Int,
     val partial: Boolean,
     val serviceCount: Int,
@@ -25,11 +21,7 @@ data class RailMapSnapshotJson(
 
 @Serializable
 data class RailMapServicePositionsJson(
-    val source: String,
     val generatedAt: String,
-    val cached: Boolean,
-    val cacheAgeSeconds: Long,
-    val stationsQueried: Int,
     val stationsFailed: Int,
     val partial: Boolean,
     val serviceCount: Int,
@@ -62,7 +54,6 @@ data class MapStationJson(
 data class StationArrivalJson(
     val serviceId: String,
     val lineId: String,
-    val lineName: String,
     val destinationName: String?,
     val expectedArrival: String
 )
@@ -70,17 +61,13 @@ data class StationArrivalJson(
 @Serializable
 data class RailMapServiceJson(
     val serviceId: String,
-    val vehicleId: String?,
     val lineId: String,
     val lineName: String,
-    val direction: String?,
     val destinationName: String?,
     val towards: String?,
     val currentLocation: String,
     val coordinate: GeoCoordinateJson?,
     val headingDegrees: Double?,
-    val expectedArrival: String?,
-    val observedAt: String?,
     val futureArrivals: List<FutureStationArrivalJson>
 )
 

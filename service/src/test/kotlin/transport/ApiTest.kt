@@ -111,7 +111,6 @@ class ApiTest {
             val payload = transportJson().parseToJsonElement(body).jsonObject
 
             expectThat(response.status).isEqualTo(HttpStatusCode.OK)
-            expectThat(payload["cached"]?.jsonPrimitive?.content).isEqualTo("true")
             expectThat(payload["serviceCount"]?.jsonPrimitive?.int).isEqualTo(1)
             expectThat(body).contains("\"stations\"")
             expectThat(body).contains("\"futureArrivals\"")
@@ -245,11 +244,7 @@ class ApiTest {
 
     private fun sampleMap(forceRefresh: Boolean) =
         RailMapSnapshot(
-            transportSourceName,
             Instant.parse("2026-03-22T00:49:20Z"),
-            forceRefresh,
-            Duration.ZERO,
-            StationQueryCount(1),
             StationFailureCount(0),
             false,
             LiveServiceCount(1),
@@ -278,7 +273,6 @@ class ApiTest {
                         StationArrival(
                             ServiceId("257"),
                             LineId("victoria"),
-                            LineName("Victoria"),
                             DestinationName("Walthamstow Central Underground Station"),
                             Instant.parse("2026-03-22T00:50:50Z")
                         )
@@ -288,7 +282,6 @@ class ApiTest {
             listOf(
                 RailMapService(
                     ServiceId("257"),
-                    VehicleId("257"),
                     LineId("victoria"),
                     LineName("Victoria"),
                     ServiceDirection("outbound"),
@@ -303,7 +296,6 @@ class ApiTest {
                     GeoCoordinate(51.506947, -0.142787),
                     HeadingDegrees(42.0),
                     Instant.parse("2026-03-22T00:50:50Z"),
-                    Instant.parse("2026-03-22T00:49:20Z"),
                     listOf(
                         FutureStationArrival(
                             StationId("940GZZLUOXC"),
@@ -317,11 +309,7 @@ class ApiTest {
 
     private fun sampleServicePositions() =
         RailMapServicePositions(
-            transportSourceName,
             Instant.parse("2026-03-22T00:49:20Z"),
-            true,
-            Duration.ofSeconds(20),
-            StationQueryCount(1),
             StationFailureCount(0),
             false,
             LiveServiceCount(1),

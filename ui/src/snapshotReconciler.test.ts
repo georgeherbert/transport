@@ -7,10 +7,8 @@ import type { RailService, RailStation } from './types'
 function sampleService(overrides: Partial<RailService>): RailService {
   return {
     serviceId: 'service-1',
-    vehicleId: 'vehicle-1',
     lineId: 'jubilee',
     lineName: 'Jubilee',
-    direction: null,
     destinationName: 'Stratford',
     towards: 'Stratford',
     currentLocation: 'Baker Street',
@@ -19,8 +17,6 @@ function sampleService(overrides: Partial<RailService>): RailService {
       lon: -0.1571
     },
     headingDegrees: 90,
-    expectedArrival: '2026-03-29T12:01:00Z',
-    observedAt: '2026-03-29T12:00:00Z',
     futureArrivals: [
       {
         stationId: '940GZZLUBST',
@@ -49,7 +45,6 @@ function sampleStation(overrides: Partial<RailStation>): RailStation {
 test('reconcileServices reuses unchanged service objects', () => {
   const previousServices = [
     sampleService({
-      expectedArrival: '2026-03-29T12:00:00Z',
       futureArrivals: [
         {
           stationId: '940GZZLUBST',
@@ -62,7 +57,6 @@ test('reconcileServices reuses unchanged service objects', () => {
 
   const nextServices = [
     sampleService({
-      expectedArrival: '2026-03-29T12:00:00Z',
       futureArrivals: [
         {
           stationId: '940GZZLUBST',
@@ -82,7 +76,6 @@ test('reconcileServices reuses unchanged service objects', () => {
 test('reconcileServices replaces a service when nested data changes', () => {
   const previousServices = [
     sampleService({
-      expectedArrival: '2026-03-29T12:00:00Z',
       futureArrivals: [
         {
           stationId: '940GZZLUBST',
@@ -95,7 +88,6 @@ test('reconcileServices replaces a service when nested data changes', () => {
 
   const nextServices = [
     sampleService({
-      expectedArrival: '2026-03-29T12:00:05Z',
       futureArrivals: [
         {
           stationId: '940GZZLUBST',

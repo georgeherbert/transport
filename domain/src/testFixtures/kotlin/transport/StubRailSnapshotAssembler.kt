@@ -1,6 +1,5 @@
 package transport
 
-import java.time.Duration
 import java.time.Instant
 
 class StubRailSnapshotAssembler : RailSnapshotAssembler {
@@ -21,11 +20,10 @@ class StubRailSnapshotAssembler : RailSnapshotAssembler {
         railNetwork: RailNetwork,
         predictions: List<RailPredictionRecord>,
         generatedAt: Instant,
-        stationsQueried: StationQueryCount,
         stationsFailed: StationFailureCount
     ) =
         run {
-            val request = AssembleRequest(railNetwork, predictions, generatedAt, stationsQueried, stationsFailed)
+            val request = AssembleRequest(railNetwork, predictions, generatedAt, stationsFailed)
             requests += request
             queuedSnapshots
                 .takeIf { cannedSnapshots -> cannedSnapshots.isNotEmpty() }
@@ -43,11 +41,7 @@ class StubRailSnapshotAssembler : RailSnapshotAssembler {
 
     private fun defaultSnapshot(request: AssembleRequest) =
         LiveRailSnapshot(
-            transportSourceName,
             request.generatedAt,
-            false,
-            Duration.ZERO,
-            request.stationsQueried,
             request.stationsFailed,
             request.stationsFailed.value > 0,
             LiveServiceCount(request.predictions.size),
@@ -60,6 +54,5 @@ data class AssembleRequest(
     val railNetwork: RailNetwork,
     val predictions: List<RailPredictionRecord>,
     val generatedAt: Instant,
-    val stationsQueried: StationQueryCount,
     val stationsFailed: StationFailureCount
 )

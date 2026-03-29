@@ -1,6 +1,5 @@
 package transport
 
-import java.time.Duration
 import java.time.Instant
 import kotlin.test.Test
 import kotlinx.coroutines.runBlocking
@@ -42,11 +41,7 @@ class RealRailMapQueryTest {
 
     private fun sampleSnapshot() =
         LiveRailSnapshot(
-            transportSourceName,
             Instant.parse("2026-03-22T00:49:20Z"),
-            false,
-            Duration.ZERO,
-            StationQueryCount(1),
             StationFailureCount(0),
             false,
             LiveServiceCount(1),
@@ -54,7 +49,6 @@ class RealRailMapQueryTest {
             listOf(
                 LiveRailService(
                     ServiceId("257"),
-                    VehicleId("257"),
                     listOf(LineId("victoria")),
                     listOf(LineName("Victoria")),
                     ServiceDirection("outbound"),
@@ -73,8 +67,6 @@ class RealRailMapQueryTest {
                     ),
                     null,
                     Instant.parse("2026-03-22T00:50:05Z"),
-                    Instant.parse("2026-03-22T00:49:20Z"),
-                    PredictionCount(1),
                     emptyList()
                 )
             )

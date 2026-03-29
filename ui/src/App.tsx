@@ -229,11 +229,7 @@ function App() {
 
         return {
           ...currentSnapshot,
-          source: servicePositions.source,
           generatedAt: servicePositions.generatedAt,
-          cached: servicePositions.cached,
-          cacheAgeSeconds: servicePositions.cacheAgeSeconds,
-          stationsQueried: servicePositions.stationsQueried,
           stationsFailed: servicePositions.stationsFailed,
           partial: servicePositions.partial,
           serviceCount: servicePositions.serviceCount,

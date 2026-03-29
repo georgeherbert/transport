@@ -99,11 +99,7 @@ class RealRailMapMotionEngineTest {
         expectedArrival: Instant
     ) =
         RailMapSnapshot(
-            transportSourceName,
             generatedAt,
-            false,
-            Duration.ZERO,
-            StationQueryCount(1),
             StationFailureCount(0),
             false,
             LiveServiceCount(1),
@@ -164,7 +160,6 @@ class RealRailMapMotionEngineTest {
     ) =
         RailMapService(
             ServiceId("train-1"),
-            VehicleId("train-1"),
             LineId("victoria"),
             LineName("Victoria"),
             ServiceDirection("outbound"),
@@ -175,7 +170,6 @@ class RealRailMapMotionEngineTest {
             coordinateAtNextStop(nextStopId),
             HeadingDegrees(90.0),
             expectedArrival,
-            generatedAt,
             listOf(
                 FutureStationArrival(
                     StationId(nextStopId),

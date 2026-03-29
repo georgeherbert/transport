@@ -27,7 +27,7 @@ class RealRailSnapshotService(
     override suspend fun getLiveSnapshot(forceRefresh: Boolean) =
         cachedSnapshot.get().let { currentSnapshot ->
             if (!forceRefresh && currentSnapshot != null && !currentSnapshot.isExpired(clock, cacheTtl)) {
-                Success(currentSnapshot.toSnapshot(clock, true))
+                Success(currentSnapshot.snapshot)
             } else {
                 refreshSnapshot(forceRefresh)
             }
@@ -37,11 +37,11 @@ class RealRailSnapshotService(
         refreshLock.withLock {
             val latestSnapshot = cachedSnapshot.get()
             if (!forceRefresh && latestSnapshot != null && !latestSnapshot.isExpired(clock, cacheTtl)) {
-                Success(latestSnapshot.toSnapshot(clock, true))
+                Success(latestSnapshot.snapshot)
             } else {
                 when (val networkResult = railMetadataRepository.getRailNetwork()) {
                     is Success -> refreshFromNetwork(networkResult.value, latestSnapshot)
-                    is Failure -> latestSnapshot?.let { cached -> Success(cached.toSnapshot(clock, true)) } ?: Failure(networkResult.reason)
+                    is Failure -> latestSnapshot?.let { cached -> Success(cached.snapshot) } ?: Failure(networkResult.reason)
                 }
             }
         }
@@ -50,24 +50,23 @@ class RealRailSnapshotService(
         railNetwork: RailNetwork,
         latestSnapshot: CachedLiveRailSnapshot?
     ): TransportResult<LiveRailSnapshot> =
-        when (val predictionBatchResult = fetchPredictionBatch(railNetwork)) {
+        when (val predictionBatchResult = fetchPredictionBatch()) {
             is Success -> {
                 val generatedAt = Instant.now(clock)
                 val snapshot = railSnapshotAssembler.assemble(
                     railNetwork,
                     predictionBatchResult.value.predictions,
                     generatedAt,
-                    predictionBatchResult.value.stationsQueried,
                     predictionBatchResult.value.stationsFailed
                 )
-                val cached = CachedLiveRailSnapshot(generatedAt, snapshot)
+                val cached = CachedLiveRailSnapshot(snapshot)
                 cachedSnapshot.set(cached)
-                Success(cached.toSnapshot(clock, false))
+                Success(cached.snapshot)
             }
-            is Failure -> latestSnapshot?.let { cached -> Success(cached.toSnapshot(clock, true)) } ?: Failure(predictionBatchResult.reason)
+            is Failure -> latestSnapshot?.let { cached -> Success(cached.snapshot) } ?: Failure(predictionBatchResult.reason)
         }
 
-    private suspend fun fetchPredictionBatch(railNetwork: RailNetwork): TransportResult<PredictionBatch> =
+    private suspend fun fetchPredictionBatch(): TransportResult<PredictionBatch> =
         supportedRailModes
             .map { mode -> railData.fetchPredictions(mode) }
             .failFast()
@@ -78,7 +77,6 @@ class RealRailSnapshotService(
                         Success(
                             PredictionBatch(
                                 bulkPredictionResult.value,
-                                StationQueryCount(railNetwork.stationsById.size),
                                 StationFailureCount(0)
                             )
                         )
@@ -90,37 +88,12 @@ class RealRailSnapshotService(
 
 data class PredictionBatch(
     val predictions: List<RailPredictionRecord>,
-    val stationsQueried: StationQueryCount,
     val stationsFailed: StationFailureCount
 )
 
 data class CachedLiveRailSnapshot(
-    val generatedAt: Instant,
     val snapshot: LiveRailSnapshot
 ) {
     fun isExpired(clock: Clock, ttl: Duration): Boolean =
-        Duration.between(generatedAt, Instant.now(clock)) > ttl
-
-    fun toSnapshot(clock: Clock, cached: Boolean): LiveRailSnapshot {
-        val cacheAge = if (cached) {
-            Duration.between(generatedAt, Instant.now(clock)).let { duration ->
-                if (duration.isNegative) Duration.ZERO else duration
-            }
-        } else {
-            Duration.ZERO
-        }
-
-        return LiveRailSnapshot(
-            snapshot.source,
-            snapshot.generatedAt,
-            cached,
-            cacheAge,
-            snapshot.stationsQueried,
-            snapshot.stationsFailed,
-            snapshot.partial,
-            snapshot.serviceCount,
-            snapshot.lines,
-            snapshot.services
-        )
-    }
+        Duration.between(snapshot.generatedAt, Instant.now(clock)) > ttl
 }

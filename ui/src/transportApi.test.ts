@@ -5,11 +5,7 @@ import { railMapDynamicStateFromUnknown, railMapSnapshotFromUnknown, transportEr
 
 test('railMapSnapshotFromUnknown accepts a valid snapshot payload', () => {
   const payload = {
-    source: 'tfl',
     generatedAt: '2026-03-29T12:00:00Z',
-    cached: false,
-    cacheAgeSeconds: 0,
-    stationsQueried: 10,
     stationsFailed: 0,
     partial: false,
     serviceCount: 1,
@@ -51,10 +47,8 @@ test('railMapSnapshotFromUnknown accepts a valid snapshot payload', () => {
     services: [
       {
         serviceId: 'service-1',
-        vehicleId: 'vehicle-1',
         lineId: 'jubilee',
         lineName: 'Jubilee',
-        direction: 'eastbound',
         destinationName: 'Stratford',
         towards: 'Stratford',
         currentLocation: 'Baker Street',
@@ -63,8 +57,6 @@ test('railMapSnapshotFromUnknown accepts a valid snapshot payload', () => {
           lon: -0.1571
         },
         headingDegrees: 90,
-        expectedArrival: '2026-03-29T12:01:00Z',
-        observedAt: '2026-03-29T12:00:00Z',
         futureArrivals: [
           {
             stationId: 'station-1',
@@ -79,16 +71,12 @@ test('railMapSnapshotFromUnknown accepts a valid snapshot payload', () => {
   const snapshot = railMapSnapshotFromUnknown(payload)
 
   assert.equal(snapshot.lines[0]?.name, 'Jubilee')
-  assert.equal(snapshot.services[0]?.vehicleId, 'vehicle-1')
+  assert.equal(snapshot.services[0]?.lineName, 'Jubilee')
 })
 
 test('railMapDynamicStateFromUnknown rejects payloads without services', () => {
   const invalidPayload = {
-    source: 'tfl',
     generatedAt: '2026-03-29T12:00:00Z',
-    cached: false,
-    cacheAgeSeconds: 0,
-    stationsQueried: 10,
     stationsFailed: 0,
     partial: false,
     serviceCount: 1,
