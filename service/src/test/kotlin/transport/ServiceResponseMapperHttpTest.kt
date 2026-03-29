@@ -48,7 +48,7 @@ class ServiceResponseMapperHttpTest {
                         listOf(LineId("victoria")),
                         listOf(
                             StationArrival(
-                                ServiceId("victoria|257"),
+                                ServiceId("257"),
                                 LineId("victoria"),
                                 LineName("Victoria"),
                                 DestinationName("Walthamstow Central Underground Station"),
@@ -59,7 +59,7 @@ class ServiceResponseMapperHttpTest {
                 ),
                 listOf(
                     RailMapService(
-                        ServiceId("victoria|257"),
+                        ServiceId("257"),
                         VehicleId("257"),
                         LineId("victoria"),
                         LineName("Victoria"),
@@ -120,7 +120,7 @@ class ServiceResponseMapperHttpTest {
                         listOf(LineId("victoria")),
                         listOf(
                             StationArrival(
-                                ServiceId("victoria|257"),
+                                ServiceId("257"),
                                 LineId("victoria"),
                                 LineName("Victoria"),
                                 DestinationName("Walthamstow Central Underground Station"),
@@ -131,7 +131,7 @@ class ServiceResponseMapperHttpTest {
                 ),
                 listOf(
                     RailMapService(
-                        ServiceId("victoria|257"),
+                        ServiceId("257"),
                         VehicleId("257"),
                         LineId("victoria"),
                         LineName("Victoria"),

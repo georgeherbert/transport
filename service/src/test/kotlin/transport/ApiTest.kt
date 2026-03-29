@@ -276,7 +276,7 @@ class ApiTest {
                     listOf(LineId("victoria")),
                     listOf(
                         StationArrival(
-                            ServiceId("victoria|257"),
+                            ServiceId("257"),
                             LineId("victoria"),
                             LineName("Victoria"),
                             DestinationName("Walthamstow Central Underground Station"),
@@ -287,7 +287,7 @@ class ApiTest {
             ),
             listOf(
                 RailMapService(
-                    ServiceId("victoria|257"),
+                    ServiceId("257"),
                     VehicleId("257"),
                     LineId("victoria"),
                     LineName("Victoria"),

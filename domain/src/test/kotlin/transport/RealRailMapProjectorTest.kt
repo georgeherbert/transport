@@ -107,7 +107,7 @@ class RealRailMapProjectorTest {
             listOf(LineId("victoria")),
             listOf(
                 LiveRailService(
-                    ServiceId("victoria|257"),
+                    ServiceId("257"),
                     VehicleId("257"),
                     listOf(LineId("victoria")),
                     listOf(LineName("Victoria")),
@@ -138,7 +138,7 @@ class RealRailMapProjectorTest {
         seamPathSmoother.returns(smoothedLineMap)
         seamProjection.projectsStation(nextStop.coordinate, GeoCoordinate(51.507100, -0.142500))
         seamProjection.projectsNextStopAnchor(
-            ServiceId("victoria|257"),
+            ServiceId("257"),
             ServiceMapProjection(
                 GeoCoordinate(51.507200, -0.142400),
                 HeadingDegrees(32.0)
@@ -252,7 +252,7 @@ class RealRailMapProjectorTest {
             listOf(LineId("victoria")),
             listOf(
                 LiveRailService(
-                    ServiceId("victoria|257"),
+                    ServiceId("257"),
                     VehicleId("257"),
                     listOf(LineId("victoria")),
                     listOf(LineName("Victoria")),
@@ -346,7 +346,7 @@ class RealRailMapProjectorTest {
             listOf(LineId("victoria")),
             listOf(
                 LiveRailService(
-                    ServiceId("victoria|258"),
+                    ServiceId("258"),
                     VehicleId("258"),
                     listOf(LineId("victoria")),
                     listOf(LineName("Victoria")),
@@ -432,7 +432,7 @@ class RealRailMapProjectorTest {
             listOf(LineId("victoria")),
             listOf(
                 LiveRailService(
-                    ServiceId("victoria|259"),
+                    ServiceId("259"),
                     VehicleId("259"),
                     listOf(LineId("victoria")),
                     listOf(LineName("Victoria")),
@@ -522,7 +522,7 @@ class RealRailMapProjectorTest {
             listOf(LineId("victoria")),
             listOf(
                 LiveRailService(
-                    ServiceId("victoria|260"),
+                    ServiceId("260"),
                     VehicleId("260"),
                     listOf(LineId("victoria")),
                     listOf(LineName("Victoria")),
@@ -767,7 +767,7 @@ class RealRailMapProjectorTest {
             listOf(LineId("victoria")),
             listOf(
                 LiveRailService(
-                    ServiceId("victoria|300"),
+                    ServiceId("300"),
                     VehicleId("300"),
                     listOf(LineId("victoria")),
                     listOf(LineName("Victoria")),
@@ -860,7 +860,7 @@ class RealRailMapProjectorTest {
             listOf(LineId("victoria")),
             listOf(
                 LiveRailService(
-                    ServiceId("victoria|401"),
+                    ServiceId("401"),
                     VehicleId("401"),
                     listOf(LineId("victoria")),
                     listOf(LineName("Victoria")),

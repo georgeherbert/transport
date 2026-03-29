@@ -32,7 +32,7 @@ data class TflIdentifierJson(
 @Serializable
 data class TflArrivalJson(
     val id: String,
-    val vehicleId: String,
+    val vehicleId: String? = null,
     val naptanId: String,
     val stationName: String,
     val lineId: String,

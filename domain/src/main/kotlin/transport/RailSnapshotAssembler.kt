@@ -57,8 +57,10 @@ class RealRailSnapshotAssembler(
         predictions.minWith(nextStopPredictionComparator).let { nextStopRepresentative ->
             predictions.minWith(displayPredictionComparator).let { displayRepresentative ->
                 val boardStation = nextStopRepresentative.stationId?.let { stationId -> railNetwork.stationsById[stationId] }
-                val lineIds = predictions.mapNotNull { prediction -> prediction.lineId }.distinct().sortedBy(LineId::value)
-                val lineNames = predictions.mapNotNull { prediction -> prediction.lineName }.distinct().sortedBy(LineName::value)
+                val primaryLineId = nextStopRepresentative.lineId ?: displayRepresentative.lineId
+                val primaryLineName = nextStopRepresentative.lineName ?: displayRepresentative.lineName
+                val lineIds = orderedLineIds(predictions, primaryLineId)
+                val lineNames = orderedLineNames(predictions, primaryLineName)
                 val location = railLocationEstimator.estimateLocation(
                     displayRepresentative.currentLocation,
                     boardStation
@@ -89,20 +91,10 @@ class RealRailSnapshotAssembler(
             prediction.modeName in supportedRailModes
 
     private fun serviceIdentityKey(prediction: RailPredictionRecord): String =
-        prediction.vehicleId?.let { vehicleId ->
-            listOf(prediction.lineId?.value.orEmpty(), vehicleId.value).joinToString("|")
-        } ?: listOf(
-            prediction.lineId?.value,
-            prediction.stationId?.value,
-            prediction.direction?.value,
-            prediction.destinationName?.value,
-            prediction.currentLocation?.value,
-            prediction.towards?.value,
-            prediction.expectedArrival?.toString()
-        ).joinToString("|")
+        prediction.vehicleId.value
 
     private fun serviceIdFor(prediction: RailPredictionRecord): ServiceId =
-        ServiceId(serviceIdentityKey(prediction))
+        ServiceId(prediction.vehicleId.value)
 
     private fun futureArrivals(predictions: List<RailPredictionRecord>) =
         predictions
@@ -126,6 +118,40 @@ class RealRailSnapshotAssembler(
 
     private fun futureArrivalKey(arrival: FutureStationArrival) =
         arrival.stationId?.value ?: arrival.stationName.value
+
+    private fun orderedLineIds(
+        predictions: List<RailPredictionRecord>,
+        primaryLineId: LineId?
+    ) =
+        primaryLineId
+            ?.let { currentLineId ->
+                listOf(currentLineId) + predictions
+                    .mapNotNull(RailPredictionRecord::lineId)
+                    .filter { lineId -> lineId != currentLineId }
+                    .distinctBy(LineId::value)
+                    .sortedBy(LineId::value)
+            }
+            ?: predictions
+                .mapNotNull(RailPredictionRecord::lineId)
+                .distinctBy(LineId::value)
+                .sortedBy(LineId::value)
+
+    private fun orderedLineNames(
+        predictions: List<RailPredictionRecord>,
+        primaryLineName: LineName?
+    ) =
+        primaryLineName
+            ?.let { currentLineName ->
+                listOf(currentLineName) + predictions
+                    .mapNotNull(RailPredictionRecord::lineName)
+                    .filter { lineName -> lineName != currentLineName }
+                    .distinctBy(LineName::value)
+                    .sortedBy(LineName::value)
+            }
+            ?: predictions
+                .mapNotNull(RailPredictionRecord::lineName)
+                .distinctBy(LineName::value)
+                .sortedBy(LineName::value)
 
     private companion object {
         val nextStopPredictionComparator = compareBy<RailPredictionRecord>(

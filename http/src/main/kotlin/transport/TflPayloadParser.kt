@@ -116,21 +116,24 @@ class TflPayloadParserHttp(
         parseInstant(arrival.timestamp, "timestamp", endpoint)
             .flatMap { observedAt ->
                 parseInstant(arrival.expectedArrival, "expectedArrival", endpoint)
-                    .map { expectedArrival ->
-                        RailPredictionRecord(
-                            arrival.vehicleId.toValue(::VehicleId),
-                            StationId(arrival.naptanId),
-                            StationName(arrival.stationName),
-                            LineId(arrival.lineId),
-                            LineName(arrival.lineName),
-                            arrival.direction.toValue(::ServiceDirection),
-                            arrival.destinationName.toValue(::DestinationName),
-                            observedAt,
-                            arrival.currentLocation.toValue(::LocationDescription),
-                            arrival.towards.toValue(::TowardsDescription),
-                            expectedArrival,
-                            TransportModeName(arrival.modeName)
-                        )
+                    .flatMap { expectedArrival ->
+                        requiredValue(arrival.vehicleId, "vehicleId", endpoint, ::VehicleId)
+                            .map { vehicleId ->
+                                RailPredictionRecord(
+                                    vehicleId,
+                                    StationId(arrival.naptanId),
+                                    StationName(arrival.stationName),
+                                    LineId(arrival.lineId),
+                                    LineName(arrival.lineName),
+                                    arrival.direction.toValue(::ServiceDirection),
+                                    arrival.destinationName.toValue(::DestinationName),
+                                    observedAt,
+                                    arrival.currentLocation.toValue(::LocationDescription),
+                                    arrival.towards.toValue(::TowardsDescription),
+                                    expectedArrival,
+                                    TransportModeName(arrival.modeName)
+                                )
+                            }
                     }
             }
 
@@ -227,6 +230,18 @@ class TflPayloadParserHttp(
         this
             ?.takeIf(String::isNotBlank)
             ?.let(factory)
+
+    private fun <T> requiredValue(
+        value: String?,
+        field: String,
+        endpoint: String,
+        factory: (String) -> T
+    ): TransportResult<T> =
+        value
+            ?.takeIf(String::isNotBlank)
+            ?.let(factory)
+            ?.let(::Success)
+            ?: Failure(TransportError.UpstreamPayloadFailure(endpoint, "TfL returned a prediction without '$field'."))
 
     private fun isSupportedStationStopType(stopType: String) =
         stopType == "NaptanMetroStation" || stopType == "NaptanRailStation"

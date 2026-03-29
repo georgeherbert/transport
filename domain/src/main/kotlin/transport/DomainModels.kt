@@ -83,7 +83,7 @@ data class StationArrival(
 
 data class RailMapService(
     val serviceId: ServiceId,
-    val vehicleId: VehicleId?,
+    val vehicleId: VehicleId,
     val lineId: LineId,
     val lineName: LineName,
     val direction: ServiceDirection?,
@@ -100,7 +100,7 @@ data class RailMapService(
 
 data class LiveRailService(
     val serviceId: ServiceId,
-    val vehicleId: VehicleId?,
+    val vehicleId: VehicleId,
     val lineIds: List<LineId>,
     val lineNames: List<LineName>,
     val direction: ServiceDirection?,
@@ -152,7 +152,7 @@ data class RailStationRecord(
 )
 
 data class RailPredictionRecord(
-    val vehicleId: VehicleId?,
+    val vehicleId: VehicleId,
     val stationId: StationId?,
     val stationName: StationName?,
     val lineId: LineId?,

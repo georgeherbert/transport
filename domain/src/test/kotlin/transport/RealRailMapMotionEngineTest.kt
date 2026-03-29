@@ -163,7 +163,7 @@ class RealRailMapMotionEngineTest {
         expectedArrival: Instant
     ) =
         RailMapService(
-            ServiceId("victoria|train-1"),
+            ServiceId("train-1"),
             VehicleId("train-1"),
             LineId("victoria"),
             LineName("Victoria"),

@@ -67,7 +67,7 @@ class RealRailSnapshotAssemblerTest {
         )
 
         expectThat(snapshot.services).hasSize(1)
-        expectThat(snapshot.services.first().serviceId).isEqualTo(ServiceId("victoria|257"))
+        expectThat(snapshot.services.first().serviceId).isEqualTo(ServiceId("257"))
         expectThat(snapshot.services.first().location.type).isEqualTo(LocationType.STATION_BOARD)
         expectThat(snapshot.services.first().nextStop!!.id).isEqualTo(StationId("940GZZLUWSM"))
         expectThat(snapshot.services.first().sourcePredictions).isEqualTo(PredictionCount(2))
@@ -77,7 +77,7 @@ class RealRailSnapshotAssemblerTest {
     }
 
     @Test
-    fun `assemble separates reused vehicle ids across different lines`() {
+    fun `assemble groups vehicle ids across different lines and keeps the earliest line first`() {
         val predictions = listOf(
             RailPredictionRecord(
                 VehicleId("175"),
@@ -117,14 +117,13 @@ class RealRailSnapshotAssemblerTest {
             StationFailureCount(0)
         )
 
-        expectThat(snapshot.services).hasSize(2)
-        expectThat(snapshot.services.map(LiveRailService::serviceId)).contains(
-            ServiceId("hammersmith-city|175"),
-            ServiceId("metropolitan|175")
-        )
-        expectThat(snapshot.services.map(LiveRailService::lineIds)).contains(
-            listOf(LineId("hammersmith-city")),
-            listOf(LineId("metropolitan"))
+        expectThat(snapshot.services).hasSize(1)
+        expectThat(snapshot.services.first().serviceId).isEqualTo(ServiceId("175"))
+        expectThat(snapshot.services.first().lineIds).isEqualTo(
+            listOf(
+                LineId("metropolitan"),
+                LineId("hammersmith-city")
+            )
         )
     }
 
@@ -163,7 +162,7 @@ class RealRailSnapshotAssemblerTest {
             railNetwork,
             listOf(
                 RailPredictionRecord(
-                    null,
+                    VehicleId("972"),
                     StationId("910GABWDXR"),
                     StationName("Abbey Wood"),
                     LineId("elizabeth"),

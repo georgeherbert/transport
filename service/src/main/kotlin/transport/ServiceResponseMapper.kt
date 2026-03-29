@@ -67,7 +67,7 @@ class ServiceResponseMapperHttp : ServiceResponseMapper {
     private fun mapServiceJson(service: RailMapService) =
         RailMapServiceJson(
             service.serviceId.value,
-            service.vehicleId?.value,
+            service.vehicleId.value,
             service.lineId.value,
             service.lineName.value,
             service.direction?.value,

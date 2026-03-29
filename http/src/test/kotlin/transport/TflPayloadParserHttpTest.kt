@@ -223,7 +223,7 @@ class TflPayloadParserHttpTest {
     }
 
     @Test
-    fun `parsePredictions treats blank non tube fields as missing values`() {
+    fun `parsePredictions rejects blank vehicle ids`() {
         val result = tflPayloadParser.parsePredictions(
             """
             [
@@ -249,12 +249,42 @@ class TflPayloadParserHttpTest {
             "/Mode/elizabeth-line/Arrivals"
         )
 
-        expectThat(result).isSuccess().hasSize(1)
-        expectThat(result).isSuccess().get { first().vehicleId }.isEqualTo(null)
-        expectThat(result).isSuccess().get { first().direction }.isEqualTo(null)
-        expectThat(result).isSuccess().get { first().currentLocation }.isEqualTo(null)
-        expectThat(result).isSuccess().get { first().towards }.isEqualTo(null)
-        expectThat(result).isSuccess().get { first().modeName }.isEqualTo(TransportModeName("elizabeth-line"))
+        expectThat(result)
+            .isFailure()
+            .isA<TransportError.UpstreamPayloadFailure>()
+            .get(TransportError.UpstreamPayloadFailure::message)
+            .contains("vehicleId")
+    }
+
+    @Test
+    fun `parsePredictions rejects missing vehicle ids`() {
+        val result = tflPayloadParser.parsePredictions(
+            """
+            [
+              {
+                "id":"-660031888",
+                "naptanId":"910GHTRWTM5",
+                "stationName":"Heathrow Terminal 5 Rail Station",
+                "lineId":"elizabeth",
+                "lineName":"Elizabeth line",
+                "platformName":"3",
+                "destinationName":"Abbey Wood",
+                "timestamp":"2026-03-22T16:00:00Z",
+                "towards":"",
+                "expectedArrival":"2026-03-22T16:08:00Z",
+                "timeToLive":"2026-03-22T16:08:00Z",
+                "modeName":"elizabeth-line"
+              }
+            ]
+            """.trimIndent(),
+            "/Mode/elizabeth-line/Arrivals"
+        )
+
+        expectThat(result)
+            .isFailure()
+            .isA<TransportError.UpstreamPayloadFailure>()
+            .get(TransportError.UpstreamPayloadFailure::message)
+            .contains("vehicleId")
     }
 
     @Test

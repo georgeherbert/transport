@@ -102,7 +102,7 @@ class StubServiceResponseMapper : ServiceResponseMapper {
     private fun serviceJson(service: RailMapService) =
         RailMapServiceJson(
             service.serviceId.value,
-            service.vehicleId?.value,
+            service.vehicleId.value,
             service.lineId.value,
             service.lineName.value,
             service.direction?.value,

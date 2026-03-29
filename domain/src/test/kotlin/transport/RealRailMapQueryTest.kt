@@ -53,7 +53,7 @@ class RealRailMapQueryTest {
             listOf(LineId("victoria")),
             listOf(
                 LiveRailService(
-                    ServiceId("victoria|257"),
+                    ServiceId("257"),
                     VehicleId("257"),
                     listOf(LineId("victoria")),
                     listOf(LineName("Victoria")),
