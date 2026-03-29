@@ -55,42 +55,6 @@ class RealRailMetadataRepository(
                     )
                 }
 
-            Success(RailNetwork(stationsById, buildAliasIndex(stationsById.values)))
+            Success(RailNetwork(stationsById))
         }
 }
-
-fun buildAliasIndex(stations: Collection<RailStation>): Map<String, List<RailStation>> =
-    linkedMapOf<String, MutableList<RailStation>>().apply {
-        for (station in stations) {
-            for (alias in stationNameVariants(station.name)) {
-                getOrPut(alias) { mutableListOf() } += station
-            }
-        }
-    }.mapValues { entry -> entry.value.toList() }
-
-fun stationNameVariants(name: StationName): Set<String> =
-    setOf(
-        name.value,
-        name.value.removeSuffix(" Underground Station"),
-        name.value.removeSuffix(" Rail Station"),
-        name.value.removeSuffix(" Station"),
-        name.value.replace(Regex("\\s*\\([^)]*\\)"), "")
-    ).map(::normalizeStationName).toSet()
-
-fun normalizeStationName(name: String): String =
-    name
-        .replace(Regex("\\s*\\([^)]*\\)"), " ")
-        .replace(Regex("\\bPlatform\\b.*$", RegexOption.IGNORE_CASE), " ")
-        .replace("&", " and ")
-        .replace("'", "")
-        .replace(".", "")
-        .replace(",", " ")
-        .replace("/", " ")
-        .replace("-", " ")
-        .lowercase()
-        .replace(Regex("\\s+"), " ")
-        .trim()
-        .removeSuffix(" underground station")
-        .removeSuffix(" rail station")
-        .removeSuffix(" station")
-        .trim()

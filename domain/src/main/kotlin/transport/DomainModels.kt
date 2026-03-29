@@ -173,8 +173,7 @@ data class RailStation(
 )
 
 data class RailNetwork(
-    val stationsById: Map<StationId, RailStation>,
-    val aliases: Map<String, List<RailStation>>
+    val stationsById: Map<StationId, RailStation>
 )
 
 fun RailStation.toReference() =

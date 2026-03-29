@@ -15,4 +15,4 @@ fun testStation(
     )
 
 fun testRailNetwork(stations: List<RailStation>) =
-    RailNetwork(stations.associateBy(RailStation::id), buildAliasIndex(stations))
+    RailNetwork(stations.associateBy(RailStation::id))

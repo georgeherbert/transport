@@ -48,10 +48,6 @@ class RealRailMetadataRepositoryTest {
                 .isSuccess()
                 .get { stationsById[StationId("940GZZLUKSX")]!!.lineIds }
                 .contains(LineId("victoria"), LineId("circle"))
-            expectThat(result)
-                .isSuccess()
-                .get { aliases["kings cross st pancras"]!! }
-                .hasSize(1)
         }
     }
 
