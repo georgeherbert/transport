@@ -50,6 +50,8 @@ Use this file as the default operating guide for contributors and coding agents.
 - Use explicit constructors for fixed initialization requirements.
 - Prefer immutable models.
 - Minimise side effects; prefer pure functions where possible.
+- Never use `Instant.now()`.
+- Always create an instant from an injected `Clock` via `clock.instant()` so time-dependent code stays testable.
 
 ### Types
 - Use focused domain types:

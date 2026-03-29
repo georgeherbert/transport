@@ -74,7 +74,7 @@ class RealRailMapFeedService(
             }
 
             cachedSnapshot.get()?.let { cached ->
-                Success(cached.toSnapshot(railMapMotionEngine, Instant.now(clock)))
+                Success(cached.toSnapshot(railMapMotionEngine, clock.instant()))
             } ?: latestError.get()?.let { error ->
                 Failure(error)
             } ?: Failure(TransportError.SnapshotUnavailable("No cached rail map is available yet."))
@@ -88,7 +88,7 @@ class RealRailMapFeedService(
 
     private suspend fun refreshIfDue() {
         refreshLock.withLock {
-            val now = Instant.now(clock)
+            val now = clock.instant()
             val lastAttempt = lastRefreshAttemptAt.get()
             if (lastAttempt == null || Duration.between(lastAttempt, now) >= pollInterval) {
                 lastRefreshAttemptAt.set(now)
@@ -113,7 +113,7 @@ class RealRailMapFeedService(
     private fun emitAnimatedSnapshotIfAvailable() {
         if (latestError.get() == null) {
             cachedSnapshot.get()?.let { cached ->
-                val currentTime = Instant.now(clock)
+                val currentTime = clock.instant()
                 val animatedSnapshot = railMapMotionEngine.advance(cached.snapshot, currentTime)
                 if (animatedSnapshot.services != cached.snapshot.services) {
                     updateFlow.tryEmit(

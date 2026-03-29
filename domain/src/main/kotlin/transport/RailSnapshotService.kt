@@ -52,7 +52,7 @@ class RealRailSnapshotService(
     ): TransportResult<LiveRailSnapshot> =
         when (val predictionBatchResult = fetchPredictionBatch()) {
             is Success -> {
-                val generatedAt = Instant.now(clock)
+                val generatedAt = clock.instant()
                 val snapshot = railSnapshotAssembler.assemble(
                     railNetwork,
                     predictionBatchResult.value.predictions,
@@ -95,5 +95,5 @@ data class CachedLiveRailSnapshot(
     val snapshot: LiveRailSnapshot
 ) {
     fun isExpired(clock: Clock, ttl: Duration): Boolean =
-        Duration.between(snapshot.generatedAt, Instant.now(clock)) > ttl
+        Duration.between(snapshot.generatedAt, clock.instant()) > ttl
 }
