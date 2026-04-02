@@ -5,9 +5,9 @@ import kotlin.test.Test
 import strikt.api.expectThat
 import strikt.assertions.contains
 import strikt.assertions.get
+import strikt.assertions.isGreaterThan
 import strikt.assertions.hasSize
 import strikt.assertions.isEqualTo
-import strikt.assertions.isGreaterThan
 import strikt.assertions.isLessThan
 import strikt.assertions.isNotNull
 import strikt.assertions.isNull
@@ -85,7 +85,7 @@ class RealRailMapProjectorTest {
     private val railLineProjectionFactory: RailLineProjectionFactory =
         RealRailLineProjectionFactory(RealRailLinePathProjectionFactory())
     private val projector: RailMapProjector =
-        RealRailMapProjector(RealRailPathSmoother(6), railLineProjectionFactory)
+        RealRailMapProjector(RealIdentityRailPathSmoother(), railLineProjectionFactory)
 
     init {
         pathProjectionFactory.returns(pathProjection)
@@ -96,8 +96,6 @@ class RealRailMapProjectorTest {
     fun `project uses the injected smoother and line projection seams`() {
         val snapshot = LiveRailSnapshot(
             Instant.parse("2026-03-22T00:49:20Z"),
-            StationFailureCount(0),
-            false,
             LiveServiceCount(1),
             listOf(LineId("victoria")),
             listOf(
@@ -199,43 +197,9 @@ class RealRailMapProjectorTest {
     }
 
     @Test
-    fun `path smoother densifies the line path while preserving anchor points`() {
-        val smoother: RailPathSmoother = RealRailPathSmoother(6)
-        val lineMap = RailLineMap(
-            listOf(
-                RailLine(
-                    LineId("victoria"),
-                    LineName("Victoria"),
-                    listOf(
-                        RailLinePath(
-                            listOf(
-                                GeoCoordinate(51.0, -0.3),
-                                GeoCoordinate(51.1, -0.2),
-                                GeoCoordinate(51.2, -0.1)
-                            )
-                        )
-                    ),
-                    emptyList()
-                )
-            )
-        )
-
-        val smoothed = smoother.smooth(lineMap)
-
-        expectThat(smoothed.lines.first().paths.first().coordinates.size).isGreaterThan(3)
-        expectThat(smoothed.lines.first().paths.first().coordinates).contains(
-            GeoCoordinate(51.0, -0.3),
-            GeoCoordinate(51.1, -0.2),
-            GeoCoordinate(51.2, -0.1)
-        )
-    }
-
-    @Test
     fun `project anchors services at the next stop when no departure has been observed yet`() {
         val snapshot = LiveRailSnapshot(
             Instant.parse("2026-03-22T00:49:20Z"),
-            StationFailureCount(0),
-            false,
             LiveServiceCount(1),
             listOf(LineId("victoria")),
             listOf(
@@ -311,7 +275,9 @@ class RealRailMapProjectorTest {
 
         expectThat(projected.lines).hasSize(1)
         expectThat(projected.stations).hasSize(3)
-        expectThat(projected.lines.first().paths.first().coordinates.size).isGreaterThan(3)
+        expectThat(projected.lines.first().paths.first().coordinates).isEqualTo(
+            lineMap.lines.first().paths.first().coordinates
+        )
         expectThat(projected.services).hasSize(1)
         expectThat(projected.services.first().coordinate).isEqualTo(GeoCoordinate(51.0, -0.2))
         expectThat(projected.services.first().heading).isNotNull()
@@ -321,8 +287,6 @@ class RealRailMapProjectorTest {
     fun `project leaves services unplotted when next stop is unknown even if a location coordinate exists`() {
         val snapshot = LiveRailSnapshot(
             Instant.parse("2026-03-22T00:49:20Z"),
-            StationFailureCount(0),
-            false,
             LiveServiceCount(1),
             listOf(LineId("victoria")),
             listOf(
@@ -400,8 +364,6 @@ class RealRailMapProjectorTest {
     fun `project anchors services at the next stop when the next stop is first in the sequence`() {
         val snapshot = LiveRailSnapshot(
             Instant.parse("2026-03-22T00:49:20Z"),
-            StationFailureCount(0),
-            false,
             LiveServiceCount(1),
             listOf(LineId("victoria")),
             listOf(
@@ -483,8 +445,6 @@ class RealRailMapProjectorTest {
     fun `project anchors services at the next stop even when direction is unknown`() {
         val snapshot = LiveRailSnapshot(
             Instant.parse("2026-03-22T00:49:20Z"),
-            StationFailureCount(0),
-            false,
             LiveServiceCount(1),
             listOf(LineId("victoria")),
             listOf(
@@ -566,8 +526,6 @@ class RealRailMapProjectorTest {
     fun `project includes configured map stations and excludes unsupported lines`() {
         val snapshot = LiveRailSnapshot(
             Instant.parse("2026-03-22T00:49:20Z"),
-            StationFailureCount(0),
-            false,
             LiveServiceCount(0),
             emptyList(),
             emptyList()
@@ -717,8 +675,6 @@ class RealRailMapProjectorTest {
     fun `project snaps station based services onto the closest branch of the selected line`() {
         val snapshot = LiveRailSnapshot(
             Instant.parse("2026-03-22T00:49:20Z"),
-            StationFailureCount(0),
-            false,
             LiveServiceCount(1),
             listOf(LineId("victoria")),
             listOf(
@@ -803,8 +759,6 @@ class RealRailMapProjectorTest {
     fun `project uses map projection for heading so diagonal services align with rendered paths`() {
         val snapshot = LiveRailSnapshot(
             Instant.parse("2026-03-22T00:49:20Z"),
-            StationFailureCount(0),
-            false,
             LiveServiceCount(1),
             listOf(LineId("victoria")),
             listOf(

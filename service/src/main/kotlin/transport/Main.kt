@@ -12,27 +12,11 @@ import kotlinx.coroutines.runBlocking
 
 fun main() {
     val transportServiceConfig = loadTransportServiceConfig(System.getenv())
-    val json = transportJson()
-    val serviceResponseMapper = ServiceResponseMapperHttp()
-    val httpClient = createTflHttpClient(transportServiceConfig.requestTimeout)
-    val railLinePathProjectionFactory: RailLinePathProjectionFactory = RealRailLinePathProjectionFactory()
-    val railLineProjectionFactory: RailLineProjectionFactory =
-        RealRailLineProjectionFactory(railLinePathProjectionFactory)
-    val services = createTransportServices(transportServiceConfig, json, httpClient)
-    val feedScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    val railMapMotionEngine: RailMapMotionEngine = RealRailMapMotionEngine(railLineProjectionFactory)
-    val railMapFeedService: RailMapFeedService =
-        RealRailMapFeedService(
-            services.railMapQuery,
-            railMapMotionEngine,
-            Clock.systemUTC(),
-            transportServiceConfig.railMapPollInterval,
-            feedScope
-        )
+    val transportRuntime = createTransportRuntime(transportServiceConfig)
 
     try {
         runBlocking {
-            railMapFeedService.start()
+            transportRuntime.railMapFeedService.start()
         }
 
         embeddedServer(
@@ -41,32 +25,45 @@ fun main() {
             host = transportServiceConfig.host,
             module = {
                 transportModule(
-                    railMapFeedService,
-                    serviceResponseMapper,
-                    json
+                    transportRuntime.railMapFeedService,
+                    transportRuntime.serviceResponseMapper,
+                    transportRuntime.transportJson
                 )
             }
         ).start(true)
     } finally {
-        feedScope.cancel()
-        httpClient.close()
+        transportRuntime.close()
     }
 }
 
-fun createRailSnapshotService(
-    transportServiceConfig: TransportServiceConfig,
-    json: kotlinx.serialization.json.Json
-): RailSnapshotService =
-    createTransportServices(
-        transportServiceConfig,
-        json,
-        createTflHttpClient(transportServiceConfig.requestTimeout)
-    ).railSnapshotService
+private fun createTransportRuntime(transportServiceConfig: TransportServiceConfig): TransportRuntime {
+    val transportJson = transportJson()
+    val serviceResponseMapper: ServiceResponseMapper = ServiceResponseMapperHttp()
+    val httpClient = createTflHttpClient(transportServiceConfig.requestTimeout)
+    val clock = Clock.systemUTC()
+    val services = createTransportServices(transportServiceConfig, transportJson, httpClient, clock)
+    val feedScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    return TransportRuntime(
+        httpClient,
+        feedScope,
+        RealRailMapFeedService(
+            services.railMapQuery,
+            createRailMapMotionEngine(),
+            clock,
+            transportServiceConfig.railMapPollInterval,
+            feedScope
+        ),
+        serviceResponseMapper,
+        transportJson
+    )
+}
 
 private fun createTransportServices(
     transportServiceConfig: TransportServiceConfig,
     json: kotlinx.serialization.json.Json,
-    httpClient: HttpClient
+    httpClient: HttpClient,
+    clock: Clock
 ): TransportServices =
     RailDataHttp(
         transportServiceConfig.toTflHttpClientConfig(),
@@ -79,17 +76,12 @@ private fun createTransportServices(
         val railLineMapRepository = RealRailLineMapRepository(railData, railLineGeometrySource)
         val railLocationEstimator = RealRailLocationEstimator()
         val railSnapshotAssembler = RealRailSnapshotAssembler(railLocationEstimator)
-        val railPathSmoother: RailPathSmoother = RealIdentityRailPathSmoother()
-        val railLinePathProjectionFactory: RailLinePathProjectionFactory = RealRailLinePathProjectionFactory()
-        val railLineProjectionFactory: RailLineProjectionFactory =
-            RealRailLineProjectionFactory(railLinePathProjectionFactory)
-        val railMapProjector = RealRailMapProjector(railPathSmoother, railLineProjectionFactory)
+        val railMapProjector = createRailMapProjector()
         val railSnapshotService = RealRailSnapshotService(
             railData,
             railMetadataRepository,
             railSnapshotAssembler,
-            Clock.systemUTC(),
-            transportServiceConfig.railSnapshotCacheTtl
+            clock
         )
         val railLineMapService = RealRailLineMapService(railLineMapRepository)
 
@@ -104,8 +96,30 @@ private fun createTransportServices(
         )
     }
 
+private fun createRailLineProjectionFactory(): RailLineProjectionFactory =
+    RealRailLineProjectionFactory(RealRailLinePathProjectionFactory())
+
+private fun createRailMapMotionEngine(): RailMapMotionEngine =
+    RealRailMapMotionEngine(createRailLineProjectionFactory())
+
+private fun createRailMapProjector(): RailMapProjector =
+    RealRailMapProjector(RealIdentityRailPathSmoother(), createRailLineProjectionFactory())
+
 private data class TransportServices(
     val railSnapshotService: RailSnapshotService,
     val railLineMapService: RailLineMapService,
     val railMapQuery: RailMapQuery
 )
+
+private data class TransportRuntime(
+    val httpClient: HttpClient,
+    val feedScope: CoroutineScope,
+    val railMapFeedService: RailMapFeedService,
+    val serviceResponseMapper: ServiceResponseMapper,
+    val transportJson: kotlinx.serialization.json.Json
+) {
+    fun close() {
+        feedScope.cancel()
+        httpClient.close()
+    }
+}

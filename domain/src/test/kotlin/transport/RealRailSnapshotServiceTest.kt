@@ -24,34 +24,33 @@ class RealRailSnapshotServiceTest {
         railData,
         railMetadataRepository,
         railSnapshotAssembler,
-        clock,
-        Duration.ofSeconds(20)
+        clock
     )
 
     @Test
-    fun `getLiveSnapshot uses the injected clock for generatedAt and refreshes after the cache ttl`() {
+    fun `refreshLiveSnapshot uses the injected clock for generatedAt on each refresh`() {
         runBlocking {
             railData.returnsPredictions(TransportModeName("tube"), samplePredictions())
             railMetadataRepository.returns(railNetwork)
 
-            val first = snapshotService.getLiveSnapshot(false)
+            val first = snapshotService.refreshLiveSnapshot()
             clock.advanceBy(Duration.ofSeconds(19))
-            val cached = snapshotService.getLiveSnapshot(false)
+            val refreshed = snapshotService.refreshLiveSnapshot()
             clock.advanceBy(Duration.ofSeconds(2))
-            val refreshed = snapshotService.getLiveSnapshot(false)
+            val refreshedAgain = snapshotService.refreshLiveSnapshot()
 
             expectThat(first).isSuccess().get { generatedAt }.isEqualTo(initialInstant)
-            expectThat(cached).isSuccess().get { generatedAt }.isEqualTo(initialInstant)
-            expectThat(refreshed).isSuccess().get { generatedAt }.isEqualTo(initialInstant.plusSeconds(21))
+            expectThat(refreshed).isSuccess().get { generatedAt }.isEqualTo(initialInstant.plusSeconds(19))
+            expectThat(refreshedAgain).isSuccess().get { generatedAt }.isEqualTo(initialInstant.plusSeconds(21))
             expectThat(railSnapshotAssembler.requests.map(AssembleRequest::generatedAt)).isEqualTo(
-                listOf(initialInstant, initialInstant.plusSeconds(21))
+                listOf(initialInstant, initialInstant.plusSeconds(19), initialInstant.plusSeconds(21))
             )
-            expectThat(railData.predictionRequests.size).isEqualTo(supportedRailModes.size * 2)
+            expectThat(railData.predictionRequests.size).isEqualTo(supportedRailModes.size * 3)
         }
     }
 
     @Test
-    fun `getLiveSnapshot falls back to cached snapshot on refresh failure`() {
+    fun `refreshLiveSnapshot falls back to cached snapshot on refresh failure`() {
         runBlocking {
             railData.thenReturnsPredictions(TransportModeName("tube"), samplePredictions())
             railData.thenFailsPredictions(
@@ -60,9 +59,9 @@ class RealRailSnapshotServiceTest {
             )
             railMetadataRepository.returns(railNetwork)
 
-            expectThat(snapshotService.getLiveSnapshot(false)).isSuccess()
+            expectThat(snapshotService.refreshLiveSnapshot()).isSuccess()
 
-            val refreshed = snapshotService.getLiveSnapshot(true)
+            val refreshed = snapshotService.refreshLiveSnapshot()
 
             expectThat(refreshed).isSuccess().get { generatedAt }.isEqualTo(initialInstant)
             expectThat(railSnapshotAssembler.requests.size).isEqualTo(1)
@@ -70,7 +69,7 @@ class RealRailSnapshotServiceTest {
     }
 
     @Test
-    fun `getLiveSnapshot returns failure when the bulk tube feed fails`() {
+    fun `refreshLiveSnapshot returns failure when the bulk tube feed fails`() {
         runBlocking {
             railData.failsPredictions(
                 TransportModeName("tube"),
@@ -78,7 +77,7 @@ class RealRailSnapshotServiceTest {
             )
             railMetadataRepository.returns(railNetwork)
 
-            val result = snapshotService.getLiveSnapshot(false)
+            val result = snapshotService.refreshLiveSnapshot()
 
             expectThat(result).isFailure().isA<TransportError.SnapshotUnavailable>()
         }

@@ -35,8 +35,6 @@ class RealRailMapMotionEngine(
 
             RailMapSnapshot(
                 snapshot.generatedAt,
-                snapshot.stationsFailed,
-                snapshot.partial,
                 snapshot.serviceCount,
                 snapshot.lines,
                 snapshot.stations,

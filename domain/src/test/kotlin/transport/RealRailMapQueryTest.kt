@@ -15,12 +15,12 @@ class RealRailMapQueryTest {
     private val service = RealRailMapQuery(railSnapshotService, railLineMapService, railMapProjector)
 
     @Test
-    fun `getRailMap combines snapshot and line geometry`() {
+    fun `refreshRailMap combines snapshot and line geometry`() {
         runBlocking {
             railSnapshotService.returns(sampleSnapshot())
             railLineMapService.returns(sampleLineMap())
 
-            val result = service.getRailMap(true)
+            val result = service.refreshRailMap()
 
             expectThat(result).isSuccess().get { lines }.hasSize(1)
             expectThat(result).isSuccess().get { services }.hasSize(1)
@@ -28,12 +28,12 @@ class RealRailMapQueryTest {
     }
 
     @Test
-    fun `getRailMap returns snapshot failures unchanged`() {
+    fun `refreshRailMap returns snapshot failures unchanged`() {
         runBlocking {
             railSnapshotService.failsWith(TransportError.SnapshotUnavailable("TfL unavailable"))
             railLineMapService.returns(sampleLineMap())
 
-            val result = service.getRailMap(true)
+            val result = service.refreshRailMap()
 
             expectThat(result).isFailure().isA<TransportError.SnapshotUnavailable>()
         }
@@ -42,8 +42,6 @@ class RealRailMapQueryTest {
     private fun sampleSnapshot() =
         LiveRailSnapshot(
             Instant.parse("2026-03-22T00:49:20Z"),
-            StationFailureCount(0),
-            false,
             LiveServiceCount(1),
             listOf(LineId("victoria")),
             listOf(

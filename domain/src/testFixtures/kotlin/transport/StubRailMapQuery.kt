@@ -6,31 +6,17 @@ import dev.forkhandles.result4k.Success
 class StubRailMapQuery : RailMapQuery {
     private var defaultResult: TransportResult<RailMapSnapshot> =
         Failure(TransportError.SnapshotUnavailable("No canned rail map snapshot."))
-    private val resultsByRefresh = mutableMapOf<Boolean, TransportResult<RailMapSnapshot>>()
     private val queuedResults = mutableListOf<TransportResult<RailMapSnapshot>>()
 
-    val refreshRequests = mutableListOf<Boolean>()
+    var refreshRequests = 0
+        private set
 
     fun returns(snapshot: RailMapSnapshot) {
         defaultResult = Success(snapshot)
     }
 
-    fun returns(
-        forceRefresh: Boolean,
-        snapshot: RailMapSnapshot
-    ) {
-        resultsByRefresh[forceRefresh] = Success(snapshot)
-    }
-
     fun failsWith(error: TransportError) {
         defaultResult = Failure(error)
-    }
-
-    fun failsWith(
-        forceRefresh: Boolean,
-        error: TransportError
-    ) {
-        resultsByRefresh[forceRefresh] = Failure(error)
     }
 
     fun thenReturns(snapshot: RailMapSnapshot) {
@@ -41,13 +27,12 @@ class StubRailMapQuery : RailMapQuery {
         queuedResults += Failure(error)
     }
 
-    override suspend fun getRailMap(forceRefresh: Boolean) =
+    override suspend fun refreshRailMap() =
         run {
-            refreshRequests += forceRefresh
+            refreshRequests += 1
             queuedResults
                 .takeIf { cannedResults -> cannedResults.isNotEmpty() }
                 ?.let(::consumeQueuedResult)
-                ?: resultsByRefresh[forceRefresh]
                 ?: defaultResult
         }
 

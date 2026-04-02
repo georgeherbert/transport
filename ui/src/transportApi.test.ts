@@ -6,8 +6,6 @@ import { railMapDynamicStateFromUnknown, railMapSnapshotFromUnknown, transportEr
 test('railMapSnapshotFromUnknown accepts a valid snapshot payload', () => {
   const payload = {
     generatedAt: '2026-03-29T12:00:00Z',
-    stationsFailed: 0,
-    partial: false,
     serviceCount: 1,
     lines: [
       {
@@ -77,8 +75,6 @@ test('railMapSnapshotFromUnknown accepts a valid snapshot payload', () => {
 test('railMapDynamicStateFromUnknown rejects payloads without services', () => {
   const invalidPayload = {
     generatedAt: '2026-03-29T12:00:00Z',
-    stationsFailed: 0,
-    partial: false,
     serviceCount: 1,
     stations: []
   }

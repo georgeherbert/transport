@@ -11,8 +11,6 @@ data class ApiErrorJson(
 @Serializable
 data class RailMapSnapshotJson(
     val generatedAt: String,
-    val stationsFailed: Int,
-    val partial: Boolean,
     val serviceCount: Int,
     val lines: List<RailLineJson>,
     val stations: List<MapStationJson>,
@@ -22,8 +20,6 @@ data class RailMapSnapshotJson(
 @Serializable
 data class RailMapServicePositionsJson(
     val generatedAt: String,
-    val stationsFailed: Int,
-    val partial: Boolean,
     val serviceCount: Int,
     val stations: List<MapStationJson>,
     val services: List<RailMapServiceJson>

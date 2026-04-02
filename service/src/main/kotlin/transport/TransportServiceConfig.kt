@@ -5,7 +5,6 @@ import java.time.Duration
 data class TransportServiceConfig(
     val host: String,
     val port: Int,
-    val railSnapshotCacheTtl: Duration,
     val railMapPollInterval: Duration,
     val requestTimeout: Duration,
     val tflBaseUrl: String,
@@ -16,7 +15,6 @@ fun loadTransportServiceConfig(environment: Map<String, String>) =
     TransportServiceConfig(
         ConfigValues.host,
         ConfigValues.port,
-        ConfigValues.railSnapshotCacheTtl,
         ConfigValues.railMapPollInterval,
         ConfigValues.tflRequestTimeout,
         ConfigValues.tflBaseUrl,

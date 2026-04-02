@@ -35,8 +35,6 @@ class StubRailMapProjector : RailMapProjector {
     private fun defaultProjection(request: ProjectRequest) =
         RailMapSnapshot(
             request.snapshot.generatedAt,
-            request.snapshot.stationsFailed,
-            request.snapshot.partial,
             request.snapshot.serviceCount,
             request.lineMap.lines,
             emptyList(),

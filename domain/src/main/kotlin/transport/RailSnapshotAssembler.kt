@@ -6,8 +6,7 @@ interface RailSnapshotAssembler {
     fun assemble(
         railNetwork: RailNetwork,
         predictions: List<RailPredictionRecord>,
-        generatedAt: Instant,
-        stationsFailed: StationFailureCount
+        generatedAt: Instant
     ): LiveRailSnapshot
 }
 
@@ -17,8 +16,7 @@ class RealRailSnapshotAssembler(
     override fun assemble(
         railNetwork: RailNetwork,
         predictions: List<RailPredictionRecord>,
-        generatedAt: Instant,
-        stationsFailed: StationFailureCount
+        generatedAt: Instant
     ): LiveRailSnapshot =
         predictions
             .filter(::isSupportedPrediction)
@@ -35,8 +33,6 @@ class RealRailSnapshotAssembler(
             .let { services ->
                 LiveRailSnapshot(
                     generatedAt,
-                    stationsFailed,
-                    stationsFailed.value > 0,
                     LiveServiceCount(services.size),
                     supportedRailLineIds,
                     services

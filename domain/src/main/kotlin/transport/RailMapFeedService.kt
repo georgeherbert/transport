@@ -20,7 +20,7 @@ import kotlinx.coroutines.sync.withLock
 
 interface RailMapFeedService {
     suspend fun start()
-    suspend fun getRailMap(forceRefresh: Boolean): TransportResult<RailMapSnapshot>
+    suspend fun getRailMap(): TransportResult<RailMapSnapshot>
     fun currentError(): TransportError?
     fun updates(): Flow<RailMapFeedUpdate>
 }
@@ -67,12 +67,8 @@ class RealRailMapFeedService(
         }
     }
 
-    override suspend fun getRailMap(forceRefresh: Boolean) =
+    override suspend fun getRailMap() =
         run {
-            if (forceRefresh) {
-                refreshIfDue()
-            }
-
             cachedSnapshot.get()?.let { cached ->
                 Success(cached.toSnapshot(railMapMotionEngine, clock.instant()))
             } ?: latestError.get()?.let { error ->
@@ -91,21 +87,25 @@ class RealRailMapFeedService(
             val now = clock.instant()
             val lastAttempt = lastRefreshAttemptAt.get()
             if (lastAttempt == null || Duration.between(lastAttempt, now) >= pollInterval) {
-                lastRefreshAttemptAt.set(now)
+                refreshLocked(now)
+            }
+        }
+    }
 
-                when (val mapResult = railMapProvider.getRailMap(true)) {
-                    is Success -> {
-                        val observedSnapshot = railMapMotionEngine.observe(mapResult.value)
-                        val cached = CachedRailMapSnapshot(observedSnapshot)
-                        cachedSnapshot.set(cached)
-                        latestError.set(null)
-                        updateFlow.tryEmit(RailMapFeedUpdate.SnapshotUpdated(observedSnapshot))
-                    }
-                    is Failure -> {
-                        latestError.set(mapResult.reason)
-                        updateFlow.tryEmit(RailMapFeedUpdate.ErrorUpdated(mapResult.reason))
-                    }
-                }
+    private suspend fun refreshLocked(now: Instant) {
+        lastRefreshAttemptAt.set(now)
+
+        when (val mapResult = railMapProvider.refreshRailMap()) {
+            is Success -> {
+                val observedSnapshot = railMapMotionEngine.observe(mapResult.value)
+                val cached = CachedRailMapSnapshot(observedSnapshot)
+                cachedSnapshot.set(cached)
+                latestError.set(null)
+                updateFlow.tryEmit(RailMapFeedUpdate.SnapshotUpdated(observedSnapshot))
+            }
+            is Failure -> {
+                latestError.set(mapResult.reason)
+                updateFlow.tryEmit(RailMapFeedUpdate.ErrorUpdated(mapResult.reason))
             }
         }
     }
@@ -143,8 +143,6 @@ data class CachedRailMapSnapshot(
     fun toServicePositions(animatedSnapshot: RailMapSnapshot) =
         RailMapServicePositions(
             animatedSnapshot.generatedAt,
-            animatedSnapshot.stationsFailed,
-            animatedSnapshot.partial,
             animatedSnapshot.serviceCount,
             animatedSnapshot.stations,
             animatedSnapshot.services

@@ -6,31 +6,17 @@ import dev.forkhandles.result4k.Success
 class StubRailSnapshotService : RailSnapshotService {
     private var defaultResult: TransportResult<LiveRailSnapshot> =
         Failure(TransportError.SnapshotUnavailable("No canned live rail snapshot."))
-    private val resultsByRefresh = mutableMapOf<Boolean, TransportResult<LiveRailSnapshot>>()
     private val queuedResults = mutableListOf<TransportResult<LiveRailSnapshot>>()
 
-    val refreshRequests = mutableListOf<Boolean>()
+    var refreshRequests = 0
+        private set
 
     fun returns(snapshot: LiveRailSnapshot) {
         defaultResult = Success(snapshot)
     }
 
-    fun returns(
-        forceRefresh: Boolean,
-        snapshot: LiveRailSnapshot
-    ) {
-        resultsByRefresh[forceRefresh] = Success(snapshot)
-    }
-
     fun failsWith(error: TransportError) {
         defaultResult = Failure(error)
-    }
-
-    fun failsWith(
-        forceRefresh: Boolean,
-        error: TransportError
-    ) {
-        resultsByRefresh[forceRefresh] = Failure(error)
     }
 
     fun thenReturns(snapshot: LiveRailSnapshot) {
@@ -41,13 +27,12 @@ class StubRailSnapshotService : RailSnapshotService {
         queuedResults += Failure(error)
     }
 
-    override suspend fun getLiveSnapshot(forceRefresh: Boolean) =
+    override suspend fun refreshLiveSnapshot() =
         run {
-            refreshRequests += forceRefresh
+            refreshRequests += 1
             queuedResults
                 .takeIf { cannedResults -> cannedResults.isNotEmpty() }
                 ?.let(::consumeQueuedResult)
-                ?: resultsByRefresh[forceRefresh]
                 ?: defaultResult
         }
 

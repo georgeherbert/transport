@@ -4,8 +4,6 @@ import java.time.Instant
 
 data class LiveRailSnapshot(
     val generatedAt: Instant,
-    val stationsFailed: StationFailureCount,
-    val partial: Boolean,
     val serviceCount: LiveServiceCount,
     val lines: List<LineId>,
     val services: List<LiveRailService>
@@ -13,8 +11,6 @@ data class LiveRailSnapshot(
 
 data class RailMapSnapshot(
     val generatedAt: Instant,
-    val stationsFailed: StationFailureCount,
-    val partial: Boolean,
     val serviceCount: LiveServiceCount,
     val lines: List<RailLine>,
     val stations: List<MapStation>,
@@ -23,8 +19,6 @@ data class RailMapSnapshot(
 
 data class RailMapServicePositions(
     val generatedAt: Instant,
-    val stationsFailed: StationFailureCount,
-    val partial: Boolean,
     val serviceCount: LiveServiceCount,
     val stations: List<MapStation>,
     val services: List<RailMapService>

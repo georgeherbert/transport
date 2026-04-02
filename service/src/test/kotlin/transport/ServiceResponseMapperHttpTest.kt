@@ -18,8 +18,6 @@ class ServiceResponseMapperHttpTest {
         val response = serviceResponseMapper.mapResponse(
             RailMapSnapshot(
                 Instant.parse("2026-03-22T00:49:20Z"),
-                StationFailureCount(0),
-                false,
                 LiveServiceCount(1),
                 listOf(
                     RailLine(
@@ -98,8 +96,6 @@ class ServiceResponseMapperHttpTest {
         val response = serviceResponseMapper.servicePositionsResponse(
             RailMapServicePositions(
                 Instant.parse("2026-03-22T00:49:20Z"),
-                StationFailureCount(0),
-                false,
                 LiveServiceCount(1),
                 listOf(
                     MapStation(

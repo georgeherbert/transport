@@ -53,7 +53,7 @@ private suspend fun io.ktor.server.application.ApplicationCall.respondMap(
     railMapFeedService: RailMapFeedService,
     serviceResponseMapper: ServiceResponseMapper
 ) =
-    when (val mapResult = railMapFeedService.getRailMap(false)) {
+    when (val mapResult = railMapFeedService.getRailMap()) {
         is Success -> respond(serviceResponseMapper.mapResponse(mapResult.value))
         is Failure -> respond(
             httpStatus(mapResult.reason),
@@ -70,7 +70,7 @@ private suspend fun io.ktor.server.application.ApplicationCall.respondMapStream(
         write("retry: 5000\n\n")
         flush()
 
-        when (val currentSnapshot = railMapFeedService.getRailMap(false)) {
+        when (val currentSnapshot = railMapFeedService.getRailMap()) {
             is Success -> {
                 writeSseEvent(
                     "snapshot",

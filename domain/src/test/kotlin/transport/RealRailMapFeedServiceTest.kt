@@ -26,13 +26,13 @@ class RealRailMapFeedServiceTest {
     @Test
     fun `start polls immediately and serves the cached snapshot`() =
         runTest {
-            railMapQuery.returns(true, sampleRailMapSnapshot(clock.instant(), true))
+            railMapQuery.returns(sampleRailMapSnapshot(clock.instant()))
             val railMapFeedService = railMapFeedService(backgroundScope)
 
             railMapFeedService.start()
-            val result = railMapFeedService.getRailMap(false)
+            val result = railMapFeedService.getRailMap()
 
-            expectThat(railMapQuery.refreshRequests.toList()).isEqualTo(listOf(true))
+            expectThat(railMapQuery.refreshRequests).isEqualTo(1)
             expectThat(result).isSuccess().get { generatedAt }.isEqualTo(clock.instant())
             expectThat(railMapMotionEngine.advanceRequests.last().currentTime).isEqualTo(clock.instant())
         }
@@ -40,7 +40,7 @@ class RealRailMapFeedServiceTest {
     @Test
     fun `failed poll emits an error update and preserves the last cached snapshot`() =
         runTest {
-            railMapQuery.thenReturns(sampleRailMapSnapshot(clock.instant(), true))
+            railMapQuery.thenReturns(sampleRailMapSnapshot(clock.instant()))
             railMapQuery.thenFailsWith(TransportError.UpstreamHttpFailure("/Mode/tube/Arrivals", 503, "down"))
             val railMapFeedService = railMapFeedService(backgroundScope)
 
@@ -52,7 +52,7 @@ class RealRailMapFeedServiceTest {
             advanceTimeBy(Duration.ofSeconds(20).toMillis())
             advanceUntilIdle()
 
-            val result = railMapFeedService.getRailMap(false)
+            val result = railMapFeedService.getRailMap()
 
             expectThat(errorUpdate.await()).isA<RailMapFeedUpdate.ErrorUpdated>()
             expectThat(result).isSuccess().get { generatedAt }.isEqualTo(generatedAt)
@@ -64,7 +64,7 @@ class RealRailMapFeedServiceTest {
     @Test
     fun `animation ticks emit service-only updates`() =
         runTest {
-            val initialSnapshot = sampleRailMapSnapshot(generatedAt, false)
+            val initialSnapshot = sampleRailMapSnapshot(generatedAt)
             val animatedSnapshot = initialSnapshot.copy(
                 services = initialSnapshot.services.map { service ->
                     service.copy(
@@ -73,7 +73,7 @@ class RealRailMapFeedServiceTest {
                     )
                 }
             )
-            railMapQuery.returns(true, sampleRailMapSnapshot(generatedAt, true))
+            railMapQuery.returns(sampleRailMapSnapshot(generatedAt))
             railMapMotionEngine.advanceReturnsAfter(generatedAt, animatedSnapshot)
             val railMapFeedService = railMapFeedService(backgroundScope)
 
@@ -109,23 +109,6 @@ class RealRailMapFeedServiceTest {
             expectThat(railMapMotionEngine.advanceRequests.last().currentTime).isEqualTo(clock.instant())
         }
 
-    @Test
-    fun `force refresh requests are throttled to the poll interval`() =
-        runTest {
-            railMapQuery.returns(true, sampleRailMapSnapshot(clock.instant(), true))
-            val railMapFeedService = railMapFeedService(backgroundScope)
-
-            railMapFeedService.start()
-            railMapFeedService.getRailMap(true)
-
-            expectThat(railMapQuery.refreshRequests.toList()).isEqualTo(listOf(true))
-
-            clock.advanceBy(Duration.ofSeconds(20))
-            railMapFeedService.getRailMap(true)
-
-            expectThat(railMapQuery.refreshRequests.toList()).isEqualTo(listOf(true, true))
-        }
-
     private fun railMapFeedService(coroutineScope: CoroutineScope): RailMapFeedService =
         RealRailMapFeedService(
             railMapQuery,
@@ -135,14 +118,9 @@ class RealRailMapFeedServiceTest {
             coroutineScope
         )
 
-    private fun sampleRailMapSnapshot(
-        generatedAt: Instant,
-        cached: Boolean
-    ) =
+    private fun sampleRailMapSnapshot(generatedAt: Instant) =
         RailMapSnapshot(
             generatedAt,
-            StationFailureCount(0),
-            false,
             LiveServiceCount(1),
             listOf(
                 RailLine(

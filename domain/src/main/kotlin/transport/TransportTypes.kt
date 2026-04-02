@@ -46,9 +46,6 @@ value class LocationDescription(val value: String)
 value class TransportModeName(val value: String)
 
 @JvmInline
-value class StationFailureCount(val value: Int)
-
-@JvmInline
 value class LiveServiceCount(val value: Int)
 
 @JvmInline

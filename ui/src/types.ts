@@ -52,8 +52,6 @@ export interface RailStation {
 
 export interface RailMapDynamicState {
   generatedAt: string
-  stationsFailed: number
-  partial: boolean
   serviceCount: number
   stations: RailStation[]
   services: RailService[]

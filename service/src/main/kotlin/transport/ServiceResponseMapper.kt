@@ -10,8 +10,6 @@ class ServiceResponseMapperHttp : ServiceResponseMapper {
     override fun mapResponse(mapSnapshot: RailMapSnapshot) =
         RailMapSnapshotJson(
             mapSnapshot.generatedAt.toString(),
-            mapSnapshot.stationsFailed.value,
-            mapSnapshot.partial,
             mapSnapshot.serviceCount.value,
             mapSnapshot.lines.map(::lineJson),
             mapSnapshot.stations.map(::mapStationJson),
@@ -21,8 +19,6 @@ class ServiceResponseMapperHttp : ServiceResponseMapper {
     override fun servicePositionsResponse(servicePositions: RailMapServicePositions) =
         RailMapServicePositionsJson(
             servicePositions.generatedAt.toString(),
-            servicePositions.stationsFailed.value,
-            servicePositions.partial,
             servicePositions.serviceCount.value,
             servicePositions.stations.map(::mapStationJson),
             servicePositions.services.map(::mapServiceJson)

@@ -20,7 +20,6 @@ class TransportServiceConfigTest {
         expectThat(config.host).isEqualTo(ConfigValues.host)
         expectThat(config.port).isEqualTo(ConfigValues.port)
         expectThat(config.railMapPollInterval).isEqualTo(ConfigValues.railMapPollInterval)
-        expectThat(config.railSnapshotCacheTtl).isEqualTo(ConfigValues.railSnapshotCacheTtl)
         expectThat(config.requestTimeout).isEqualTo(ConfigValues.tflRequestTimeout)
         expectThat(config.tflBaseUrl).isEqualTo(ConfigValues.tflBaseUrl)
     }

@@ -58,8 +58,7 @@ class RealRailSnapshotAssemblerTest {
         val snapshot = assembler.assemble(
             railNetwork,
             predictions,
-            Instant.parse("2026-03-22T00:49:20Z"),
-            StationFailureCount(0)
+            Instant.parse("2026-03-22T00:49:20Z")
         )
 
         expectThat(snapshot.services).hasSize(1)
@@ -105,8 +104,7 @@ class RealRailSnapshotAssemblerTest {
         val snapshot = assembler.assemble(
             railNetwork,
             predictions,
-            Instant.parse("2026-03-22T00:49:20Z"),
-            StationFailureCount(0)
+            Instant.parse("2026-03-22T00:49:20Z")
         )
 
         expectThat(snapshot.services).hasSize(2)
@@ -152,8 +150,7 @@ class RealRailSnapshotAssemblerTest {
         val snapshot = assembler.assemble(
             railNetwork,
             predictions,
-            Instant.parse("2026-03-22T00:49:20Z"),
-            StationFailureCount(0)
+            Instant.parse("2026-03-22T00:49:20Z")
         )
 
         expectThat(snapshot.services).hasSize(2)
@@ -184,8 +181,7 @@ class RealRailSnapshotAssemblerTest {
                     TransportModeName("tube")
                 )
             ),
-            Instant.parse("2026-03-22T00:49:50Z"),
-            StationFailureCount(0)
+            Instant.parse("2026-03-22T00:49:50Z")
         )
 
         expectThat(snapshot.services).hasSize(1)
@@ -211,8 +207,7 @@ class RealRailSnapshotAssemblerTest {
                     TransportModeName("elizabeth-line")
                 )
             ),
-            Instant.parse("2026-03-22T16:00:30Z"),
-            StationFailureCount(0)
+            Instant.parse("2026-03-22T16:00:30Z")
         )
 
         expectThat(snapshot.services).hasSize(1)
@@ -240,8 +235,7 @@ class RealRailSnapshotAssemblerTest {
                     TransportModeName("tram")
                 )
             ),
-            Instant.parse("2026-03-22T16:31:56Z"),
-            StationFailureCount(0)
+            Instant.parse("2026-03-22T16:31:56Z")
         )
 
         expectThat(snapshot.services).hasSize(1)

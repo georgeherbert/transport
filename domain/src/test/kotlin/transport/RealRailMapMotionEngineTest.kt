@@ -100,8 +100,6 @@ class RealRailMapMotionEngineTest {
     ) =
         RailMapSnapshot(
             generatedAt,
-            StationFailureCount(0),
-            false,
             LiveServiceCount(1),
             listOf(sampleLine()),
             listOf(

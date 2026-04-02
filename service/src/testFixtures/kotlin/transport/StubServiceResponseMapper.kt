@@ -45,8 +45,6 @@ class StubServiceResponseMapper : ServiceResponseMapper {
     private fun defaultMapResponse(mapSnapshot: RailMapSnapshot) =
         RailMapSnapshotJson(
             mapSnapshot.generatedAt.toString(),
-            mapSnapshot.stationsFailed.value,
-            mapSnapshot.partial,
             mapSnapshot.serviceCount.value,
             mapSnapshot.lines.map { line ->
                 RailLineJson(
@@ -76,8 +74,6 @@ class StubServiceResponseMapper : ServiceResponseMapper {
     private fun defaultServicePositionsResponse(servicePositions: RailMapServicePositions) =
         RailMapServicePositionsJson(
             servicePositions.generatedAt.toString(),
-            servicePositions.stationsFailed.value,
-            servicePositions.partial,
             servicePositions.serviceCount.value,
             servicePositions.stations.map { station ->
                 MapStationJson(

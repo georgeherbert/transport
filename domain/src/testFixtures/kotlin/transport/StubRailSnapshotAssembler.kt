@@ -19,11 +19,10 @@ class StubRailSnapshotAssembler : RailSnapshotAssembler {
     override fun assemble(
         railNetwork: RailNetwork,
         predictions: List<RailPredictionRecord>,
-        generatedAt: Instant,
-        stationsFailed: StationFailureCount
+        generatedAt: Instant
     ) =
         run {
-            val request = AssembleRequest(railNetwork, predictions, generatedAt, stationsFailed)
+            val request = AssembleRequest(railNetwork, predictions, generatedAt)
             requests += request
             queuedSnapshots
                 .takeIf { cannedSnapshots -> cannedSnapshots.isNotEmpty() }
@@ -42,8 +41,6 @@ class StubRailSnapshotAssembler : RailSnapshotAssembler {
     private fun defaultSnapshot(request: AssembleRequest) =
         LiveRailSnapshot(
             request.generatedAt,
-            request.stationsFailed,
-            request.stationsFailed.value > 0,
             LiveServiceCount(request.predictions.size),
             supportedRailLineIds,
             emptyList()
@@ -53,6 +50,5 @@ class StubRailSnapshotAssembler : RailSnapshotAssembler {
 data class AssembleRequest(
     val railNetwork: RailNetwork,
     val predictions: List<RailPredictionRecord>,
-    val generatedAt: Instant,
-    val stationsFailed: StationFailureCount
+    val generatedAt: Instant
 )

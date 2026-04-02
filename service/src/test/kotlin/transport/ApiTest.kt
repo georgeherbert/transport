@@ -28,7 +28,7 @@ class ApiTest {
     @Test
     fun `root serves the react app shell`() {
         testApplication {
-            railMapFeedService.returns(sampleMap(true))
+            railMapFeedService.returns(sampleMap())
 
             application {
                 transportModule(
@@ -48,7 +48,7 @@ class ApiTest {
     @Test
     fun `api only exposes frontend routes`() {
         testApplication {
-            railMapFeedService.returns(sampleMap(true))
+            railMapFeedService.returns(sampleMap())
 
             application {
                 transportModule(
@@ -96,7 +96,7 @@ class ApiTest {
     @Test
     fun `api returns cached projected rail map payload`() {
         testApplication {
-            railMapFeedService.returns(sampleMap(true))
+            railMapFeedService.returns(sampleMap())
 
             application {
                 transportModule(
@@ -120,7 +120,7 @@ class ApiTest {
     @Test
     fun `api streams the current cached rail map snapshot`() {
         testApplication {
-            railMapFeedService.returns(sampleMap(true))
+            railMapFeedService.returns(sampleMap())
 
             application {
                 transportModule(
@@ -178,7 +178,7 @@ class ApiTest {
     @Test
     fun `api streams dynamic rail state updates after the initial snapshot`() {
         testApplication {
-            railMapFeedService.returns(sampleMap(true))
+            railMapFeedService.returns(sampleMap())
             railMapFeedService.emitsUpdates(
                 flowOf(
                     RailMapFeedUpdate.ServicePositionsUpdated(sampleServicePositions())
@@ -242,11 +242,9 @@ class ApiTest {
             .filter { line -> line.startsWith("data: ") }
             .joinToString("\n") { line -> line.removePrefix("data: ") }
 
-    private fun sampleMap(forceRefresh: Boolean) =
+    private fun sampleMap() =
         RailMapSnapshot(
             Instant.parse("2026-03-22T00:49:20Z"),
-            StationFailureCount(0),
-            false,
             LiveServiceCount(1),
             listOf(
                 RailLine(
@@ -310,10 +308,8 @@ class ApiTest {
     private fun sampleServicePositions() =
         RailMapServicePositions(
             Instant.parse("2026-03-22T00:49:20Z"),
-            StationFailureCount(0),
-            false,
             LiveServiceCount(1),
-            sampleMap(true).stations,
-            sampleMap(true).services
+            sampleMap().stations,
+            sampleMap().services
         )
 }

@@ -48,8 +48,6 @@ function isRailMapDynamicState(value: unknown): value is RailMapDynamicState {
   return (
     isRecord(value) &&
     isString(value.generatedAt) &&
-    isFiniteNumber(value.stationsFailed) &&
-    isBoolean(value.partial) &&
     isFiniteNumber(value.serviceCount) &&
     isArrayOf(value.stations, isRailStation) &&
     isArrayOf(value.services, isRailService)
@@ -127,10 +125,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isString(value: unknown): value is string {
   return typeof value === 'string'
-}
-
-function isBoolean(value: unknown): value is boolean {
-  return typeof value === 'boolean'
 }
 
 function isFiniteNumber(value: unknown): value is number {
